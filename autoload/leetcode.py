@@ -1,6 +1,7 @@
 import json
+import logging
 import time
-from threading import Semaphore, Thread
+from threading import Semaphore, Thread, current_thread
 
 try:
     from bs4 import BeautifulSoup
@@ -36,6 +37,16 @@ task_input = None
 task_progress = ''
 task_output = None
 task_err = ''
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.ERROR)
+
+def enable_logging():
+    out_hdlr = logging.FileHandler('leetcode-vim.log')
+    out_hdlr.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+    out_hdlr.setLevel(logging.INFO)
+    log.addHandler(out_hdlr)
+    log.setLevel(logging.INFO)
 
 
 def _make_headers():
@@ -111,7 +122,7 @@ def signin(username, password):
     session = requests.Session()
     res = session.get(LC_LOGIN)
     if res.status_code != 200:
-        print('cannot open ' + LC_LOGIN)
+        _echoerr('cannot open ' + LC_LOGIN)
         return False
 
     headers = {'Origin': LC_BASE,
@@ -119,11 +130,13 @@ def signin(username, password):
     form = {'csrfmiddlewaretoken': session.cookies['csrftoken'],
             'login': username,
             'password': password}
+    log.info('signin request: headers="%s" login="%s"', headers, username)
     # requests follows the redirect url by default
     # disable redirection explicitly
     res = session.post(LC_LOGIN, data=form, headers=headers, allow_redirects=False)
+    log.info('signin response: status="%s" body="%s"', res.status_code, res.text)
     if res.status_code != 302:
-        print('password incorrect')
+        _echoerr('password incorrect')
         return False
     return True
 
@@ -133,7 +146,7 @@ def _get_category_problems(category):
     url = LC_CATEGORY_PROBLEMS.format(category=category)
     res = session.get(url, headers=headers)
     if res.status_code != 200:
-        print('cannot get the category: {}'.format(category))
+        _echoerr('cannot get the category: {}'.format(category))
         return []
 
     problems = []
@@ -183,16 +196,16 @@ def get_problem(slug):
 }''',
             'variables': {'titleSlug': slug},
             'operationName': 'getQuestionDetail'}
+    log.info('get_problem request: url="%s" headers="%s" body="%s"', LC_GRAPHQL, headers, body)
     res = session.post(LC_GRAPHQL, json=body, headers=headers)
+    log.info('get_problem response: status="%s" body="%s"', res.status_code, res.text)
     if res.status_code != 200:
-        print('cannot get the problem: {}'.format(slug))
-        print(res.text)
+        _echoerr('cannot get the problem: {}'.format(slug))
         return None
 
     q = res.json()['data']['question']
     if q is None:
-        print('cannot get the problem: {}'.format(slug))
-        print(res.text)
+        _echoerr('cannot get the problem: {}'.format(slug))
         return None
 
     soup = BeautifulSoup(q['translatedContent'] or q['content'], features='html.parser')
@@ -223,24 +236,24 @@ def _split(s):
     return s.split('\n')
 
 
-def _check_result(submission_id, in_task):
-    global task_progress, task_err
-    if in_task:
+def _check_result(submission_id):
+    global task_progress
+    if _in_task():
         prog_stage = 'Uploading '
         prog_bar = '.'
         task_progress = prog_stage + prog_bar
 
     while True:
         headers = _make_headers()
-        res = session.get(LC_CHECK.format(submission=submission_id), headers=headers)
+        url = LC_CHECK.format(submission=submission_id)
+        log.info('check result request: url="%s" headers="%s"', url, headers)
+        res = session.get(url, headers=headers)
+        log.info('check result response: status="%s" body="%s"', res.status_code, res.text)
         if res.status_code != 200:
-            if in_task:
-                task_err = 'cannot get the execution result'
-            else:
-                print('cannot get the execution result')
+            _echoerr('cannot get the execution result')
             return None
 
-        if in_task:
+        if _in_task():
             prog_bar += '.'
 
         r = res.json()
@@ -251,7 +264,7 @@ def _check_result(submission_id, in_task):
             prog_stage = 'Pending   '
         elif r['state'] == 'STARTED':
             prog_stage = 'Running   '
-        if in_task:
+        if _in_task():
             task_progress = prog_stage + prog_bar
 
         time.sleep(1)
@@ -278,8 +291,7 @@ def _check_result(submission_id, in_task):
     return result
 
 
-def test_solution(slug, filetype, code=None, in_task=False):
-    global task_err
+def test_solution(slug, filetype, code=None):
     assert is_login()
     problem = get_problem(slug)
     if not problem:
@@ -295,33 +307,30 @@ def test_solution(slug, filetype, code=None, in_task=False):
             'question_id': str(problem['id']),
             'test_mode': False,
             'typed_code': code}
-    res = session.post(LC_TEST.format(slug=slug), json=body, headers=headers)
+    url = LC_TEST.format(slug=slug)
+    log.info('test solution request: url="%s" headers="%s" body="%s"', url, headers, body)
+    res = session.post(url, json=body, headers=headers)
+    log.info('test solution response: status="%s" body="%s"', res.status_code, res.text)
     if res.status_code != 200:
         if 'too fast' in res.text:
-            if in_task:
-                task_err = 'you are sending the request too fast'
-            else:
-                print('you are sending the request too fast')
+            _echoerr('you are sending the request too fast')
         else:
-            if in_task:
-                task_err = 'cannot test the solution for ' + slug
-            else:
-                print('cannot test the solution for ' + slug)
+            _echoerr('cannot test the solution for ' + slug)
         return None
 
-    actual = _check_result(res.json()['interpret_id'], in_task)
-    expected = _check_result(res.json()['interpret_expected_id'], in_task)
+    actual = _check_result(res.json()['interpret_id'])
+    expected = _check_result(res.json()['interpret_expected_id'])
     actual['testcase'] = problem['testcase'].split('\n')
     actual['expected_answer'] = expected['answer']
     actual['title'] = problem['title']
     return actual
 
 
-def test_solution_async(slug, filetype, code=None, in_task=False):
+def test_solution_async(slug, filetype, code=None):
     assert is_login()
     global task_input, task_name
     if task_running:
-        print('there is other task running:', task_name)
+        _echoerr('there is other task running: ' + task_name)
         return False
 
     if code is None:
@@ -333,8 +342,7 @@ def test_solution_async(slug, filetype, code=None, in_task=False):
     return True
 
 
-def submit_solution(slug, filetype, code=None, in_task=False):
-    global task_err
+def submit_solution(slug, filetype, code=None):
     assert is_login()
     problem = get_problem(slug)
     if not problem:
@@ -351,21 +359,18 @@ def submit_solution(slug, filetype, code=None, in_task=False):
             'test_mode': False,
             'typed_code': code,
             'judge_type': 'large'}
-    res = session.post(LC_SUBMIT.format(slug=slug), json=body, headers=headers)
+    url = LC_SUBMIT.format(slug=slug)
+    log.info('submit solution request: url="%s" headers="%s" body="%s"', url, headers, body)
+    res = session.post(url, json=body, headers=headers)
+    log.info('submit solution response: status="%s" body="%s"', res.status_code, res.text)
     if res.status_code != 200:
         if 'too fast' in res.text:
-            if in_task:
-                task_err = 'you are sending the request too fast'
-            else:
-                print('you are sending the request too fast')
+            _echoerr('you are sending the request too fast')
         else:
-            if in_task:
-                task_err = 'cannot submit the solution for ' + slug
-            else:
-                print('cannot submit the solution for ' + slug)
+            _echoerr('cannot submit the solution for ' + slug)
         return None
 
-    result = _check_result(res.json()['submission_id'], in_task)
+    result = _check_result(res.json()['submission_id'])
     result['title'] = problem['title']
     return result
 
@@ -374,7 +379,7 @@ def submit_solution_async(slug, filetype, code=None):
     assert is_login()
     global task_input, task_name
     if task_running:
-        print('there is other task running:', task_name)
+        _echoerr('there is other task running: ' + task_name)
         return False
 
     if code is None:
@@ -395,20 +400,32 @@ def _thread_main():
         task_output = None
         task_err = ''
 
+        log.info('task thread input: name="%s" input="%s"', task_name, task_input)
         try:
             if task_name == 'test_solution':
                 slug, file_type, code = task_input
-                task_output = test_solution(slug, file_type, code, True)
+                task_output = test_solution(slug, file_type, code)
             elif task_name == 'submit_solution':
                 slug, file_type, code = task_input
-                task_output = submit_solution(slug, file_type, code, True)
+                task_output = submit_solution(slug, file_type, code)
         except BaseException as e:
-            print('Task err', e)
             task_err = str(e)
-
+        log.info('task thread output: name="%s" output="%s" error="%s"', task_name, task_output,
+                 task_err)
         task_running = False
         task_done = True
 
+
+def _in_task():
+    return current_thread() == task_thread
+
+
+def _echoerr(s):
+    global task_err
+    if _in_task():
+        task_err = s
+    else:
+        print(s)
 
 
 task_thread = Thread(target=_thread_main, daemon=True)

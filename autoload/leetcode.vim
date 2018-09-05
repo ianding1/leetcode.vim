@@ -6,6 +6,10 @@ python3 import leetcode
 
 let s:inited = py3eval('leetcode.inited')
 
+if g:leetcode_debug
+    python3 leetcode.enable_logging()
+endif
+
 function! leetcode#SignIn(ask)
     if !s:inited
         echoerr 'please install python packages beautifulsoup4 and requests'
@@ -283,6 +287,8 @@ function! leetcode#GuessFileType()
         return 'scala'
     elseif ext == 'kt'
         return 'kotlin'
+    else
+        return ''
     endif
 endfunction
 

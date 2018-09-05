@@ -14,6 +14,10 @@ if !exists('g:leetcode_solution_filetype')
     let g:leetcode_solution_filetype = 'cpp'
 endif
 
+if !exists('g:leetcode_debug')
+    let g:leetcode_debug = 0
+endif
+
 command! -nargs=0 LeetCodeList call leetcode#ListProblems()
 command! -nargs=0 LeetCodeReset call leetcode#ResetProblem()
 command! -nargs=0 LeetCodeTest call leetcode#TestSolution()
