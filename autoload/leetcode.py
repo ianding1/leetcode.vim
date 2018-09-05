@@ -77,7 +77,7 @@ def _status_to_name(status):
         return 'Compile Error'
     if status == 21:
         return 'Unknown Error'
-    return 'Unknown'
+    return 'Unknown State'
 
 
 def _break_code_lines(s):
@@ -254,7 +254,6 @@ def _check_result(submission_id):
     else:
         result['stdout'] = r.get('code_output', [])
         result['expected_answer'] = []
-    print(r, result)
     return result
 
 
@@ -286,6 +285,7 @@ def test_solution(slug, filetype, code=None):
     expected = _check_result(res.json()['interpret_expected_id'])
     actual['testcase'] = problem['testcase'].split('\n')
     actual['expected_answer'] = expected['answer']
+    actual['title'] = problem['title']
     return actual
 
 
@@ -314,4 +314,6 @@ def submit_solution(slug, filetype, code=None):
             print('cannot submit the solution for ' + slug)
         return None
 
-    return _check_result(res.json()['submission_id'])
+    result = _check_result(res.json()['submission_id'])
+    result['title'] = problem['title']
+    return result

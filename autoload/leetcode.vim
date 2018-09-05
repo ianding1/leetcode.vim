@@ -316,12 +316,22 @@ function! leetcode#SubmitSolution()
     call leetcode#ShowResult(result)
 endfunction
 
-function! leetcode#AppendMultiLineIfExists(title, block)
+function! leetcode#MultiLineIfExists(title, block, level)
+    let result = []
     if len(a:block) > 0
-        call append('$', a:title)
+        call add(result, repeat('#', a:level).' '.a:title)
         for line in a:block
-            call append('$', '    '.line)
+            call add(result, '    '.line)
         endfor
+    endif
+    return result
+endfunction
+
+function! leetcode#TestCasePassText(pass_all)
+    if a:pass_all
+        return 'OK: all test cases passed'
+    else
+        return 'WARNING: some test cases failed'
     endif
 endfunction
 
@@ -341,23 +351,64 @@ function! leetcode#ShowResult(result_)
     setlocal norelativenumber
     setlocal nocursorline
     setlocal nobuflisted
-    setlocal filetype=leetcode-result
+    setlocal filetype=markdown
+    setlocal modifiable
 
-    call append('$', 'Status: '.result['state'])
-    call append('$', 'Runtime: '.result['runtime'])
-    call append('$', 'Passed: '.result['passed'].' of '.result['total'])
-    call leetcode#AppendMultiLineIfExists('Test Case:', result['testcase'])
-    call leetcode#AppendMultiLineIfExists('Actual Answer:', result['answer'])
-    call leetcode#AppendMultiLineIfExists('Expected Answer:', result['expected_answer'])
-    call leetcode#AppendMultiLineIfExists('Error:', result['error'])
-    call leetcode#AppendMultiLineIfExists('Standard Output:', result['stdout'])
+    let output = ['Result for '.result['title'],
+                \ repeat('=', min([winwidth(0), 80])),
+                \ '## State',
+                \ '  - '.result['state'],
+                \ '## Runtime',
+                \ '  - '.result['runtime'],
+                \ ]
+
+    if result['total'] > 0
+        call extend(output, [
+                    \ '## Test Cases',
+                    \ '  - Passed: '.result['passed'],
+                    \ '  - Total:  '.result['total'],
+                    \ '  - '.leetcode#TestCasePassText(result['passed'] == result['total'])
+                    \ ])
+    endif
+
+    call extend(output, leetcode#MultiLineIfExists('Error', result['error'], 2))
+    call extend(output, leetcode#MultiLineIfExists('Standard Output', result['stdout'], 2))
+
+    if len(result['testcase']) || len(result['answer']) || len(result['expected_answer'])
+        call add(output, '## Failed Test Case')
+    endif
+    call extend(output, leetcode#MultiLineIfExists('Input', result['testcase'], 3))
+    call extend(output, leetcode#MultiLineIfExists('Actual Answer', result['answer'], 3))
+    call extend(output, leetcode#MultiLineIfExists('Expected Answer', result['expected_answer'], 3))
+    call append('$', output)
 
     " go to the first line and delete it (it is a blank line)
     normal gg
     normal dd
 
-    set previewwindow
-    set nomodifiable
-    set nomodified
+    setlocal previewwindow
+    setlocal nomodifiable
+    setlocal nomodified
+
+    " add custom syntax rules
+    syn keyword lcAccepted Accepted
+    syn match lcFailure /Wrong Answer/
+    syn match lcFailure /Memory Limit Exceeded/
+    syn match lcFailure /Output Limit Exceeded/
+    syn match lcFailure /Time Limit Exceeded/
+    syn match lcFailure /Runtime Error/
+    syn match lcFailure /Internal Error/
+    syn match lcFailure /Compile Error/
+    syn match lcFailure /Unknown Error/
+    syn match lcFailure /Unknown State/
+    syn match lcOK /OK:/
+    syn match lcWarning /WARNING:/
+
+    " add custom highlighting rules
+    hi! lcAccepted term=bold gui=bold ctermfg=lightgreen guifg=lightgreen
+    hi! lcFailure term=bold gui=bold ctermfg=red guifg=red
+    hi! link lcOK lcAccepted
+    hi! link lcWarning lcFailure
+
     execute saved_winnr.'wincmd w'
 endfunction
