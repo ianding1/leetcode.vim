@@ -4,10 +4,18 @@ Solve LeetCode problems in Vim!
 
 ## Installation
 
-1. Vim with Python3 support is **required**. If you are using Neovim, you probably need to run `pip3 install neovim --user` to install the Neovim Python API.
-2. This plugin requires **requests** and **beautifulsoup4**, which can be installed by running `pip3 install beautifulsoup4 requests --user`.
+1. Vim with Python3 support is **required**. If you are using Neovim, you probably need to install the Neovim Python API:
+```
+pip3 install neovim --user
+```
+2. This plugin requires **requests** and **beautifulsoup4**, which can be installed by running:
+```
+pip3 install requests beautifulsoup4 --user
+```
 3. To install the plugin, you only need to place the following line in your vimrc if you are using vim-plugged (or similar code for other plugin managers):
-    Plug 'iandingx/leetcode.vim'
+```
+Plug 'iandingx/leetcode.vim'
+```
 
 ## Quick Start
 
