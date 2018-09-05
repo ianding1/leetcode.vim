@@ -27,8 +27,6 @@ LC_CHECK = 'https://leetcode.com/submissions/detail/{submission}/check/'
 
 
 session = None
-problem_list = []
-problem_list_categories = []
 
 
 def _make_headers():
@@ -150,18 +148,11 @@ def _get_category_problems(category):
 
 
 def get_problems(categories):
-    global problem_list, problem_list_categories
     assert is_login()
-    # check for the cached result first
-    if categories == problem_list_categories:
-        return problem_list
-
     problems = []
     for c in categories:
         problems.extend(_get_category_problems(c))
-    problem_list = sorted(problems, key=lambda p: p['id'])
-    problem_list_categories = categories
-    return problem_list
+    return sorted(problems, key=lambda p: p['id'])
 
 
 def get_problem(slug):
