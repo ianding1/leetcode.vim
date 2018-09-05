@@ -1,9 +1,9 @@
 if !exists('g:leetcode_username')
-    let g:leetcode_username = 0
+    let g:leetcode_username = ''
 endif
 
 if !exists('g:leetcode_password')
-    let g:leetcode_password = 0
+    let g:leetcode_password = ''
 endif
 
 if !exists('g:leetcode_categories')
