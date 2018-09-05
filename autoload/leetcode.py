@@ -1,5 +1,6 @@
 import json
 import time
+from threading import Semaphore, Thread
 
 try:
     from bs4 import BeautifulSoup
@@ -27,6 +28,14 @@ LC_CHECK = 'https://leetcode.com/submissions/detail/{submission}/check/'
 
 
 session = None
+task_running = False
+task_done = False
+task_trigger = Semaphore(0)
+task_name = ''
+task_input = None
+task_progress = ''
+task_output = None
+task_err = ''
 
 
 def _make_headers():
@@ -214,16 +223,37 @@ def _split(s):
     return s.split('\n')
 
 
-def _check_result(submission_id):
+def _check_result(submission_id, in_task):
+    global task_progress, task_err
+    if in_task:
+        prog_stage = 'Uploading '
+        prog_bar = '.'
+        task_progress = prog_stage + prog_bar
+
     while True:
         headers = _make_headers()
         res = session.get(LC_CHECK.format(submission=submission_id), headers=headers)
         if res.status_code != 200:
-            print('cannot get the execution result')
+            if in_task:
+                task_err = 'cannot get the execution result'
+            else:
+                print('cannot get the execution result')
             return None
+
+        if in_task:
+            prog_bar += '.'
+
         r = res.json()
         if r['state'] == 'SUCCESS':
+            prog_stage = 'Done      '
             break
+        elif r['state'] == 'PENDING':
+            prog_stage = 'Pending   '
+        elif r['state'] == 'STARTED':
+            prog_stage = 'Running   '
+        if in_task:
+            task_progress = prog_stage + prog_bar
+
         time.sleep(1)
 
     result = {
@@ -248,7 +278,8 @@ def _check_result(submission_id):
     return result
 
 
-def test_solution(slug, filetype, code=None):
+def test_solution(slug, filetype, code=None, in_task=False):
+    global task_err
     assert is_login()
     problem = get_problem(slug)
     if not problem:
@@ -266,21 +297,44 @@ def test_solution(slug, filetype, code=None):
             'typed_code': code}
     res = session.post(LC_TEST.format(slug=slug), json=body, headers=headers)
     if res.status_code != 200:
-        if 'too soon' in res.text:
-            print('you submitted the code too soon')
+        if 'too fast' in res.text:
+            if in_task:
+                task_err = 'you are sending the request too fast'
+            else:
+                print('you are sending the request too fast')
         else:
-            print('cannot test the solution for ' + slug)
+            if in_task:
+                task_err = 'cannot test the solution for ' + slug
+            else:
+                print('cannot test the solution for ' + slug)
         return None
 
-    actual = _check_result(res.json()['interpret_id'])
-    expected = _check_result(res.json()['interpret_expected_id'])
+    actual = _check_result(res.json()['interpret_id'], in_task)
+    expected = _check_result(res.json()['interpret_expected_id'], in_task)
     actual['testcase'] = problem['testcase'].split('\n')
     actual['expected_answer'] = expected['answer']
     actual['title'] = problem['title']
     return actual
 
 
-def submit_solution(slug, filetype, code=None):
+def test_solution_async(slug, filetype, code=None, in_task=False):
+    assert is_login()
+    global task_input, task_name
+    if task_running:
+        print('there is other task running:', task_name)
+        return False
+
+    if code is None:
+        code = '\n'.join(vim.current.buffer)
+
+    task_name = 'test_solution'
+    task_input = [slug, filetype, code]
+    task_trigger.release()
+    return True
+
+
+def submit_solution(slug, filetype, code=None, in_task=False):
+    global task_err
     assert is_login()
     problem = get_problem(slug)
     if not problem:
@@ -299,12 +353,63 @@ def submit_solution(slug, filetype, code=None):
             'judge_type': 'large'}
     res = session.post(LC_SUBMIT.format(slug=slug), json=body, headers=headers)
     if res.status_code != 200:
-        if 'too soon' in res.text:
-            print('you submitted the code too soon')
+        if 'too fast' in res.text:
+            if in_task:
+                task_err = 'you are sending the request too fast'
+            else:
+                print('you are sending the request too fast')
         else:
-            print('cannot submit the solution for ' + slug)
+            if in_task:
+                task_err = 'cannot submit the solution for ' + slug
+            else:
+                print('cannot submit the solution for ' + slug)
         return None
 
-    result = _check_result(res.json()['submission_id'])
+    result = _check_result(res.json()['submission_id'], in_task)
     result['title'] = problem['title']
     return result
+
+
+def submit_solution_async(slug, filetype, code=None):
+    assert is_login()
+    global task_input, task_name
+    if task_running:
+        print('there is other task running:', task_name)
+        return False
+
+    if code is None:
+        code = '\n'.join(vim.current.buffer)
+
+    task_name = 'submit_solution'
+    task_input = [slug, filetype, code]
+    task_trigger.release()
+    return True
+
+
+def _thread_main():
+    global task_running, task_done, task_output, task_err
+    while True:
+        task_trigger.acquire()
+        task_running = True
+        task_done = False
+        task_output = None
+        task_err = ''
+
+        try:
+            if task_name == 'test_solution':
+                slug, file_type, code = task_input
+                task_output = test_solution(slug, file_type, code, True)
+            elif task_name == 'submit_solution':
+                slug, file_type, code = task_input
+                task_output = submit_solution(slug, file_type, code, True)
+        except BaseException as e:
+            print('Task err', e)
+            task_err = str(e)
+
+        task_running = False
+        task_done = True
+
+
+
+task_thread = Thread(target=_thread_main, daemon=True)
+task_thread.start()

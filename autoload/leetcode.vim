@@ -294,13 +294,19 @@ function! leetcode#TestSolution()
     " expand('%:t:r') returns the file name without the extension name
     let slug = expand('%:t:r')
     let file_type = leetcode#GuessFileType()
-    let code = getline(1, '$')
-    let result = py3eval('leetcode.test_solution("'.slug.'", "'.file_type.'")')
-    if type(result) != v:t_dict
-        return
-    endif
 
-    call leetcode#ShowResult(result)
+    if has('timers')
+        let ok = py3eval('leetcode.test_solution_async("'.slug.'", "'.file_type.'")')
+        if ok
+            call timer_start(200, 'leetcode#CheckTask', {'repeat': -1})
+        endif
+    else
+        let result = py3eval('leetcode.test_solution("'.slug.'", "'.file_type.'")')
+        if type(result) != v:t_dict
+            return
+        endif
+        call leetcode#ShowResult(result)
+    endif
 endfunction
 
 function! leetcode#SubmitSolution()
@@ -311,13 +317,18 @@ function! leetcode#SubmitSolution()
     " expand('%:t:r') returns the file name without the extension name
     let slug = expand('%:t:r')
     let file_type = leetcode#GuessFileType()
-    let code = getline(1, '$')
-    let result = py3eval('leetcode.submit_solution("'.slug.'", "'.file_type.'")')
-    if type(result) != v:t_dict
-        return
+    if has('timers')
+        let ok = py3eval('leetcode.submit_solution_async("'.slug.'", "'.file_type.'")')
+        if ok
+            call timer_start(200, 'leetcode#CheckTask', {'repeat': -1})
+        endif
+    else
+        let result = py3eval('leetcode.submit_solution("'.slug.'", "'.file_type.'")')
+        if type(result) != v:t_dict
+            return
+        endif
+        call leetcode#ShowResult(result)
     endif
-
-    call leetcode#ShowResult(result)
 endfunction
 
 function! leetcode#MultiLineIfExists(title, block, level)
@@ -415,4 +426,30 @@ function! leetcode#ShowResult(result_)
     hi! link lcWarning lcFailure
 
     execute saved_winnr.'wincmd w'
+endfunction
+
+function! leetcode#CheckTask(timer)
+    if !py3eval('leetcode.task_done')
+        let prog = py3eval('leetcode.task_progress')
+        echo prog
+        return
+    endif
+
+    echo 'Done'
+    call timer_stop(a:timer)
+    let task_name = py3eval('leetcode.task_name')
+    let task_output = py3eval('leetcode.task_output')
+    let task_err = py3eval('leetcode.task_err')
+
+    if task_err != ''
+        echom 'error: '.task_err
+    endif
+
+    if task_name == 'test_solution' || task_name == 'submit_solution'
+        if type(task_output) == v:t_dict
+            call leetcode#ShowResult(task_output)
+        endif
+    else
+        echo 'unrecognized task name: '.task_name
+    endif
 endfunction
