@@ -303,10 +303,24 @@ function! leetcode#SubmitSolution()
     if leetcode#CheckSignIn() == v:false
         return
     endif
-    echo 'not implemented'
+
+    " expand('%:t:r') returns the file name without the extension name
+    let slug = expand('%:t:r')
+    let file_type = leetcode#GuessFileType()
+    let code = getline(1, '$')
+    let result = py3eval('leetcode.submit_solution("'.slug.'", "'.file_type.'")')
+    if type(result) != v:t_dict
+        return
+    endif
+
+    call leetcode#ShowResult(result)
 endfunction
 
 function! leetcode#ShowResult(result_)
+    " the result is shown in a preview window, hence if there is already one,
+    " we close it first
+    pclose
+
     let saved_winnr = winnr()
     let result = a:result_
     rightbelow new LeetCode/Result
@@ -345,6 +359,12 @@ function! leetcode#ShowResult(result_)
         call append('$', 'Errors:')
         for err in result['error']
             call append('$', '    '.err)
+        endfor
+    endif
+    if len(result['stdout']) > 0
+        call append('$', 'Standard Output:')
+        for err in result['stdout']
+            call append('$', '  > '.err)
         endfor
     endif
 

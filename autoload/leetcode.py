@@ -214,6 +214,15 @@ def get_problem(slug):
     return problem
 
 
+def _split(s):
+    # str.split has an disadvantage that ''.split('\n') results in [''], but what we want
+    # is []. This small function returns [] if `s` is a blank string, that is, containing no
+    # characters other than whitespaces.
+    if s.strip() == '':
+        return []
+    return s.split('\n')
+
+
 def _check_result(submission_id):
     while True:
         headers = _make_headers()
@@ -230,18 +239,18 @@ def _check_result(submission_id):
         'answer': r.get('code_answer', []),
         'runtime': r['status_runtime'],
         'state': _status_to_name(r['status_code']),
-        'testcase': r.get('input', r.get('last_testcase', '')).split('\n'),
-        'passed': r.get('total_correct', 0) or 0,
-        'total': r.get('total_testcases', 0) or 0,
+        'testcase': _split(r.get('input', r.get('last_testcase', ''))),
+        'passed': r.get('total_correct') or 0,
+        'total': r.get('total_testcases') or 0,
         'error': [v for k, v in r.items() if 'error' in k and v]
     }
 
     # the keys differs between the result of testing the code and submitting it
     # for submission judge_type is 'large', and for testing judge_type does not exist
-    if result.get('judge_type') == 'large':
-        result['answer'] = result.get('code_output', '').split('\n')
-        result['expected_answer'] = result.get('expected_output', '').split('\n')
-        result['stdout'] = result.get('std_output', '').split('\n')
+    if r.get('judge_type') == 'large':
+        result['answer'] = _split(result.get('code_output', ''))
+        result['expected_answer'] = _split(result.get('expected_output', ''))
+        result['stdout'] = _split(result.get('std_output', ''))
     else:
         result['stdout'] = result.get('code_output', [])
         result['expected_answer'] = []
@@ -277,3 +286,31 @@ def test_solution(slug, filetype, code=None):
     actual['testcase'] = problem['testcase'].split('\n')
     actual['expected_answer'] = expected['answer']
     return actual
+
+
+def submit_solution(slug, filetype, code=None):
+    assert is_login()
+    problem = get_problem(slug)
+    if not problem:
+        return None
+
+    if code is None:
+        code = '\n'.join(vim.current.buffer)
+
+    headers = _make_headers()
+    headers['Referer'] = LC_PROBLEM.format(slug=slug)
+    body = {'data_input': problem['testcase'],
+            'lang': filetype,
+            'question_id': str(problem['id']),
+            'test_mode': False,
+            'typed_code': code,
+            'judge_type': 'large'}
+    res = session.post(LC_SUBMIT.format(slug=slug), json=body, headers=headers)
+    if res.status_code != 200:
+        if 'too soon' in res.text:
+            print('you submitted the code too soon')
+        else:
+            print('cannot submit the solution for ' + slug)
+        return None
+
+    return _check_result(res.json()['submission_id'])
