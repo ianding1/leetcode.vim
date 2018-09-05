@@ -1,4 +1,5 @@
 import json
+import time
 
 try:
     from bs4 import BeautifulSoup
@@ -7,19 +8,31 @@ try:
 except ImportError:
     inited = 0
 
+try:
+    import vim
+except ImportError:
+    vim = None
+
 
 LC_BASE = 'https://leetcode.com'
 LC_LOGIN = 'https://leetcode.com/accounts/login/'
 LC_GRAPHQL = 'https://leetcode.com/graphql'
 LC_CATEGORY_PROBLEMS = 'https://leetcode.com/api/problems/{category}'
 LC_PROBLEM = 'https://leetcode.com/problems/{slug}/description'
+LC_TEST = 'https://leetcode.com/problems/{slug}/interpret_solution/'
+LC_SUBMIT = 'https://leetcode.com/problems/{slug}/submit/'
+LC_SUBMISSIONS = 'https://leetcode.com/api/submissions/{slug}'
+LC_SUBMISSION = 'https://leetcode.com/submissions/detail/{submission}/'
+LC_CHECK = 'https://leetcode.com/submissions/detail/{submission}/check/'
 
 
 session = None
-cached_problems = []
+problem_list = []
+problem_list_categories = []
 
 
 def _make_headers():
+    assert is_login()
     headers = {'Origin': LC_BASE,
                'Referer': LC_BASE,
                'X-CSRFToken': session.cookies['csrftoken'],
@@ -45,6 +58,28 @@ def _state_to_flag(state):
     return ' '
 
 
+def _status_to_name(status):
+    if status == 10:
+        return 'Accepted'
+    if status == 11:
+        return 'Wrong Answer'
+    if status == 12:
+        return 'Memory Limit Exceeded'
+    if status == 13:
+        return 'Output Limit Exceeded'
+    if status == 14:
+        return 'Time Limit Exceeded'
+    if status == 15:
+        return 'Runtime Error'
+    if status == 16:
+        return 'Internal Error'
+    if status == 20:
+        return 'Compile Error'
+    if status == 21:
+        return 'Unknown Error'
+    return 'Unknown'
+
+
 def _break_code_lines(s):
     return s.replace('\r\n', '\n').replace('\xa0', ' ').split('\n')
 
@@ -52,8 +87,9 @@ def _break_code_lines(s):
 def _break_paragraph_lines(s):
     lines = _break_code_lines(s)
     result = []
+    # reserve one and only one empty line between two non-empty lines
     for line in lines:
-        if line.strip() != '':
+        if line.strip() != '':  # a line with only whitespaces is also empty
             result.append(line)
             result.append('')
     return result
@@ -114,50 +150,130 @@ def _get_category_problems(category):
 
 
 def get_problems(categories):
+    global problem_list, problem_list_categories
+    assert is_login()
+    # check for the cached result first
+    if categories == problem_list_categories:
+        return problem_list
+
     problems = []
     for c in categories:
         problems.extend(_get_category_problems(c))
-    global cached_problems
-    cached_problems = sorted(problems, key=lambda p: p['id'])
-    return cached_problems
+    problem_list = sorted(problems, key=lambda p: p['id'])
+    problem_list_categories = categories
+    return problem_list
 
 
-def get_problem(fid_or_slug):
-    for p in cached_problems:
-        if p['fid'] == fid_or_slug or p['slug'] == fid_or_slug:
-            problem = p
-            break
-    else:
-        return None
-
-    if 'desc' in problem:
-        return problem
-
+def get_problem(slug):
+    assert is_login()
     headers = _make_headers()
-    headers['Referer'] = LC_PROBLEM.format(slug=problem['slug'])
+    headers['Referer'] = LC_PROBLEM.format(slug=slug)
     body = {'query': '''query getQuestionDetail($titleSlug : String!) {
   question(titleSlug: $titleSlug) {
+    questionId
+    title
     content
     stats
+    difficulty
     codeDefinition
     sampleTestCase
     enableRunCode
-    metaData
     translatedContent
   }
 }''',
-            'variables': {'titleSlug': problem['slug']},
+            'variables': {'titleSlug': slug},
             'operationName': 'getQuestionDetail'}
     res = session.post(LC_GRAPHQL, json=body, headers=headers)
     if res.status_code != 200:
-        print('cannot get the problem: {}'.format(problem['title']))
+        print('cannot get the problem: {}'.format(slug))
+        print(res.text)
         return None
 
     q = res.json()['data']['question']
+    if q is None:
+        print('cannot get the problem: {}'.format(slug))
+        print(res.text)
+        return None
+
     soup = BeautifulSoup(q['translatedContent'] or q['content'], features='html.parser')
+    problem = {}
+    problem['id'] = q['questionId']
+    problem['title'] = q['title']
+    problem['slug'] = slug
+    problem['level'] = q['difficulty']
     problem['desc'] = _break_paragraph_lines(soup.get_text())
     problem['templates'] = {}
     for t in json.loads(q['codeDefinition']):
         problem['templates'][t['value']] = _break_code_lines(t['defaultCode'])
     problem['testable'] = q['enableRunCode']
+    problem['testcase'] = q['sampleTestCase']
+    stats = json.loads(q['stats'])
+    problem['total_accepted'] = stats['totalAccepted']
+    problem['total_submission'] = stats['totalSubmission']
+    problem['ac_rate'] = stats['acRate']
     return problem
+
+
+def _check_result(submission_id):
+    while True:
+        headers = _make_headers()
+        res = session.get(LC_CHECK.format(submission=submission_id), headers=headers)
+        if res.status_code != 200:
+            print('cannot get the execution result')
+            return None
+        r = res.json()
+        if r['state'] == 'SUCCESS':
+            break
+        time.sleep(1)
+
+    result = {
+        'answer': r.get('code_answer', []),
+        'runtime': r['status_runtime'],
+        'state': _status_to_name(r['status_code']),
+        'testcase': r.get('input', r.get('last_testcase', '')).split('\n'),
+        'passed': r.get('total_correct', 0) or 0,
+        'total': r.get('total_testcases', 0) or 0,
+        'error': [v for k, v in r.items() if 'error' in k and v]
+    }
+
+    # the keys differs between the result of testing the code and submitting it
+    # for submission judge_type is 'large', and for testing judge_type does not exist
+    if result.get('judge_type') == 'large':
+        result['answer'] = result.get('code_output', '').split('\n')
+        result['expected_answer'] = result.get('expected_output', '').split('\n')
+        result['stdout'] = result.get('std_output', '').split('\n')
+    else:
+        result['stdout'] = result.get('code_output', [])
+        result['expected_answer'] = []
+    return result
+
+
+def test_solution(slug, filetype, code=None):
+    assert is_login()
+    problem = get_problem(slug)
+    if not problem:
+        return None
+
+    if code is None:
+        code = '\n'.join(vim.current.buffer)
+
+    headers = _make_headers()
+    headers['Referer'] = LC_PROBLEM.format(slug=slug)
+    body = {'data_input': problem['testcase'],
+            'lang': filetype,
+            'question_id': str(problem['id']),
+            'test_mode': False,
+            'typed_code': code}
+    res = session.post(LC_TEST.format(slug=slug), json=body, headers=headers)
+    if res.status_code != 200:
+        if 'too soon' in res.text:
+            print('you submitted the code too soon')
+        else:
+            print('cannot test the solution for ' + slug)
+        return None
+
+    actual = _check_result(res.json()['interpret_id'])
+    expected = _check_result(res.json()['interpret_expected_id'])
+    actual['testcase'] = problem['testcase'].split('\n')
+    actual['expected_answer'] = expected['answer']
+    return actual
