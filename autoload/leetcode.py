@@ -248,12 +248,13 @@ def _check_result(submission_id):
     # the keys differs between the result of testing the code and submitting it
     # for submission judge_type is 'large', and for testing judge_type does not exist
     if r.get('judge_type') == 'large':
-        result['answer'] = _split(result.get('code_output', ''))
-        result['expected_answer'] = _split(result.get('expected_output', ''))
-        result['stdout'] = _split(result.get('std_output', ''))
+        result['answer'] = _split(r.get('code_output', ''))
+        result['expected_answer'] = _split(r.get('expected_output', ''))
+        result['stdout'] = _split(r.get('std_output', ''))
     else:
-        result['stdout'] = result.get('code_output', [])
+        result['stdout'] = r.get('code_output', [])
         result['expected_answer'] = []
+    print(r, result)
     return result
 
 
