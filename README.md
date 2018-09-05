@@ -25,6 +25,15 @@ Plug 'iandingx/leetcode.vim'
 4. Run `:LeetCodeSubmit` in your solution file to submit it to LeetCode and receive the result (you may need to press `ctrl-w z` to close the result window).
 5. To manually sign in or switch an account, run `:LeetCodeSignIn`.
 
+Or you can simply put the following lines in your vimrc to bind these commands to shortcuts:
+
+```
+nnoremap <leader>ll :LeetCodeList<cr>
+nnoremap <leader>lt :LeetCodeTest<cr>
+nnoremap <leader>ls :LeetCodeSubmit<cr>
+nnoremap <leader>li :LeetCodeSignIn<cr>
+```
+
 ## Customization
 
 ### g:leetcode\_solution\_filetype
