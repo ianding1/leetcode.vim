@@ -24,6 +24,10 @@ function! leetcode#SignIn(ask)
     endif
 
     let success = py3eval('leetcode.signin("'.username.'", "'.password.'")')
+
+    if a:ask && success
+        echo 'succesfully signed in as '.username
+    endif
     return success
 endfunction
 
