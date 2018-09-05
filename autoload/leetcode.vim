@@ -316,6 +316,15 @@ function! leetcode#SubmitSolution()
     call leetcode#ShowResult(result)
 endfunction
 
+function! leetcode#AppendMultiLineIfExists(title, block)
+    if len(a:block) > 0
+        call append('$', a:title)
+        for line in a:block
+            call append('$', '    '.line)
+        endfor
+    endif
+endfunction
+
 function! leetcode#ShowResult(result_)
     " the result is shown in a preview window, hence if there is already one,
     " we close it first
@@ -337,36 +346,11 @@ function! leetcode#ShowResult(result_)
     call append('$', 'Status: '.result['state'])
     call append('$', 'Runtime: '.result['runtime'])
     call append('$', 'Passed: '.result['passed'].' of '.result['total'])
-    if len(result['testcase']) > 0
-        call append('$', 'Test Case:')
-        for tc in result['testcase']
-            call append('$', '    '.tc)
-        endfor
-    endif
-    if len(result['answer']) > 0
-        call append('$', 'Actual Answer:')
-        for ans in result['answer']
-            call append('$', '    '.ans)
-        endfor
-    endif
-    if len(result['expected_answer']) > 0
-        call append('$', 'Expected Answer:')
-        for ans in result['expected_answer']
-            call append('$', '    '.ans)
-        endfor
-    endif
-    if len(result['error']) > 0
-        call append('$', 'Errors:')
-        for err in result['error']
-            call append('$', '    '.err)
-        endfor
-    endif
-    if len(result['stdout']) > 0
-        call append('$', 'Standard Output:')
-        for err in result['stdout']
-            call append('$', '  > '.err)
-        endfor
-    endif
+    call leetcode#AppendMultiLineIfExists('Test Case:', result['testcase'])
+    call leetcode#AppendMultiLineIfExists('Actual Answer:', result['answer'])
+    call leetcode#AppendMultiLineIfExists('Expected Answer:', result['expected_answer'])
+    call leetcode#AppendMultiLineIfExists('Error:', result['error'])
+    call leetcode#AppendMultiLineIfExists('Standard Output:', result['stdout'])
 
     " go to the first line and delete it (it is a blank line)
     normal gg
