@@ -74,7 +74,7 @@ function! leetcode#ListProblems()
         syn match lcMedium /| Medium /hs=s+2
         syn match lcHard /| Hard /hs=s+2
         syn match lcDone /|X|/hs=s+1,he=e-1
-        syn match lcTodo /|?|:/hs=s+1,he=e-1
+        syn match lcTodo /|?|/hs=s+1,he=e-1
 
         " add custom highlighting rules
         hi! lcEasy ctermfg=lightgreen guifg=lightgreen
