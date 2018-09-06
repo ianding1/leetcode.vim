@@ -2,6 +2,8 @@
 
 Solve LeetCode problems in Vim!
 
+This Vim plugin is inspired by [skygragon/leetcode-cli](https://github.com/skygragon/leetcode-cli).
+
 ## Installation
 
 1. Vim with Python3 support is **required**. If you are using Neovim, you probably need to install the Neovim Python API:

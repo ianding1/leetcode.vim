@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from threading import Semaphore, Thread, current_thread
 
@@ -111,6 +112,16 @@ def _break_paragraph_lines(s):
             result.append(line)
             result.append('')
     return result
+
+
+def _remove_description(code):
+    eod = code.find('[End of Description]')
+    if eod == -1:
+        return code
+    eol = code.find('\n', eod)
+    if eol == -1:
+        return ''
+    return code[eol+1:]
 
 
 def is_login():
@@ -252,7 +263,6 @@ def _check_result(submission_id):
         if res.status_code != 200:
             _echoerr('cannot get the execution result')
             return None
-
         if _in_task():
             prog_bar += '.'
 
@@ -335,6 +345,7 @@ def test_solution_async(slug, filetype, code=None):
 
     if code is None:
         code = '\n'.join(vim.current.buffer)
+    code = _remove_description(code)
 
     task_name = 'test_solution'
     task_input = [slug, filetype, code]
@@ -350,6 +361,7 @@ def submit_solution(slug, filetype, code=None):
 
     if code is None:
         code = '\n'.join(vim.current.buffer)
+    code = _remove_description(code)
 
     headers = _make_headers()
     headers['Referer'] = LC_PROBLEM.format(slug=slug)
@@ -389,6 +401,98 @@ def submit_solution_async(slug, filetype, code=None):
     task_input = [slug, filetype, code]
     task_trigger.release()
     return True
+
+
+def get_submissions(slug):
+    assert is_login()
+    headers = _make_headers()
+    headers['Referer'] = LC_PROBLEM.format(slug=slug)
+    url = LC_SUBMISSIONS.format(slug=slug)
+    log.info('get submissions request: url="%s" headers="%s"', url, headers)
+    res = session.get(url, headers=headers)
+    log.info('get submissions response: status="%s" body="%s"', res.status_code, res.text)
+    if res.status_code != 200:
+        _echoerr('cannot find the submissions of problem: ' + slug)
+        return None
+    submissions = []
+    for r in res.json()['submissions_dump']:
+        s = {
+            'id': r['url'].split('/')[3],
+            'time': r['time'].replace('\xa0', ' '),
+            'status': r['status_display'],
+            'runtime': r['runtime'],
+        }
+        submissions.append(s)
+    return submissions
+
+
+def _group1(match, default):
+    if match:
+        return match.group(1)
+    return default
+
+
+def _unescape(s):
+    return s.encode().decode('unicode_escape')
+
+
+def get_submission(sid):
+    assert is_login()
+    headers = _make_headers()
+    url = LC_SUBMISSION.format(submission=sid)
+    log.info('get submission request: url="%s" headers="%s"', url, headers)
+    res = session.get(url, headers=headers)
+    log.info('get submission response: status="%s" body="%s"', res.status_code, res.text)
+    if res.status_code != 200:
+        _echoerr('cannot find the submission: ' + sid)
+        return None
+
+    # we need to parse the data from the Javascript snippet
+    s = res.text
+    submission = {
+        'id': sid,
+        'state': _status_to_name(int(_group1(re.search(r"status_code: parseInt\('([^']*)'", s),
+                                             'not found'))),
+        'runtime': _group1(re.search("runtime: '([^']*)'", s), 'not found'),
+        'passed': _group1(re.search("total_correct : '([^']*)'", s), 'not found'),
+        'total': _group1(re.search("total_testcases : '([^']*)'", s), 'not found'),
+        'testcase': _split(_unescape(_group1(re.search("input : '([^']*)'", s), ''))),
+        'answer': _split(_unescape(_group1(re.search("code_output : '([^']*)'", s), ''))),
+        'expected_answer': _split(_unescape(_group1(re.search("expected_output : '([^']*)'", s),
+                                                    ''))),
+        'problem_id': _group1(re.search("questionId: '([^']*)'", s), 'not found'),
+        'slug': _group1(re.search("editCodeUrl: '([^']*)'", s), '///').split('/')[2],
+        'filetype': _group1(re.search("getLangDisplay: '([^']*)'", s), 'not found'),
+        'error': [],
+        'stdout': [],
+    }
+
+    problem = get_problem(submission['slug'])
+    submission['title'] = problem['title']
+
+    # the punctuations and newlines in the code are escaped like '\\u0010' ('\\' => real backslash)
+    # to unscape the string, we do the trick '\\u0010'.encode().decode('unicode_escape') ==> '\n'
+    submission['code'] = _split(_unescape(_group1(re.search("submissionCode: '([^']*)'", s), '')))
+
+    dist_str = _unescape(_group1(re.search("distribution_formatted: '([^']*)'", s),
+                                 '{"distribution":[]}'))
+    dist = json.loads(dist_str)['distribution']
+
+    # the second key "runtime" is the runtime in milliseconds
+    # we need to search from the position after the first "runtime" key
+    prev_runtime = re.search("runtime: '([^']*)'", s)
+    if not prev_runtime:
+        my_runtime = 0
+    else:
+        my_runtime = int(_group1(re.search("runtime: '([^']*)'", s[prev_runtime.end():]), 0))
+
+    accum = 0
+    for runtime, frequency in dist:
+        accum += frequency
+        if my_runtime >= int(runtime):
+            break
+    submission['runtime_rank'] = '{:.1f}%'.format(accum)
+    return submission
 
 
 def _thread_main():
