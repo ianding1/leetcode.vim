@@ -267,8 +267,8 @@ function! leetcode#GuessFileType()
     " We first try figuring out the file type from the comment in the first 10
     " lines. If we failed, we will try guessing it from the extension name.
     for line in getline(1, 10)
-        let file_type = matchstr(line, '\[filetype:[[:alpha:]]\+\]')
-        if file_type
+        let file_type = matchstr(line, '\[filetype:[[:alnum:]]\+\]')
+        if file_type != ''
             return file_type[10:-2]
         endif
     endfor
