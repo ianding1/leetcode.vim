@@ -475,7 +475,7 @@ def get_submission(sid):
 
     # the punctuations and newlines in the code are escaped like '\\u0010' ('\\' => real backslash)
     # to unscape the string, we do the trick '\\u0010'.encode().decode('unicode_escape') ==> '\n'
-    submission['code'] = _split(_unescape(_group1(re.search("submissionCode: '([^']*)'", s), '')))
+    submission['code'] = _break_code_lines(_unescape(_group1(re.search("submissionCode: '([^']*)'", s), '')))
 
     dist_str = _unescape(_group1(re.search("distribution_formatted: '([^']*)'", s),
                                  '{"distribution":[]}'))
