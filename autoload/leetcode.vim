@@ -63,7 +63,6 @@ function! leetcode#ListProblems()
         setlocal nospell
         setlocal nonumber
         setlocal norelativenumber
-        setlocal nocursorline
         setlocal nobuflisted
         setlocal filetype=markdown
         nnoremap <silent> <buffer> <return> :call leetcode#GoToProblem()<cr>
@@ -538,7 +537,6 @@ function! leetcode#ShowSubmissions(slug)
         setlocal nospell
         setlocal nonumber
         setlocal norelativenumber
-        setlocal nocursorline
         setlocal nobuflisted
         setlocal filetype=markdown
         nnoremap <silent> <buffer> <return> :call leetcode#ViewSubmission()<cr>
