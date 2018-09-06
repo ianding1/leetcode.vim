@@ -147,16 +147,8 @@ function! leetcode#GoToProblem()
     endif
 
     " create the solution file from the template
-    execute 'rightbelow new '.problem['slug'].'.'.leetcode#SolutionFileExt(g:leetcode_solution_filetype)
+    execute 'rightbelow vnew '.problem['slug'].'.'.leetcode#SolutionFileExt(g:leetcode_solution_filetype)
     call leetcode#ResetSolution()
-
-    " close the problem list
-    let winnr = bufwinnr('LeetCode/List')
-    if winnr != -1
-        execute winnr.'hide'
-    endif
-
-    set nomodified
 endfunction
 
 function! leetcode#SolutionFileExt(ft_)
@@ -224,7 +216,7 @@ function! leetcode#ResetSolution()
         call add(output, leetcode#CommentLine(filetype, line))
     endfor
     call add(output, leetcode#CommentEnd(filetype))
-    call append('0', output)
+    call append('$', output)
 
     " wrap the long lines according to the option textwidth
     normal gg
@@ -232,6 +224,10 @@ function! leetcode#ResetSolution()
 
     " append the code template
     call append('$', problem['templates'][filetype])
+
+    " go to the first line and delete it (a blank line)
+    normal gg
+    normal dd
 endfunction
 
 function! leetcode#CommentStart(ft, title)
@@ -396,7 +392,8 @@ function! leetcode#FormatResult(result_)
                 \ '  - '.result['state'],
                 \ '## Runtime',
                 \ '  - '.result['runtime'],
-                \ ]
+                \ '## Runtime Rank',
+                \ '  - Faster than '.result['runtime_rank'].' submissions']
 
     if result['total'] > 0
         call extend(output, [
@@ -630,10 +627,8 @@ function! leetcode#ViewSubmission()
         return
     endif
 
-    " create the submission file in preview window
-    call leetcode#CloseAnyPreview()
-    let saved_winnr = winnr()
-    execute 'rightbelow new '.subm['slug'].'.'.id.'.'.leetcode#SolutionFileExt(subm['filetype'])
+    " create the submission file
+    execute 'rightbelow vnew '.subm['slug'].'.'.id.'.'.leetcode#SolutionFileExt(subm['filetype'])
     set modifiable
 
     " clear the buffer
@@ -657,11 +652,6 @@ function! leetcode#ViewSubmission()
     " delete the first line (it is a blank line)
     normal gg
     normal dd
-
-    set nomodified
-    set previewwindow
-
-    execute saved_winnr.'wincmd w'
 endfunction
 
 function! leetcode#CloseAnyPreview()

@@ -295,9 +295,12 @@ def _check_result(submission_id):
         result['answer'] = _split(r.get('code_output', ''))
         result['expected_answer'] = _split(r.get('expected_output', ''))
         result['stdout'] = _split(r.get('std_output', ''))
+        subm = get_submission(submission_id)
+        result['runtime_rank'] = subm['runtime_rank']
     else:
         result['stdout'] = r.get('code_output', [])
         result['expected_answer'] = []
+        result['runtime_rank'] = 'N/A'
     return result
 
 
