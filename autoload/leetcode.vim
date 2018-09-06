@@ -68,6 +68,20 @@ function! leetcode#ListProblems()
         setlocal filetype=markdown
         nnoremap <silent> <buffer> <return> :call leetcode#GoToProblem()<cr>
         nnoremap <silent> <buffer> s :call leetcode#GoToSubmissions()<cr>
+
+        " add custom syntax rules
+        syn match lcEasy /| Easy /hs=s+2
+        syn match lcMedium /| Medium /hs=s+2
+        syn match lcHard /| Hard /hs=s+2
+        syn match lcDone /|X|/hs=s+1,he=e-1
+        syn match lcTodo /|?|:/hs=s+1,he=e-1
+
+        " add custom highlighting rules
+        hi! lcEasy ctermfg=lightgreen guifg=lightgreen
+        hi! lcMedium ctermfg=yellow guifg=yellow
+        hi! lcHard ctermfg=red guifg=red
+        hi! lcDone ctermfg=green guifg=green
+        hi! lcTodo ctermfg=yellow guifg=yellow
     else
         execute winnr.'wincmd w'
     endif
@@ -86,16 +100,23 @@ function! leetcode#ListProblems()
         endif
     endfor
 
+    call append('$', ['LeetCode', repeat('=', 80), '', '## Problem List', '  - return = open the problem',
+                \ '  - s      = view the submissions', ''])
+
     let head = '| | #'.repeat(' ', max_id_len-1).' | Title'.repeat(' ', max_title_len-5).' | Accepted | Difficulty |'
     let separator= '|-| '.repeat('-', max_id_len).' | '.repeat('-', max_title_len).' | -------- | ---------- |'
     call append('$', [separator, head, separator])
 
-    let format = '|%s| %-'.string(max_id_len).'d | %-'.string(max_title_len).'S | %8.1f%% | %-10S |'
+    let format = '|%s| %-'.string(max_id_len).'d | %-'.string(max_title_len).'S | %7.1f%% | %-10S |'
     let output = []
     for p in problems
         call add(output, printf(format, p['state'], p['fid'], p['title'], p['ac_rate'] * 100, p['level']))
     endfor
+    call add(output, separator)
     call append('$', output)
+
+    normal gg
+    normal dd
 
     setlocal nomodifiable
 
@@ -196,6 +217,7 @@ function! leetcode#ResetSolution()
                 \ printf('%s %s of %s', problem['ac_rate'],
                 \ problem['total_accepted'], problem['total_submission']).
                 \ '] [filetype:'.filetype.']'
+    call add(output, leetcode#CommentLine(filetype, ''))
     call add(output, leetcode#CommentLine(filetype, desc))
     call add(output, leetcode#CommentLine(filetype, ''))
     for line in problem['desc']
@@ -247,13 +269,14 @@ function! leetcode#CommentEnd(ft)
 endfunction
 
 function! leetcode#GuessFileType()
-    " We first try figuring out the file type from the comment in the first
-    " line. If we failed, we will try guessing it from the extension name.  We
-    let first_line = getline(1)
-    let file_type = matchstr(first_line, '\[filetype:[[:alpha:]]\+\]')
-    if file_type
-        return file_type[10:-2]
-    endif
+    " We first try figuring out the file type from the comment in the first 10
+    " lines. If we failed, we will try guessing it from the extension name.
+    for line in getline(1, 10)
+        let file_type = matchstr(line, '\[filetype:[[:alpha:]]\+\]')
+        if file_type
+            return file_type[10:-2]
+        endif
+    endfor
 
     let ext = expand('%:e')
     if ext == 'cpp'
@@ -570,7 +593,8 @@ function! leetcode#ShowSubmissions(slug)
     call add(output, '# '.problem['title'])
     call add(output, '')
     call add(output, '## Submissions')
-    call add(output, 'return = view details')
+    call add(output, '  - return = view submission')
+    call add(output, '')
     let head = '| ID'.repeat(' ', max_id_len-2).' | Time'.repeat(' ', max_time_len-4).' | Status                | Runtime'.repeat(' ', max_runtime_len-7).
                 \' |'
     let separator= '| '.repeat('-', max_id_len).' | '.repeat('-', max_time_len).' | --------------------- | '.repeat('-', max_runtime_len).' |'
