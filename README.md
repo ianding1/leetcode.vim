@@ -1,5 +1,7 @@
 # leetcode.vim
 
+[![asciicast](https://asciinema.org/a/200004.png)](https://asciinema.org/a/200004)
+
 Solve LeetCode problems in Vim!
 
 This Vim plugin is inspired by [skygragon/leetcode-cli](https://github.com/skygragon/leetcode-cli).
