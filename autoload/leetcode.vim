@@ -158,7 +158,7 @@ function! leetcode#GoToProblem()
 
     " create the solution file from the template
     execute 'rightbelow vnew '.problem['slug'].'.'.leetcode#SolutionFileExt(g:leetcode_solution_filetype)
-    call leetcode#ResetSolution()
+    call leetcode#ResetSolution(1)
 endfunction
 
 function! leetcode#SolutionFileExt(ft_)
@@ -190,7 +190,7 @@ function! leetcode#SolutionFileExt(ft_)
     endif
 endfunction
 
-function! leetcode#ResetSolution()
+function! leetcode#ResetSolution(latest_submission)
     if leetcode#CheckSignIn() == v:false
         return
     endif
@@ -206,6 +206,21 @@ function! leetcode#ResetSolution()
     if !has_key(problem['templates'], filetype)
         echo 'the file type is not supported'
         return
+    endif
+
+    " try downloading the latest submission
+    let code = []
+    if a:latest_submission
+        let submissions = py3eval('leetcode.get_submissions("'.slug.'")')
+        if type(submissions) == v:t_list
+            for item in submissions
+                let subm = py3eval('leetcode.get_submission('.item['id'].')')
+                if type(subm) == v:t_dict && subm['filetype'] == filetype
+                    let code = subm['code']
+                    break
+                endif
+            endfor
+        endif
     endif
 
     " clear the buffer
@@ -232,8 +247,11 @@ function! leetcode#ResetSolution()
     normal gg
     normal gqG
 
-    " append the code template
-    call append('$', problem['templates'][filetype])
+    " append the submitted code or the code template
+    if len(code) == 0
+        let code = problem['templates'][filetype]
+    endif
+    call append('$', code)
 
     " go to the first line and delete it (a blank line)
     normal gg
