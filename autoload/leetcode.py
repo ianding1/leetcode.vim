@@ -310,6 +310,10 @@ def test_solution(slug, filetype, code=None):
     if not problem:
         return None
 
+    if not problem['testable']:
+        _echoerr('the problem is not testable, please submit directly')
+        return None
+
     if code is None:
         code = '\n'.join(vim.current.buffer)
 
