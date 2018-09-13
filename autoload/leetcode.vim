@@ -74,6 +74,7 @@ function! leetcode#ListProblems()
         syn match lcHard /| Hard /hs=s+2
         syn match lcDone /|X|/hs=s+1,he=e-1
         syn match lcTodo /|?|/hs=s+1,he=e-1
+        syn match lcPaidOnly /\[P\]/
 
         " add custom highlighting rules
         hi! lcEasy ctermfg=lightgreen guifg=lightgreen
@@ -81,6 +82,7 @@ function! leetcode#ListProblems()
         hi! lcHard ctermfg=red guifg=red
         hi! lcDone ctermfg=green guifg=green
         hi! lcTodo ctermfg=yellow guifg=yellow
+        hi! lcPaidOnly ctermfg=yellow guifg=yellow
     else
         execute winnr.'wincmd w'
     endif
@@ -92,15 +94,20 @@ function! leetcode#ListProblems()
     let max_title_len = 5
     for p in problems
         if strlen(p['title']) > max_title_len
-            let max_title_len = strlen(p['title'])
+            let max_title_len = strlen(p['title'].' [P]')
         endif
         if strlen(p['fid']) > max_id_len
             let max_id_len = strlen(p['fid'])
         endif
     endfor
 
-    call append('$', ['LeetCode', repeat('=', 80), '', '## Problem List', '  - return = open the problem',
-                \ '  - s      = view the submissions', ''])
+    call append('$', ['LeetCode', repeat('=', 80), '',
+                \ '## Problem List',
+                \ '### Keys',
+                \ '  - ret = open the problem',
+                \ '  - s   = view the submissions',
+                \ '### Indicators',
+                \ '  - [P] = paid-only problems'])
 
     let head = '| | #'.repeat(' ', max_id_len-1).' | Title'.repeat(' ', max_title_len-5).' | Accepted | Difficulty |'
     let separator= '|-| '.repeat('-', max_id_len).' | '.repeat('-', max_title_len).' | -------- | ---------- |'
@@ -109,7 +116,11 @@ function! leetcode#ListProblems()
     let format = '|%s| %-'.string(max_id_len).'d | %-'.string(max_title_len).'S | %7.1f%% | %-10S |'
     let output = []
     for p in problems
-        call add(output, printf(format, p['state'], p['fid'], p['title'], p['ac_rate'] * 100, p['level']))
+        let title = p['title']
+        if p['paid_only']
+            let title = title.' [P]'
+        endif
+        call add(output, printf(format, p['state'], p['fid'], title, p['ac_rate'] * 100, p['level']))
     endfor
     call add(output, separator)
     call append('$', output)
