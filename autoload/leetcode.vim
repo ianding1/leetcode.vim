@@ -439,9 +439,6 @@ function! leetcode#FormatResult(result_)
     call extend(output, leetcode#MultiLineIfExists('Error', result['error'], 2))
     call extend(output, leetcode#MultiLineIfExists('Standard Output', result['stdout'], 2))
 
-    if len(result['testcase']) || len(result['answer']) || len(result['expected_answer'])
-        call add(output, '## Failed Test Case')
-    endif
     call extend(output, leetcode#MultiLineIfExists('Input', result['testcase'], 3))
     call extend(output, leetcode#MultiLineIfExists('Actual Answer', result['answer'], 3))
     call extend(output, leetcode#MultiLineIfExists('Expected Answer', result['expected_answer'], 3))
