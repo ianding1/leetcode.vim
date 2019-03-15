@@ -421,7 +421,7 @@ function! leetcode#FormatResult(result_)
                 \ '## Runtime',
                 \ '  - '.result['runtime'],
                 \ '## Runtime Rank',
-                \ '  - Faster than '.result['runtime_rank'].' submissions']
+                \ printf('  - Faster than %f%% submissions', result['runtime_percentile'])]
 
     if result['total'] > 0
         call extend(output, [
@@ -665,7 +665,7 @@ function! leetcode#ViewSubmission()
     " show the submission description as comments
     let desc = leetcode#FormatResult(subm)
     call extend(desc, ['', '## Runtime Rank',
-                \ '  - Faster than '.subm['runtime_rank'].' submissions'])
+                \ printf('  - Faster than %f%% submissions', subm['runtime_percentile'])]
     let filetype = subm['filetype']
     let output = [leetcode#CommentStart(filetype, 'Submission '.id),
                 \ leetcode#CommentLine(filetype, '')]
