@@ -419,9 +419,13 @@ function! leetcode#FormatResult(result_)
                 \ '## State',
                 \ '  - '.result['state'],
                 \ '## Runtime',
-                \ '  - '.result['runtime'],
-                \ '## Runtime Rank',
-                \ printf('  - Faster than %f%% submissions', result['runtime_percentile'])]
+                \ '  - '.result['runtime']]
+    if string(result['runtime_percentile'])
+        call extend(output, [
+                    \ '## Runtime Rank',
+                    \ printf('  - Faster than %f%% submissions', result['runtime_percentile'])
+                    \ ])
+    endif
 
     if result['total'] > 0
         call extend(output, [
