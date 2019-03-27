@@ -419,9 +419,13 @@ function! leetcode#FormatResult(result_)
                 \ '## State',
                 \ '  - '.result['state'],
                 \ '## Runtime',
-                \ '  - '.result['runtime'],
-                \ '## Runtime Rank',
-                \ '  - Faster than '.result['runtime_rank'].' submissions']
+                \ '  - '.result['runtime']]
+    if string(result['runtime_percentile'])
+        call extend(output, [
+                    \ '## Runtime Rank',
+                    \ printf('  - Faster than %f%% submissions', result['runtime_percentile'])
+                    \ ])
+    endif
 
     if result['total'] > 0
         call extend(output, [
@@ -435,9 +439,6 @@ function! leetcode#FormatResult(result_)
     call extend(output, leetcode#MultiLineIfExists('Error', result['error'], 2))
     call extend(output, leetcode#MultiLineIfExists('Standard Output', result['stdout'], 2))
 
-    if len(result['testcase']) || len(result['answer']) || len(result['expected_answer'])
-        call add(output, '## Failed Test Case')
-    endif
     call extend(output, leetcode#MultiLineIfExists('Input', result['testcase'], 3))
     call extend(output, leetcode#MultiLineIfExists('Actual Answer', result['answer'], 3))
     call extend(output, leetcode#MultiLineIfExists('Expected Answer', result['expected_answer'], 3))
@@ -665,7 +666,7 @@ function! leetcode#ViewSubmission()
     " show the submission description as comments
     let desc = leetcode#FormatResult(subm)
     call extend(desc, ['', '## Runtime Rank',
-                \ '  - Faster than '.subm['runtime_rank'].' submissions'])
+                \ printf('  - Faster than %f%% submissions', subm['runtime_percentile'])]
     let filetype = subm['filetype']
     let output = [leetcode#CommentStart(filetype, 'Submission '.id),
                 \ leetcode#CommentLine(filetype, '')]

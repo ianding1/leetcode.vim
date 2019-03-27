@@ -295,12 +295,11 @@ def _check_result(submission_id):
         result['answer'] = _split(r.get('code_output', ''))
         result['expected_answer'] = _split(r.get('expected_output', ''))
         result['stdout'] = _split(r.get('std_output', ''))
-        subm = get_submission(submission_id)
-        result['runtime_rank'] = subm['runtime_rank']
+        result['runtime_percentile'] = r.get('runtime_percentile', '')
     else:
         result['stdout'] = r.get('code_output', [])
         result['expected_answer'] = []
-        result['runtime_rank'] = 'N/A'
+        result['runtime_percentile'] = r.get('runtime_percentile', '')
     return result
 
 
@@ -498,7 +497,7 @@ def get_submission(sid):
         accum += frequency
         if my_runtime >= int(runtime):
             break
-    submission['runtime_rank'] = '{:.1f}%'.format(accum)
+    submission['runtime_percentile'] = '{:.1f}%'.format(accum)
     return submission
 
 
