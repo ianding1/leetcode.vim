@@ -42,7 +42,7 @@ nnoremap <leader>li :LeetCodeSignIn<cr>
 
 ### g:leetcode\_solution\_filetype
 
-The language that you use to solve the problem. It can be one of the following values: `'cpp'`, `'java'`, `'python'`, `'python3'`, `'csharp'`, `'javascript'`, `'ruby'`, `'swift'`, `'golang'`, `'scala'`, `'kotlin'`.
+The language that you use to solve the problem. It can be one of the following values: `'cpp'`, `'java'`, `'python'`, `'python3'`, `'csharp'`, `'javascript'`, `'ruby'`, `'swift'`, `'golang'`, `'scala'`, `'kotlin'`, ``'rust'``.
 
 Default value is `'cpp'`.
 

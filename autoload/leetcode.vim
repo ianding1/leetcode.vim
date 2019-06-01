@@ -187,6 +187,8 @@ function! leetcode#SolutionFileExt(ft_)
         return 'scala'
     elseif ft == 'kotlin'
         return 'kt'
+    elseif ft == 'rust'
+	return 'rs'
     endif
 endfunction
 
@@ -259,7 +261,7 @@ function! leetcode#ResetSolution(latest_submission)
 endfunction
 
 function! leetcode#CommentStart(ft, title)
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin'], a:ft) >= 0
+    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
         let head = '/* '
     elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
         let head = '# '
@@ -270,7 +272,7 @@ function! leetcode#CommentStart(ft, title)
 endfunction
 
 function! leetcode#CommentLine(ft, line)
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin'], a:ft) >= 0
+    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
         return ' * '.a:line
     elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
         return '# '.a:line
@@ -281,7 +283,7 @@ function! leetcode#CommentLine(ft, line)
 endfunction
 
 function! leetcode#CommentEnd(ft)
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin'], a:ft) >= 0
+    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
         return ' * [End of Description] */'
     elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
         return '# [End of Description]:'
@@ -335,6 +337,8 @@ function! leetcode#GuessFileType()
         return 'scala'
     elseif ext == 'kt'
         return 'kotlin'
+    elseif ext == 'rs'
+	return 'rust'
     else
         return ''
     endif
