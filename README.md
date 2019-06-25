@@ -18,7 +18,7 @@ pip3 install requests beautifulsoup4 --user
 ```
 3. To install the plugin, you only need to place the following line in your vimrc if you are using vim-plugged (or similar code for other plugin managers):
 ```
-Plug 'iandingx/leetcode.vim'
+Plug 'ianding1/leetcode.vim'
 ```
 
 ## Quick Start
@@ -71,3 +71,9 @@ Default value is `''`.
 ### [PLEASE READ THIS] Why can't I test the problem/submit the problem/list the problems?
 
 Once you sign in on your browser in LeetCode website, the LeetCode session in Vim get expired immediatelly. Then you need to sign in again in Vim before doing other things.
+
+### Why can't I test and submit solutions?
+
+According to issue [#5](https://github.com/ianding1/leetcode.vim/issues/5), **if your email address is not active, you can login and download problems, but you cannot test and submit solutions.**
+
+Please check if your email is active if you find that you cannot test and submit.
