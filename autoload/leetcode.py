@@ -480,7 +480,7 @@ def get_submission(sid):
     # to unscape the string, we do the trick '\\u0010'.encode().decode('unicode_escape') ==> '\n'
     submission['code'] = _break_code_lines(_unescape(_group1(re.search("submissionCode: '([^']*)'", s), '')))
 
-    dist_str = _unescape(_group1(re.search("distribution_formatted: '([^']*)'", s),
+    dist_str = _unescape(_group1(re.search("runtimeDistributionFormatted: '([^']*)'", s),
                                  '{"distribution":[]}'))
     dist = json.loads(dist_str)['distribution']
 
