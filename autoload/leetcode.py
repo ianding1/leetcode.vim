@@ -483,6 +483,7 @@ def get_submission(sid):
     dist_str = _unescape(_group1(re.search("runtimeDistributionFormatted: '([^']*)'", s),
                                  '{"distribution":[]}'))
     dist = json.loads(dist_str)['distribution']
+    dist.reverse()
 
     # the second key "runtime" is the runtime in milliseconds
     # we need to search from the position after the first "runtime" key
@@ -497,6 +498,7 @@ def get_submission(sid):
         accum += frequency
         if my_runtime >= int(runtime):
             break
+
     submission['runtime_percentile'] = '{:.1f}%'.format(accum)
     return submission
 
