@@ -27,6 +27,7 @@ LC_SUBMIT = 'https://leetcode.com/problems/{slug}/submit/'
 LC_SUBMISSIONS = 'https://leetcode.com/api/submissions/{slug}'
 LC_SUBMISSION = 'https://leetcode.com/submissions/detail/{submission}/'
 LC_CHECK = 'https://leetcode.com/submissions/detail/{submission}/check/'
+LC_PROBLEM_SET_ALL = 'https://leetcode.com/problemset/all/'
 
 
 session = None
@@ -501,6 +502,124 @@ def get_submission(sid):
 
     submission['runtime_percentile'] = '{:.1f}%'.format(accum)
     return submission
+
+
+def _process_topic_element(topic):
+    return {'topic_name': topic.find(class_='text-gray').string.strip(),
+            'num_problems': topic.find(class_='badge').string,
+            'topic_slug': topic.get('href').split('/')[2]}
+
+
+def _process_company_element(company):
+    return {'company_name': company.find(class_='text-gray').string.strip(),
+            'num_problems': company.find(class_='badge').string,
+            'company_slug': company.get('href').split('/')[2]}
+
+
+def get_topics_and_companies():
+    headers = _make_headers()
+    log.info('get_topics_and_companies request: url="%s', LC_PROBLEM_SET_ALL)
+    res = session.get(LC_PROBLEM_SET_ALL, headers=headers)
+    log.info('get_topics_and_companies response: status="%s" body="%s"', res.status_code,
+             res.text)
+
+    if res.status_code != 200:
+        _echoerr('cannot get topics')
+        return []
+
+    soup = BeautifulSoup(res.text, features='html.parser')
+
+    topic_elements = soup.find_all(class_='sm-topic')
+    topics = [_process_topic_element(topic) for topic in topic_elements]
+
+    company_elements = soup.find_all(class_='sm-company')
+    companies = [_process_company_element(company) for company in company_elements]
+
+    return {
+        'topics': topics,
+        'companies': companies
+        }
+
+
+def get_problems_of_topic(topic_slug):
+    request_body = {
+        'operationName':'getTopicTag',
+        'variables': {'slug': topic_slug},
+        'query': 'query getTopicTag($slug: String!) {\n  topicTag(slug: $slug) {\n    name\n    translatedName\n    questions {\n      status\n      questionId\n      questionFrontendId\n      title\n      titleSlug\n      translatedTitle\n      stats\n      difficulty\n      isPaidOnly\n      topicTags {\n        name\n        translatedName\n        slug\n        __typename\n      }\n      companyTags {\n        name\n        translatedName\n        slug\n        __typename\n      }\n      __typename\n    }\n    frequencies\n    __typename\n  }\n  favoritesLists {\n    publicFavorites {\n      ...favoriteFields\n      __typename\n    }\n    privateFavorites {\n      ...favoriteFields\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment favoriteFields on FavoriteNode {\n  idHash\n  id\n  name\n  isPublicFavorite\n  viewCount\n  creator\n  isWatched\n  questions {\n    questionId\n    title\n    titleSlug\n    __typename\n  }\n  __typename\n}\n'}
+
+    headers = _make_headers()
+
+    log.info('get_problems_of_topic request: headers="%s" body="%s"', headers,
+             request_body)
+    res = session.post(LC_GRAPHQL, headers=headers, json=request_body)
+
+    log.info('get_problems_of_topic response: status="%s" body="%s"',
+             res.status_code, res.text)
+
+    if res.status_code != 200:
+        _echoerr('cannot get problems of the topic')
+        return
+
+    topic_tag = res.json()['data']['topicTag']
+
+    def process_problem(p):
+        stats = json.loads(p['stats'])
+
+        return {
+            'state': _state_to_flag(p['status']),
+            'id': p['questionId'],
+            'fid': p['questionFrontendId'],
+            'title': p['title'],
+            'slug': p['titleSlug'],
+            'paid_only': p['isPaidOnly'],
+            'ac_rate': stats['totalAcceptedRaw'] / stats['totalSubmissionRaw'],
+            'level': p['difficulty'],
+            'favor': False}
+
+    return {
+        'topic_name': topic_tag['name'],
+        'problems': [process_problem(p) for p in topic_tag['questions']]}
+
+
+def get_problems_of_company(company_slug):
+    request_body = {
+        'operationName':'getCompanyTag',
+        'variables': {'slug': company_slug},
+        'query': 'query getCompanyTag($slug: String!) {\n  companyTag(slug: $slug) {\n    name\n    translatedName\n    frequencies\n    questions {\n      ...questionFields\n      __typename\n    }\n    __typename\n  }\n  favoritesLists {\n    publicFavorites {\n      ...favoriteFields\n      __typename\n    }\n    privateFavorites {\n      ...favoriteFields\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment favoriteFields on FavoriteNode {\n  idHash\n  id\n  name\n  isPublicFavorite\n  viewCount\n  creator\n  isWatched\n  questions {\n    questionId\n    title\n    titleSlug\n    __typename\n  }\n  __typename\n}\n\nfragment questionFields on QuestionNode {\n  status\n  questionId\n  questionFrontendId\n  title\n  titleSlug\n  translatedTitle\n  stats\n  difficulty\n  isPaidOnly\n  topicTags {\n    name\n    translatedName\n    slug\n    __typename\n  }\n  frequencyTimePeriod\n  __typename\n}\n'}
+
+    headers = _make_headers()
+    headers['Referer'] = 'https://leetcode.com/company/{}/'.format(company_slug)
+
+    log.info('get_problems_of_company request: headers="%s" body="%s"', headers,
+             request_body)
+    res = session.post(LC_GRAPHQL, headers=headers, json=request_body)
+
+    log.info('get_problems_of_company response: status="%s" body="%s"',
+             res.status_code, res.text)
+
+    if res.status_code != 200:
+        _echoerr('cannot get problems of the company')
+        return
+
+    company_tag = res.json()['data']['companyTag']
+
+    def process_problem(p):
+        stats = json.loads(p['stats'])
+
+        return {
+            'state': _state_to_flag(p['status']),
+            'id': p['questionId'],
+            'fid': p['questionFrontendId'],
+            'title': p['title'],
+            'slug': p['titleSlug'],
+            'paid_only': p['isPaidOnly'],
+            'ac_rate': stats['totalAcceptedRaw'] / stats['totalSubmissionRaw'],
+            'level': p['difficulty'],
+            'favor': False}
+
+    return {
+        'company_name': company_tag['name'],
+        'problems': [process_problem(p) for p in company_tag['questions']]}
 
 
 def _thread_main():
