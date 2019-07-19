@@ -73,7 +73,7 @@ def _level_to_name(level):
 def _state_to_flag(state):
     if state == 'ac':
         return 'X'
-    elif state == 'notac':
+    if state == 'notac':
         return '?'
     return ' '
 
@@ -479,7 +479,8 @@ def get_submission(sid):
 
     # the punctuations and newlines in the code are escaped like '\\u0010' ('\\' => real backslash)
     # to unscape the string, we do the trick '\\u0010'.encode().decode('unicode_escape') ==> '\n'
-    submission['code'] = _break_code_lines(_unescape(_group1(re.search("submissionCode: '([^']*)'", s), '')))
+    submission['code'] = _break_code_lines(_unescape(_group1(
+        re.search("submissionCode: '([^']*)'", s), '')))
 
     dist_str = _unescape(_group1(re.search("runtimeDistributionFormatted: '([^']*)'", s),
                                  '{"distribution":[]}'))
@@ -545,7 +546,67 @@ def get_problems_of_topic(topic_slug):
     request_body = {
         'operationName':'getTopicTag',
         'variables': {'slug': topic_slug},
-        'query': 'query getTopicTag($slug: String!) {\n  topicTag(slug: $slug) {\n    name\n    translatedName\n    questions {\n      status\n      questionId\n      questionFrontendId\n      title\n      titleSlug\n      translatedTitle\n      stats\n      difficulty\n      isPaidOnly\n      topicTags {\n        name\n        translatedName\n        slug\n        __typename\n      }\n      companyTags {\n        name\n        translatedName\n        slug\n        __typename\n      }\n      __typename\n    }\n    frequencies\n    __typename\n  }\n  favoritesLists {\n    publicFavorites {\n      ...favoriteFields\n      __typename\n    }\n    privateFavorites {\n      ...favoriteFields\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment favoriteFields on FavoriteNode {\n  idHash\n  id\n  name\n  isPublicFavorite\n  viewCount\n  creator\n  isWatched\n  questions {\n    questionId\n    title\n    titleSlug\n    __typename\n  }\n  __typename\n}\n'}
+        'query': '''query getTopicTag($slug: String!) {
+  topicTag(slug: $slug) {
+    name
+    translatedName
+    questions {
+      status
+      questionId
+      questionFrontendId
+      title
+      titleSlug
+      translatedTitle
+      stats
+      difficulty
+      isPaidOnly
+      topicTags {
+        name
+        translatedName
+        slug
+        __typename
+      }
+      companyTags {
+        name
+        translatedName
+        slug
+        __typename
+      }
+      __typename
+    }
+    frequencies
+    __typename
+  }
+  favoritesLists {
+    publicFavorites {
+      ...favoriteFields
+      __typename
+    }
+    privateFavorites {
+      ...favoriteFields
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment favoriteFields on FavoriteNode {
+  idHash
+  id
+  name
+  isPublicFavorite
+  viewCount
+  creator
+  isWatched
+  questions {
+    questionId
+    title
+    titleSlug
+    __typename
+  }
+  __typename
+}
+'''}
 
     headers = _make_headers()
 
@@ -558,7 +619,7 @@ def get_problems_of_topic(topic_slug):
 
     if res.status_code != 200:
         _echoerr('cannot get problems of the topic')
-        return
+        return None
 
     topic_tag = res.json()['data']['topicTag']
 
@@ -585,7 +646,67 @@ def get_problems_of_company(company_slug):
     request_body = {
         'operationName':'getCompanyTag',
         'variables': {'slug': company_slug},
-        'query': 'query getCompanyTag($slug: String!) {\n  companyTag(slug: $slug) {\n    name\n    translatedName\n    frequencies\n    questions {\n      ...questionFields\n      __typename\n    }\n    __typename\n  }\n  favoritesLists {\n    publicFavorites {\n      ...favoriteFields\n      __typename\n    }\n    privateFavorites {\n      ...favoriteFields\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment favoriteFields on FavoriteNode {\n  idHash\n  id\n  name\n  isPublicFavorite\n  viewCount\n  creator\n  isWatched\n  questions {\n    questionId\n    title\n    titleSlug\n    __typename\n  }\n  __typename\n}\n\nfragment questionFields on QuestionNode {\n  status\n  questionId\n  questionFrontendId\n  title\n  titleSlug\n  translatedTitle\n  stats\n  difficulty\n  isPaidOnly\n  topicTags {\n    name\n    translatedName\n    slug\n    __typename\n  }\n  frequencyTimePeriod\n  __typename\n}\n'}
+        'query': '''query getCompanyTag($slug: String!) {
+  companyTag(slug: $slug) {
+    name
+    translatedName
+    frequencies
+    questions {
+      ...questionFields
+      __typename
+    }
+    __typename
+  }
+  favoritesLists {
+    publicFavorites {
+      ...favoriteFields
+      __typename
+    }
+    privateFavorites {
+      ...favoriteFields
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment favoriteFields on FavoriteNode {
+  idHash
+  id
+  name
+  isPublicFavorite
+  viewCount
+  creator
+  isWatched
+  questions {
+    questionId
+    title
+    titleSlug
+    __typename
+  }
+  __typename
+}
+
+fragment questionFields on QuestionNode {
+  status
+  questionId
+  questionFrontendId
+  title
+  titleSlug
+  translatedTitle
+  stats
+  difficulty
+  isPaidOnly
+  topicTags {
+    name
+    translatedName
+    slug
+    __typename
+  }
+  frequencyTimePeriod
+  __typename
+}
+'''}
 
     headers = _make_headers()
     headers['Referer'] = 'https://leetcode.com/company/{}/'.format(company_slug)
@@ -599,7 +720,7 @@ def get_problems_of_company(company_slug):
 
     if res.status_code != 200:
         _echoerr('cannot get problems of the company')
-        return
+        return None
 
     company_tag = res.json()['data']['companyTag']
 
