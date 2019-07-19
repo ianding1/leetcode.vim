@@ -1,8 +1,20 @@
 let s:current_dir = expand("<sfile>:p:h")
 
-python3 import vim
-python3 if not vim.eval('s:current_dir') in sys.path: sys.path.append(vim.eval('s:current_dir'))
-python3 import leetcode
+python3 <<EOF
+import os.path
+import vim
+
+plugin_dir = vim.eval('s:current_dir')
+thirdparty_dir = os.path.join(plugin_dir, 'thirdparty')
+
+if plugin_dir not in sys.path:
+  sys.path.append(plugin_dir)
+
+if thirdparty_dir not in sys.path:
+  sys.path.append(thirdparty_dir)
+
+import leetcode
+EOF
 
 let s:inited = py3eval('leetcode.inited')
 
@@ -12,7 +24,6 @@ endif
 
 function! leetcode#SignIn(ask)
     if !s:inited
-        echoerr 'please install python packages beautifulsoup4 and requests'
         return v:false
     endif
 
@@ -42,57 +53,40 @@ function! leetcode#CheckSignIn()
     return v:true
 endfunction
 
-function! leetcode#ListProblems()
-    if leetcode#CheckSignIn() == v:false
-        return
-    endif
+function! leetcode#SetupProblemWindow()
+    setlocal buftype=nofile
+    setlocal noswapfile
+    setlocal bufhidden=delete
+    setlocal nospell
+    setlocal nonumber
+    setlocal norelativenumber
+    setlocal nobuflisted
+    setlocal filetype=markdown
+    nnoremap <silent> <buffer> <return> :call leetcode#GoToProblem()<cr>
+    nnoremap <silent> <buffer> s :call leetcode#GoToSubmissions()<cr>
 
-    let problems = py3eval('leetcode.get_problems('.string(g:leetcode_categories).')')
-    let s:leetcode_problem_slug_map = {}
-    for p in problems
-        let s:leetcode_problem_slug_map[p['fid']] = p['slug']
-    endfor
+    " add custom syntax rules
+    syn match lcEasy /| Easy /hs=s+2
+    syn match lcMedium /| Medium /hs=s+2
+    syn match lcHard /| Hard /hs=s+2
+    syn match lcDone /|X|/hs=s+1,he=e-1
+    syn match lcTodo /|?|/hs=s+1,he=e-1
+    syn match lcPaidOnly /\[P\]/
 
-    " create a window to show the problem list or go to the existing one
-    let winnr = bufwinnr('LeetCode/List')
-    if winnr == -1
-        rightbelow new LeetCode/List
-        setlocal buftype=nofile
-        setlocal noswapfile
-        setlocal bufhidden=delete
-        setlocal nospell
-        setlocal nonumber
-        setlocal norelativenumber
-        setlocal nobuflisted
-        setlocal filetype=markdown
-        nnoremap <silent> <buffer> <return> :call leetcode#GoToProblem()<cr>
-        nnoremap <silent> <buffer> s :call leetcode#GoToSubmissions()<cr>
+    " add custom highlighting rules
+    hi! lcEasy ctermfg=lightgreen guifg=lightgreen
+    hi! lcMedium ctermfg=yellow guifg=yellow
+    hi! lcHard ctermfg=red guifg=red
+    hi! lcDone ctermfg=green guifg=green
+    hi! lcTodo ctermfg=yellow guifg=yellow
+    hi! lcPaidOnly ctermfg=yellow guifg=yellow
+endfunction
 
-        " add custom syntax rules
-        syn match lcEasy /| Easy /hs=s+2
-        syn match lcMedium /| Medium /hs=s+2
-        syn match lcHard /| Hard /hs=s+2
-        syn match lcDone /|X|/hs=s+1,he=e-1
-        syn match lcTodo /|?|/hs=s+1,he=e-1
-        syn match lcPaidOnly /\[P\]/
-
-        " add custom highlighting rules
-        hi! lcEasy ctermfg=lightgreen guifg=lightgreen
-        hi! lcMedium ctermfg=yellow guifg=yellow
-        hi! lcHard ctermfg=red guifg=red
-        hi! lcDone ctermfg=green guifg=green
-        hi! lcTodo ctermfg=yellow guifg=yellow
-        hi! lcPaidOnly ctermfg=yellow guifg=yellow
-    else
-        execute winnr.'wincmd w'
-    endif
-
-    set modifiable
-
+function! leetcode#PrintProblemList(problems)
     " show the problems in a table
     let max_id_len = 1
     let max_title_len = 5
-    for p in problems
+    for p in a:problems
         if strlen(p['title']) > max_title_len
             let max_title_len = strlen(p['title'].' [P]')
         endif
@@ -101,8 +95,7 @@ function! leetcode#ListProblems()
         endif
     endfor
 
-    call append('$', ['LeetCode', repeat('=', 80), '',
-                \ '## Problem List',
+    call append('$', ['', '## Problem List',
                 \ '### Keys',
                 \ '  - ret = open the problem',
                 \ '  - s   = view the submissions',
@@ -115,8 +108,8 @@ function! leetcode#ListProblems()
 
     let format = '|%s| %-'.string(max_id_len).'d | %-'.string(max_title_len).'S | %7.1f%% | %-10S |'
     let output = []
-    for p in problems
-        let title = p['title']
+    for p in a:problems
+        let title = substitute(p['title'], '`', "'", 'g')
         if p['paid_only']
             let title = title.' [P]'
         endif
@@ -124,6 +117,41 @@ function! leetcode#ListProblems()
     endfor
     call add(output, separator)
     call append('$', output)
+endfunction
+
+function! leetcode#ListProblemsOfTopic(topic)
+    if leetcode#CheckSignIn() == v:false
+        return
+    endif
+
+    let problems = py3eval('leetcode.get_problems_of_topic('.string(a:topic).')')['problems']
+
+    let s:leetcode_problem_slug_map = {}
+    for p in problems
+        let s:leetcode_problem_slug_map[p['fid']] = p['slug']
+    endfor
+
+    let s:leetcode_end_of_topics = 0
+    let s:leetcode_end_of_companies = 0
+
+    " create a window to show the problem list or go to the existing one
+    let winnr = bufwinnr('LeetCode/List')
+    if winnr == -1
+        rightbelow new LeetCode/List
+        call leetcode#SetupProblemWindow()
+    else
+        execute winnr.'wincmd w'
+    endif
+
+    set modifiable
+
+    " clear the buffer
+    normal gg
+    normal dG
+
+    call append('$', ['LeetCode [' . a:topic . ']', repeat('=', 80), '',])
+
+    call leetcode#PrintProblemList(problems)
 
     normal gg
     normal dd
@@ -132,7 +160,135 @@ function! leetcode#ListProblems()
 
     " try maximizing the window
     try
-        only
+        silent! only
+    endtry
+endfunction
+
+function! leetcode#ListProblemsOfCompany(company)
+    if leetcode#CheckSignIn() == v:false
+        return
+    endif
+
+    let problems = py3eval('leetcode.get_problems_of_company('.string(a:company).')')['problems']
+
+    let s:leetcode_problem_slug_map = {}
+    for p in problems
+        let s:leetcode_problem_slug_map[p['fid']] = p['slug']
+    endfor
+
+    let s:leetcode_end_of_topics = 0
+    let s:leetcode_end_of_companies = 0
+
+    " create a window to show the problem list or go to the existing one
+    let winnr = bufwinnr('LeetCode/List')
+    if winnr == -1
+        rightbelow new LeetCode/List
+        call leetcode#SetupProblemWindow()
+    else
+        execute winnr.'wincmd w'
+    endif
+
+    set modifiable
+
+    " clear the buffer
+    normal gg
+    normal dG
+
+    call append('$', ['LeetCode [' . a:company . ']', repeat('=', 80), '',])
+
+    call leetcode#PrintProblemList(problems)
+
+    normal gg
+    normal dd
+
+    setlocal nomodifiable
+
+    " try maximizing the window
+    try
+        silent! only
+    endtry
+endfunction
+
+function! leetcode#ListProblems()
+    if leetcode#CheckSignIn() == v:false
+        return
+    endif
+
+    let problems = py3eval('leetcode.get_problems(' . string(g:leetcode_categories) . ')')
+
+    let s:leetcode_problem_slug_map = {}
+    for p in problems
+        let s:leetcode_problem_slug_map[p['fid']] = p['slug']
+    endfor
+
+    let topics_and_companies = py3eval('leetcode.get_topics_and_companies()')
+    let topics = topics_and_companies['topics']
+    let companies = topics_and_companies['companies']
+
+    let s:leetcode_topic_slug_map = {}
+    for t in topics
+        let s:leetcode_topic_slug_map[t['topic_slug']] = t['topic_name']
+    endfor
+
+    let s:leetcode_company_slug_map = {}
+    for c in companies
+        let s:leetcode_company_slug_map[c['company_slug']] = c['company_name']
+    endfor
+
+    " create a window to show the problem list or go to the existing one
+    let winnr = bufwinnr('LeetCode/List')
+    if winnr == -1
+        rightbelow new LeetCode/List
+        call leetcode#SetupProblemWindow()
+    else
+        execute winnr.'wincmd w'
+    endif
+
+    set modifiable
+
+    " clear the buffer
+    normal gg
+    normal dG
+
+    " concatenate the topics into a string
+    let topic_list = ''
+    for t in topics
+        let topic_list = topic_list . t['topic_slug'] . ' (' . t['num_problems'] . '), '
+    endfor
+
+    " concatenate the companies into a string
+    let company_list = ''
+    for c in companies
+        let company_list = company_list . c['company_slug'] . ' (' . c['num_problems'] . '), '
+    endfor
+
+    call append('$', ['LeetCode', repeat('=', 80), '',
+                \ '## Topics', ''])
+
+    call append('$', topic_list)
+    normal G
+    normal gqq
+
+    let s:leetcode_end_of_topics = getcurpos()[1]
+
+    call append('$', ['', '## Companies', ''])
+
+    call append('$', company_list)
+    normal G
+    normal gqq
+
+    let s:leetcode_end_of_companies = getcurpos()[1]
+
+    call leetcode#PrintProblemList(problems)
+
+    normal gg
+    normal dd
+
+    setlocal nomodifiable
+
+    " try maximizing the window
+    try
+        silent! only
     endtry
 endfunction
 
@@ -143,6 +299,24 @@ function! leetcode#GoToProblem()
 
     " Parse the problem number from the line
     let line = getline('.')
+    let linenum = getcurpos()[1]
+
+    if linenum <= s:leetcode_end_of_topics
+        " The user is choosing a topic
+        let topic = expand('<cWORD>')
+        if has_key(s:leetcode_topic_slug_map, topic)
+            call leetcode#ListProblemsOfTopic(topic)
+        endif
+        return
+    elseif linenum <= s:leetcode_end_of_companies
+        " The user is choosing a company
+        let company = expand('<cWORD>')
+        if has_key(s:leetcode_company_slug_map, company)
+            call leetcode#ListProblemsOfCompany(company)
+        endif
+        return
+    endif
+
     let fid = matchstr(line, '[1-9][0-9]*', 3)
     if has_key(s:leetcode_problem_slug_map, fid)
         let slug = s:leetcode_problem_slug_map[fid]
@@ -427,7 +601,7 @@ function! leetcode#FormatResult(result_)
     if string(result['runtime_percentile'])
         call extend(output, [
                     \ '## Runtime Rank',
-                    \ printf('  - Faster than %f%% submissions', result['runtime_percentile'])
+                    \ printf('  - Faster than %s%% submissions', result['runtime_percentile'])
                     \ ])
     endif
 
@@ -670,7 +844,7 @@ function! leetcode#ViewSubmission()
     " show the submission description as comments
     let desc = leetcode#FormatResult(subm)
     call extend(desc, ['', '## Runtime Rank',
-                \ printf('  - Faster than %f%% submissions', subm['runtime_percentile'])]
+                \ printf('  - Faster than %s submissions', subm['runtime_percentile'])])
     let filetype = subm['filetype']
     let output = [leetcode#CommentStart(filetype, 'Submission '.id),
                 \ leetcode#CommentLine(filetype, '')]
