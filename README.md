@@ -12,11 +12,7 @@ This Vim plugin is inspired by [skygragon/leetcode-cli](https://github.com/skygr
 ```
 pip3 install neovim --user
 ```
-2. This plugin requires **requests** and **beautifulsoup4**, which can be installed by running:
-```
-pip3 install requests beautifulsoup4 --user
-```
-3. To install the plugin, you only need to place the following line in your vimrc if you are using vim-plugged (or similar code for other plugin managers):
+2. To install the plugin, you only need to place the following line in your vimrc if you are using vim-plugged (or similar code for other plugin managers):
 ```
 Plug 'ianding1/leetcode.vim'
 ```
