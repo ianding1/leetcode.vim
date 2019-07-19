@@ -1,8 +1,20 @@
 let s:current_dir = expand("<sfile>:p:h")
 
-python3 import vim
-python3 if not vim.eval('s:current_dir') in sys.path: sys.path.append(vim.eval('s:current_dir'))
-python3 import leetcode
+python3 <<EOF
+import os.path
+import vim
+
+plugin_dir = vim.eval('s:current_dir')
+thirdparty_dir = os.path.join(plugin_dir, 'thirdparty')
+
+if plugin_dir not in sys.path:
+  sys.path.append(plugin_dir)
+
+if thirdparty_dir not in sys.path:
+  sys.path.append(thirdparty_dir)
+
+import leetcode
+EOF
 
 let s:inited = py3eval('leetcode.inited')
 
@@ -12,7 +24,6 @@ endif
 
 function! leetcode#SignIn(ask)
     if !s:inited
-        echoerr 'please install python packages beautifulsoup4 and requests'
         return v:false
     endif
 
