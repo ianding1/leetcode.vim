@@ -1,3 +1,4 @@
+" vim: sts=4 sw=4
 let s:current_dir = expand("<sfile>:p:h")
 
 python3 <<EOF
@@ -251,33 +252,33 @@ function! leetcode#ListProblems()
     normal dG
 
     " concatenate the topics into a string
-    let topic_list = ''
+    let topic_list = []
     for t in topics
-        let topic_list = topic_list . t['topic_slug'] . ' (' . t['num_problems'] . '), '
+        call add(topic_list, t['topic_slug'])
     endfor
 
+    let topic_lines = s:FormatIntoColumns(topic_list)
+
     " concatenate the companies into a string
-    let company_list = ''
+    let company_list = []
     for c in companies
-        let company_list = company_list . c['company_slug'] . ' (' . c['num_problems'] . '), '
+        call add(company_list, c['company_slug'])
     endfor
+
+    let company_lines = s:FormatIntoColumns(company_list)
 
     call append('$', ['LeetCode', repeat('=', 80), '',
                 \ '## Topics', ''])
 
-    call append('$', topic_list)
-    normal G
-    normal gqq
+    call append('$', topic_lines)
 
-    let s:leetcode_end_of_topics = getcurpos()[1]
+    let s:leetcode_end_of_topics = line('$')
 
     call append('$', ['', '## Companies', ''])
 
-    call append('$', company_list)
-    normal G
-    normal gqq
+    call append('$', company_lines)
 
-    let s:leetcode_end_of_companies = getcurpos()[1]
+    let s:leetcode_end_of_companies = line('$')
 
     call leetcode#PrintProblemList(problems)
 
@@ -362,7 +363,7 @@ function! leetcode#SolutionFileExt(ft_)
     elseif ft == 'kotlin'
         return 'kt'
     elseif ft == 'rust'
-	return 'rs'
+        return 'rs'
     endif
 endfunction
 
@@ -512,7 +513,7 @@ function! leetcode#GuessFileType()
     elseif ext == 'kt'
         return 'kotlin'
     elseif ext == 'rs'
-	return 'rust'
+        return 'rust'
     else
         return ''
     endif
@@ -871,4 +872,44 @@ function! leetcode#CloseAnyPreview()
         endfor
         execute curwin.'wincmd w'
     endtry
+endfunction
+
+
+function! s:FormatIntoColumns(words) abort
+    let max_word_width = 0
+
+    for word in a:words
+        if strwidth(word) > max_word_width
+            let max_word_width = strwidth(word)
+        endif
+    endfor
+
+    let num_columns = float2nr(floor(80 / (max_word_width + 1)))
+    if num_columns == 0
+        let num_columns = 1
+    endif
+
+    let num_rows = float2nr(ceil(len(a:words) / num_columns))
+
+    let lines = []
+
+    for i in range(num_rows)
+        let line = ''
+
+        for j in range(num_columns)
+            let word_index = j * num_rows + i
+
+            if word_index < len(a:words)
+                let word = a:words[word_index]
+            else
+                let word = ''
+            endif
+
+            let line .= printf('%-' . max_word_width . 'S ', word)
+        endfor
+
+        call add(lines, line)
+    endfor
+
+    return lines
 endfunction
