@@ -18,6 +18,7 @@ except ImportError:
 
 
 LC_BASE = ''
+LC_CSRF = ''
 LC_LOGIN = ''
 LC_GRAPHQL = ''
 LC_CATEGORY_PROBLEMS = ''
@@ -52,6 +53,7 @@ def enable_logging():
 
 def switch_china(is_china):
     global LC_BASE
+    global LC_CSRF
     global LC_LOGIN
     global LC_GRAPHQL
     global LC_CATEGORY_PROBLEMS
@@ -66,6 +68,7 @@ def switch_china(is_china):
         LC_BASE = 'https://leetcode-cn.com'
     else:
         LC_BASE = 'https://leetcode.com'
+    LC_CSRF = LC_BASE + '/ensure_csrf/'
     LC_LOGIN = LC_BASE + '/accounts/login/'
     LC_GRAPHQL = LC_BASE + '/graphql'
     LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}'
@@ -158,9 +161,12 @@ def is_login():
 def signin(username, password):
     global session
     session = requests.Session()
-    res = session.get(LC_LOGIN)
+    if LC_BASE.find("cn"):
+        res = session.get(LC_CSRF)
+    else:
+        res = session.get(LC_LOGIN)
     if res.status_code != 200:
-        _echoerr('cannot open ' + LC_LOGIN)
+        _echoerr('cannot open ' + LC_BASE)
         return False
 
     headers = {'Origin': LC_BASE,
