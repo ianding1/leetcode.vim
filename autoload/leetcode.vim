@@ -1,4 +1,5 @@
-" vim: sts=4 sw=4
+" vim: sts=4 sw=4 expandtab
+
 let s:current_dir = expand("<sfile>:p:h")
 
 python3 <<EOF
