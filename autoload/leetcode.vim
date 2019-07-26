@@ -48,14 +48,14 @@ function! leetcode#SignIn(ask)
     return success
 endfunction
 
-function! leetcode#CheckSignIn()
+function! s:CheckSignIn()
     if !py3eval('leetcode.is_login()')
         return leetcode#SignIn(0)
     endif
     return v:true
 endfunction
 
-function! leetcode#SetupProblemWindow()
+function! s:SetupProblemWindow()
     setlocal buftype=nofile
     setlocal noswapfile
     setlocal bufhidden=delete
@@ -64,8 +64,8 @@ function! leetcode#SetupProblemWindow()
     setlocal norelativenumber
     setlocal nobuflisted
     setlocal filetype=markdown
-    nnoremap <silent> <buffer> <return> :call leetcode#GoToProblem()<cr>
-    nnoremap <silent> <buffer> s :call leetcode#GoToSubmissions()<cr>
+    nnoremap <silent> <buffer> <return> :call <SID>GoToProblem()<cr>
+    nnoremap <silent> <buffer> s :call <SID>GoToSubmissions()<cr>
 
     " add custom syntax rules
     syn match lcEasy /| Easy /hs=s+2
@@ -84,7 +84,7 @@ function! leetcode#SetupProblemWindow()
     hi! lcPaidOnly ctermfg=yellow guifg=yellow
 endfunction
 
-function! leetcode#PrintProblemList(problems)
+function! s:PrintProblemList(problems)
     " show the problems in a table
     let max_id_len = 1
     let max_title_len = 5
@@ -121,8 +121,8 @@ function! leetcode#PrintProblemList(problems)
     call append('$', output)
 endfunction
 
-function! leetcode#ListProblemsOfTopic(topic)
-    if leetcode#CheckSignIn() == v:false
+function! s:ListProblemsOfTopic(topic)
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -140,7 +140,7 @@ function! leetcode#ListProblemsOfTopic(topic)
     let winnr = bufwinnr('LeetCode/List')
     if winnr == -1
         rightbelow new LeetCode/List
-        call leetcode#SetupProblemWindow()
+        call s:SetupProblemWindow()
     else
         execute winnr.'wincmd w'
     endif
@@ -153,7 +153,7 @@ function! leetcode#ListProblemsOfTopic(topic)
 
     call append('$', ['LeetCode [' . a:topic . ']', repeat('=', 80), '',])
 
-    call leetcode#PrintProblemList(problems)
+    call s:PrintProblemList(problems)
 
     normal gg
     normal dd
@@ -166,8 +166,8 @@ function! leetcode#ListProblemsOfTopic(topic)
     endtry
 endfunction
 
-function! leetcode#ListProblemsOfCompany(company)
-    if leetcode#CheckSignIn() == v:false
+function! s:ListProblemsOfCompany(company)
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -185,7 +185,7 @@ function! leetcode#ListProblemsOfCompany(company)
     let winnr = bufwinnr('LeetCode/List')
     if winnr == -1
         rightbelow new LeetCode/List
-        call leetcode#SetupProblemWindow()
+        call s:SetupProblemWindow()
     else
         execute winnr.'wincmd w'
     endif
@@ -198,7 +198,7 @@ function! leetcode#ListProblemsOfCompany(company)
 
     call append('$', ['LeetCode [' . a:company . ']', repeat('=', 80), '',])
 
-    call leetcode#PrintProblemList(problems)
+    call s:PrintProblemList(problems)
 
     normal gg
     normal dd
@@ -212,7 +212,7 @@ function! leetcode#ListProblemsOfCompany(company)
 endfunction
 
 function! leetcode#ListProblems()
-    if leetcode#CheckSignIn() == v:false
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -241,7 +241,7 @@ function! leetcode#ListProblems()
     let winnr = bufwinnr('LeetCode/List')
     if winnr == -1
         rightbelow new LeetCode/List
-        call leetcode#SetupProblemWindow()
+        call s:SetupProblemWindow()
     else
         execute winnr.'wincmd w'
     endif
@@ -281,7 +281,7 @@ function! leetcode#ListProblems()
 
     let s:leetcode_end_of_companies = line('$')
 
-    call leetcode#PrintProblemList(problems)
+    call s:PrintProblemList(problems)
 
     normal gg
     normal dd
@@ -294,8 +294,8 @@ function! leetcode#ListProblems()
     endtry
 endfunction
 
-function! leetcode#GoToProblem()
-    if leetcode#CheckSignIn() == v:false
+function! s:GoToProblem()
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -307,14 +307,14 @@ function! leetcode#GoToProblem()
         " The user is choosing a topic
         let topic = expand('<cWORD>')
         if has_key(s:leetcode_topic_slug_map, topic)
-            call leetcode#ListProblemsOfTopic(topic)
+            call s:ListProblemsOfTopic(topic)
         endif
         return
     elseif linenum <= s:leetcode_end_of_companies
         " The user is choosing a company
         let company = expand('<cWORD>')
         if has_key(s:leetcode_company_slug_map, company)
-            call leetcode#ListProblemsOfCompany(company)
+            call s:ListProblemsOfCompany(company)
         endif
         return
     endif
@@ -333,11 +333,11 @@ function! leetcode#GoToProblem()
     endif
 
     " create the solution file from the template
-    execute 'rightbelow vnew '.problem['slug'].'.'.leetcode#SolutionFileExt(g:leetcode_solution_filetype)
+    execute 'rightbelow vnew '.problem['slug'].'.'.s:SolutionFileExt(g:leetcode_solution_filetype)
     call leetcode#ResetSolution(1)
 endfunction
 
-function! leetcode#SolutionFileExt(ft_)
+function! s:SolutionFileExt(ft_)
     let ft = a:ft_
     if ft == 'cpp'
         return 'cpp'
@@ -369,7 +369,7 @@ function! leetcode#SolutionFileExt(ft_)
 endfunction
 
 function! leetcode#ResetSolution(latest_submission)
-    if leetcode#CheckSignIn() == v:false
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -407,18 +407,18 @@ function! leetcode#ResetSolution(latest_submission)
 
     " show the problem description as comments
     let output = []
-    call add(output, leetcode#CommentStart(filetype, problem['title']))
+    call add(output, s:CommentStart(filetype, problem['title']))
     let desc = '['.problem['level'].'] [AC:'.
                 \ printf('%s %s of %s', problem['ac_rate'],
                 \ problem['total_accepted'], problem['total_submission']).
                 \ '] [filetype:'.filetype.']'
-    call add(output, leetcode#CommentLine(filetype, ''))
-    call add(output, leetcode#CommentLine(filetype, desc))
-    call add(output, leetcode#CommentLine(filetype, ''))
+    call add(output, s:CommentLine(filetype, ''))
+    call add(output, s:CommentLine(filetype, desc))
+    call add(output, s:CommentLine(filetype, ''))
     for line in problem['desc']
-        call add(output, leetcode#CommentLine(filetype, line))
+        call add(output, s:CommentLine(filetype, line))
     endfor
-    call add(output, leetcode#CommentEnd(filetype))
+    call add(output, s:CommentEnd(filetype))
     call append('$', output)
 
     " wrap the long lines according to the option textwidth
@@ -436,7 +436,7 @@ function! leetcode#ResetSolution(latest_submission)
     normal dd
 endfunction
 
-function! leetcode#CommentStart(ft, title)
+function! s:CommentStart(ft, title)
     if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
         let head = '/* '
     elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
@@ -447,7 +447,7 @@ function! leetcode#CommentStart(ft, title)
     return head.a:title
 endfunction
 
-function! leetcode#CommentLine(ft, line)
+function! s:CommentLine(ft, line)
     if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
         return ' * '.a:line
     elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
@@ -458,7 +458,7 @@ function! leetcode#CommentLine(ft, line)
     return a:line
 endfunction
 
-function! leetcode#CommentEnd(ft)
+function! s:CommentEnd(ft)
     if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
         return ' * [End of Description] */'
     elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
@@ -470,7 +470,7 @@ function! leetcode#CommentEnd(ft)
     endif
 endfunction
 
-function! leetcode#GuessFileType()
+function! s:GuessFileType()
     " We first try figuring out the file type from the comment in the first 10
     " lines. If we failed, we will try guessing it from the extension name.
     for line in getline(1, 10)
@@ -521,7 +521,7 @@ function! leetcode#GuessFileType()
 endfunction
 
 function! leetcode#TestSolution()
-    if leetcode#CheckSignIn() == v:false
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -531,24 +531,24 @@ function! leetcode#TestSolution()
         return
     endif
     let slug = split(fname, '\.')[0]
-    let file_type = leetcode#GuessFileType()
+    let file_type = s:GuessFileType()
 
     if has('timers')
         let ok = py3eval('leetcode.test_solution_async("'.slug.'", "'.file_type.'")')
         if ok
-            call timer_start(200, 'leetcode#CheckTask', {'repeat': -1})
+            call timer_start(200, function('s:CheckTask'), {'repeat': -1})
         endif
     else
         let result = py3eval('leetcode.test_solution("'.slug.'", "'.file_type.'")')
         if type(result) != v:t_dict
             return
         endif
-        call leetcode#ShowResult(result)
+        call s:ShowResult(result)
     endif
 endfunction
 
 function! leetcode#SubmitSolution()
-    if leetcode#CheckSignIn() == v:false
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -558,22 +558,22 @@ function! leetcode#SubmitSolution()
         return
     endif
     let slug = split(fname, '\.')[0]
-    let file_type = leetcode#GuessFileType()
+    let file_type = s:GuessFileType()
     if has('timers')
         let ok = py3eval('leetcode.submit_solution_async("'.slug.'", "'.file_type.'")')
         if ok
-            call timer_start(200, 'leetcode#CheckTask', {'repeat': -1})
+            call timer_start(200, function('s:CheckTask'), {'repeat': -1})
         endif
     else
         let result = py3eval('leetcode.submit_solution("'.slug.'", "'.file_type.'")')
         if type(result) != v:t_dict
             return
         endif
-        call leetcode#ShowResult(result)
+        call s:ShowResult(result)
     endif
 endfunction
 
-function! leetcode#MultiLineIfExists(title, block, level)
+function! s:MultiLineIfExists(title, block, level)
     let result = []
     if len(a:block) > 0
         call add(result, repeat('#', a:level).' '.a:title)
@@ -584,7 +584,7 @@ function! leetcode#MultiLineIfExists(title, block, level)
     return result
 endfunction
 
-function! leetcode#TestCasePassText(pass_all)
+function! s:TestCasePassText(pass_all)
     if a:pass_all
         return 'OK: all test cases passed'
     else
@@ -592,7 +592,7 @@ function! leetcode#TestCasePassText(pass_all)
     endif
 endfunction
 
-function! leetcode#FormatResult(result_)
+function! s:FormatResult(result_)
     let result = a:result_
     let output = [result['title'],
                 \ repeat('=', min([winwidth(0), 80])),
@@ -612,21 +612,21 @@ function! leetcode#FormatResult(result_)
                     \ '## Test Cases',
                     \ '  - Passed: '.result['passed'],
                     \ '  - Total:  '.result['total'],
-                    \ '  - '.leetcode#TestCasePassText(result['passed'] == result['total'])
+                    \ '  - '.s:TestCasePassText(result['passed'] == result['total'])
                     \ ])
     endif
 
-    call extend(output, leetcode#MultiLineIfExists('Error', result['error'], 2))
-    call extend(output, leetcode#MultiLineIfExists('Standard Output', result['stdout'], 2))
+    call extend(output, s:MultiLineIfExists('Error', result['error'], 2))
+    call extend(output, s:MultiLineIfExists('Standard Output', result['stdout'], 2))
 
-    call extend(output, leetcode#MultiLineIfExists('Input', result['testcase'], 3))
-    call extend(output, leetcode#MultiLineIfExists('Actual Answer', result['answer'], 3))
-    call extend(output, leetcode#MultiLineIfExists('Expected Answer', result['expected_answer'], 3))
+    call extend(output, s:MultiLineIfExists('Input', result['testcase'], 3))
+    call extend(output, s:MultiLineIfExists('Actual Answer', result['answer'], 3))
+    call extend(output, s:MultiLineIfExists('Expected Answer', result['expected_answer'], 3))
     return output
 endfunction
 
-function! leetcode#ShowResult(result_)
-    call leetcode#CloseAnyPreview()
+function! s:ShowResult(result_)
+    call s:CloseAnyPreview()
 
     let saved_winnr = winnr()
     rightbelow new LeetCode/Result
@@ -642,7 +642,7 @@ function! leetcode#ShowResult(result_)
     setlocal modifiable
 
     let result = a:result_
-    let output = leetcode#FormatResult(result)
+    let output = s:FormatResult(result)
     call append('$', output)
 
     " go to the first line and delete it (it is a blank line)
@@ -676,7 +676,7 @@ function! leetcode#ShowResult(result_)
     execute saved_winnr.'wincmd w'
 endfunction
 
-function! leetcode#CheckTask(timer)
+function! s:CheckTask(timer)
     if !py3eval('leetcode.task_done')
         let prog = py3eval('leetcode.task_progress')
         echo prog
@@ -695,15 +695,15 @@ function! leetcode#CheckTask(timer)
 
     if task_name == 'test_solution' || task_name == 'submit_solution'
         if type(task_output) == v:t_dict
-            call leetcode#ShowResult(task_output)
+            call s:ShowResult(task_output)
         endif
     else
         echo 'unrecognized task name: '.task_name
     endif
 endfunction
 
-function! leetcode#GoToSubmissions()
-    if leetcode#CheckSignIn() == v:false
+function! s:GoToSubmissions()
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -716,19 +716,19 @@ function! leetcode#GoToSubmissions()
         return
     endif
 
-    call leetcode#ShowSubmissions(slug)
+    call s:ShowSubmissions(slug)
 endfunction
 
-function! leetcode#ViewSubmissions()
-    if leetcode#CheckSignIn() == v:false
+function! s:ViewSubmissions()
+    if s:CheckSignIn() == v:false
         return
     endif
     " expand('%:t:r') returns the file name without the extension name
     let slug = expand('%:t:r')
-    call leetcode#ShowSubmissions(slug)
+    call s:ShowSubmissions(slug)
 endfunction
 
-function! leetcode#ShowSubmissions(slug)
+function! s:ShowSubmissions(slug)
     let submissions = py3eval('leetcode.get_submissions("'.a:slug.'")')
     if type(submissions) != v:t_list
         return
@@ -749,7 +749,7 @@ function! leetcode#ShowSubmissions(slug)
         setlocal norelativenumber
         setlocal nobuflisted
         setlocal filetype=markdown
-        nnoremap <silent> <buffer> <return> :call leetcode#ViewSubmission()<cr>
+        nnoremap <silent> <buffer> <return> :call <SID>ViewSubmission()<cr>
 
         " add custom syntax rules
         syn keyword lcAccepted Accepted
@@ -818,8 +818,8 @@ function! leetcode#ShowSubmissions(slug)
     setlocal nomodifiable
 endfunction
 
-function! leetcode#ViewSubmission()
-    if leetcode#CheckSignIn() == v:false
+function! s:ViewSubmission()
+    if s:CheckSignIn() == v:false
         return
     endif
 
@@ -836,7 +836,7 @@ function! leetcode#ViewSubmission()
     endif
 
     " create the submission file
-    execute 'rightbelow vnew '.subm['slug'].'.'.id.'.'.leetcode#SolutionFileExt(subm['filetype'])
+    execute 'rightbelow vnew '.subm['slug'].'.'.id.'.'.s:SolutionFileExt(subm['filetype'])
     set modifiable
 
     " clear the buffer
@@ -844,16 +844,16 @@ function! leetcode#ViewSubmission()
     normal dG
 
     " show the submission description as comments
-    let desc = leetcode#FormatResult(subm)
+    let desc = s:FormatResult(subm)
     call extend(desc, ['', '## Runtime Rank',
                 \ printf('  - Faster than %s submissions', subm['runtime_percentile'])])
     let filetype = subm['filetype']
-    let output = [leetcode#CommentStart(filetype, 'Submission '.id),
-                \ leetcode#CommentLine(filetype, '')]
+    let output = [s:CommentStart(filetype, 'Submission '.id),
+                \ s:CommentLine(filetype, '')]
     for line in desc
-        call add(output, leetcode#CommentLine(filetype, line))
+        call add(output, s:CommentLine(filetype, line))
     endfor
-    call add(output, leetcode#CommentEnd(filetype))
+    call add(output, s:CommentEnd(filetype))
     call append('$', output)
     call append('$', subm['code'])
 
@@ -862,7 +862,7 @@ function! leetcode#ViewSubmission()
     normal dd
 endfunction
 
-function! leetcode#CloseAnyPreview()
+function! s:CloseAnyPreview()
     try
         pclose
     catch /E444:/
