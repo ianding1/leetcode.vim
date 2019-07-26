@@ -24,6 +24,12 @@ if g:leetcode_debug
     python3 leetcode.enable_logging()
 endif
 
+if g:leetcode_china
+    python3 leetcode.switch_china(1)
+else
+    python3 leetcode.switch_china(0)
+endif
+
 function! leetcode#SignIn(ask)
     if !s:inited
         return v:false

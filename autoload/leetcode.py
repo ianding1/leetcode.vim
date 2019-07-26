@@ -17,17 +17,17 @@ except ImportError:
     vim = None
 
 
-LC_BASE = 'https://leetcode.com'
-LC_LOGIN = 'https://leetcode.com/accounts/login/'
-LC_GRAPHQL = 'https://leetcode.com/graphql'
-LC_CATEGORY_PROBLEMS = 'https://leetcode.com/api/problems/{category}'
-LC_PROBLEM = 'https://leetcode.com/problems/{slug}/description'
-LC_TEST = 'https://leetcode.com/problems/{slug}/interpret_solution/'
-LC_SUBMIT = 'https://leetcode.com/problems/{slug}/submit/'
-LC_SUBMISSIONS = 'https://leetcode.com/api/submissions/{slug}'
-LC_SUBMISSION = 'https://leetcode.com/submissions/detail/{submission}/'
-LC_CHECK = 'https://leetcode.com/submissions/detail/{submission}/check/'
-LC_PROBLEM_SET_ALL = 'https://leetcode.com/problemset/all/'
+LC_BASE = ''
+LC_LOGIN = ''
+LC_GRAPHQL = ''
+LC_CATEGORY_PROBLEMS = ''
+LC_PROBLEM = ''
+LC_TEST = ''
+LC_SUBMIT = ''
+LC_SUBMISSIONS = ''
+LC_SUBMISSION = ''
+LC_CHECK = ''
+LC_PROBLEM_SET_ALL = ''
 
 
 session = None
@@ -50,6 +50,32 @@ def enable_logging():
     log.addHandler(out_hdlr)
     log.setLevel(logging.INFO)
 
+def switch_china(is_china):
+    global LC_BASE
+    global LC_LOGIN
+    global LC_GRAPHQL
+    global LC_CATEGORY_PROBLEMS
+    global LC_PROBLEM
+    global LC_TEST
+    global LC_SUBMIT
+    global LC_SUBMISSIONS
+    global LC_SUBMISSION
+    global LC_CHECK
+    global LC_PROBLEM_SET_ALL
+    if is_china == 1:
+        LC_BASE = 'https://leetcode-cn.com'
+    else:
+        LC_BASE = 'https://leetcode.com'
+    LC_LOGIN = LC_BASE + '/accounts/login/'
+    LC_GRAPHQL = LC_BASE + '/graphql'
+    LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}'
+    LC_PROBLEM = LC_BASE + '/problems/{slug}/description'
+    LC_TEST = LC_BASE + '/problems/{slug}/interpret_solution/'
+    LC_SUBMIT = LC_BASE + '/problems/{slug}/submit/'
+    LC_SUBMISSIONS = LC_BASE + '/api/submissions/{slug}'
+    LC_SUBMISSION = LC_BASE + '/submissions/detail/{submission}/'
+    LC_CHECK = LC_BASE + '/submissions/detail/{submission}/check/'
+    LC_PROBLEM_SET_ALL = LC_BASE + '/problemset/all/'
 
 def _make_headers():
     assert is_login()
