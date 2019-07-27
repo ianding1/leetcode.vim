@@ -3,7 +3,7 @@
 let s:current_dir = expand("<sfile>:p:h")
 
 python3 <<EOF
-import os.path
+import os
 import vim
 
 plugin_dir = vim.eval('s:current_dir')
@@ -15,6 +15,11 @@ if plugin_dir not in sys.path:
 if thirdparty_dir not in sys.path:
   sys.path.append(thirdparty_dir)
 
+if vim.eval('g:leetcode_china'):
+    os.environ["LEETCODE_BASE_URL"] = "https://leetcode-cn.com"
+else:
+    os.environ["LEETCODE_BASE_URL"] = "https://leetcode.com"
+
 import leetcode
 EOF
 
@@ -22,12 +27,6 @@ let s:inited = py3eval('leetcode.inited')
 
 if g:leetcode_debug
     python3 leetcode.enable_logging()
-endif
-
-if g:leetcode_china
-    python3 leetcode.switch_china(1)
-else
-    python3 leetcode.switch_china(0)
 endif
 
 function! leetcode#SignIn(ask)

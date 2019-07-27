@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import time
+import os
 from threading import Semaphore, Thread, current_thread
 
 try:
@@ -17,19 +18,18 @@ except ImportError:
     vim = None
 
 
-LC_BASE = ''
-LC_CSRF = ''
-LC_LOGIN = ''
-LC_GRAPHQL = ''
-LC_CATEGORY_PROBLEMS = ''
-LC_PROBLEM = ''
-LC_TEST = ''
-LC_SUBMIT = ''
-LC_SUBMISSIONS = ''
-LC_SUBMISSION = ''
-LC_CHECK = ''
-LC_PROBLEM_SET_ALL = ''
-
+LC_BASE = os.environ["LEETCODE_BASE_URL"]
+LC_CSRF = LC_BASE + '/ensure_csrf/'
+LC_LOGIN = LC_BASE + '/accounts/login/'
+LC_GRAPHQL = LC_BASE + '/graphql'
+LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}'
+LC_PROBLEM = LC_BASE + '/problems/{slug}/description'
+LC_TEST = LC_BASE + '/problems/{slug}/interpret_solution/'
+LC_SUBMIT = LC_BASE + '/problems/{slug}/submit/'
+LC_SUBMISSIONS = LC_BASE + '/api/submissions/{slug}'
+LC_SUBMISSION = LC_BASE + '/submissions/detail/{submission}/'
+LC_CHECK = LC_BASE + '/submissions/detail/{submission}/check/'
+LC_PROBLEM_SET_ALL = LC_BASE + '/problemset/all/'
 
 session = None
 task_running = False
@@ -51,34 +51,6 @@ def enable_logging():
     log.addHandler(out_hdlr)
     log.setLevel(logging.INFO)
 
-def switch_china(is_china):
-    global LC_BASE
-    global LC_CSRF
-    global LC_LOGIN
-    global LC_GRAPHQL
-    global LC_CATEGORY_PROBLEMS
-    global LC_PROBLEM
-    global LC_TEST
-    global LC_SUBMIT
-    global LC_SUBMISSIONS
-    global LC_SUBMISSION
-    global LC_CHECK
-    global LC_PROBLEM_SET_ALL
-    if is_china == 1:
-        LC_BASE = 'https://leetcode-cn.com'
-    else:
-        LC_BASE = 'https://leetcode.com'
-    LC_CSRF = LC_BASE + '/ensure_csrf/'
-    LC_LOGIN = LC_BASE + '/accounts/login/'
-    LC_GRAPHQL = LC_BASE + '/graphql'
-    LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}'
-    LC_PROBLEM = LC_BASE + '/problems/{slug}/description'
-    LC_TEST = LC_BASE + '/problems/{slug}/interpret_solution/'
-    LC_SUBMIT = LC_BASE + '/problems/{slug}/submit/'
-    LC_SUBMISSIONS = LC_BASE + '/api/submissions/{slug}'
-    LC_SUBMISSION = LC_BASE + '/submissions/detail/{submission}/'
-    LC_CHECK = LC_BASE + '/submissions/detail/{submission}/check/'
-    LC_PROBLEM_SET_ALL = LC_BASE + '/problemset/all/'
 
 def _make_headers():
     assert is_login()
