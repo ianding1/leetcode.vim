@@ -510,7 +510,7 @@ function! leetcode#SubmitSolution() abort
     endif
 endfunction
 
-function! FormatSection(title, block, level) abort
+function! s:FormatSection(title, block, level) abort
     let result = []
     if len(a:block) > 0
         call add(result, repeat('#', a:level) . ' ' . a:title)
@@ -560,12 +560,12 @@ function! s:FormatResult(result_) abort
                     \ ])
     endif
 
-    call extend(output, FormatSection('Error', result['error'], 2))
-    call extend(output, FormatSection('Standard Output', result['stdout'], 2))
+    call extend(output, s:FormatSection('Error', result['error'], 2))
+    call extend(output, s:FormatSection('Standard Output', result['stdout'], 2))
 
-    call extend(output, FormatSection('Input', result['testcase'], 3))
-    call extend(output, FormatSection('Actual Answer', result['answer'], 3))
-    call extend(output, FormatSection('Expected Answer',
+    call extend(output, s:FormatSection('Input', result['testcase'], 3))
+    call extend(output, s:FormatSection('Actual Answer', result['answer'], 3))
+    call extend(output, s:FormatSection('Expected Answer',
                 \ result['expected_answer'], 3))
     return output
 endfunction
