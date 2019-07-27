@@ -400,53 +400,43 @@ function! s:CommentEnd(filetype)
 endfunction
 
 function! s:GuessFileType()
-    " We first try figuring out the file type from the comment in the first 10
-    " lines. If we failed, we will try guessing it from the extension name.
+    " Try figuring out the file type from the comment in the first 10
+    " lines. If failed, try guessing it from the extension name.
     for line in getline(1, 10)
-        let file_type = matchstr(line, '\[filetype:[[:alnum:]]\+\]')
-        if file_type != ''
-            return file_type[10:-2]
+        let filetype = matchstr(line, '\[filetype:[[:alnum:]]\+\]')
+        if filetype != ''
+            return filetype[10:-2]
         endif
     endfor
 
     let ext = expand('%:e')
-    if ext == 'cpp'
-        return 'cpp'
-    elseif ext == 'java'
-        return 'java'
-    elseif ext == 'py'
-        " ask the user
-        let pyver = input('Which Python [2/3]: ', '3')
+    let guessed_filetype = ''
+    let guess_count = 0
+    for [item_filetype, item_ext] in items(s:file_type_to_ext)
+        if item_ext ==? ext
+            let guess_count += 1
+            let guessed_filetype = item_filetype
+        endif
+    endfor
+
+    if guess_count == 1
+        return guessed_filetype
+    endif
+
+    if ext == 'py'
+        let python_version = input('Which Python [2/3]: ', '3')
         redraw
-        if pyver == '2'
+        if python_version ==# '2'
             return 'python'
-        elseif pyver == '3'
+        elseif python_version ==# '3'
             return 'python3'
         else
             echo 'unrecognized answer, default to Python3'
             return 'python3'
         endif
-    elseif ext == 'c'
-        return 'c'
-    elseif ext == 'cs'
-        return 'csharp'
-    elseif ext == 'js'
-        return 'javascript'
-    elseif ext == 'rb'
-        return 'ruby'
-    elseif ext == 'swift'
-        return 'swift'
-    elseif ext == 'go'
-        return 'golang'
-    elseif ext == 'scala'
-        return 'scala'
-    elseif ext == 'kt'
-        return 'kotlin'
-    elseif ext == 'rs'
-        return 'rust'
-    else
-        return ''
     endif
+
+    return ''
 endfunction
 
 function! leetcode#TestSolution()
@@ -454,25 +444,31 @@ function! leetcode#TestSolution()
         return
     endif
 
-    let fname = expand('%:t:r')
-    if fname == ''
+    let file_name = expand('%:t:r')
+    if file_name == ''
         echo 'no file name'
         return
     endif
-    let slug = split(fname, '\.')[0]
-    let file_type = s:GuessFileType()
+
+    let slug = split(file_name, '\.')[0]
+    let filetype = s:GuessFileType()
 
     if has('timers')
-        let ok = py3eval('leetcode.test_solution_async("'.slug.'", "'.file_type.'")')
+        let expr = printf('leetcode.test_solution_async("%s", "%s")',
+                    \ slug, filetype)
+        let ok = py3eval(expr)
         if ok
-            call timer_start(200, function('s:CheckTask'), {'repeat': -1})
+            call timer_start(200, function('s:CheckRunCodeTask'),
+                        \ {'repeat': -1})
         endif
     else
-        let result = py3eval('leetcode.test_solution("'.slug.'", "'.file_type.'")')
+        let expr = printf('leetcode.test_solution("%s", "%s")',
+                    \ slug, filetype)
+        let result = py3eval(expr)
         if type(result) != v:t_dict
             return
         endif
-        call s:ShowResult(result)
+        call s:ShowRunResultInPreview(result)
     endif
 endfunction
 
@@ -481,40 +477,47 @@ function! leetcode#SubmitSolution()
         return
     endif
 
-    let fname = expand('%:t:r')
-    if fname == ''
+    let file_name = expand('%:t:r')
+    if file_name == ''
         echo 'no file name'
         return
     endif
-    let slug = split(fname, '\.')[0]
-    let file_type = s:GuessFileType()
+
+    let slug = split(file_name, '\.')[0]
+    let filetype = s:GuessFileType()
+
     if has('timers')
-        let ok = py3eval('leetcode.submit_solution_async("'.slug.'", "'.file_type.'")')
+        let expr = printf('leetcode.submit_solution_async("%s", "%s")',
+                    \ slug, filetype)
+        let ok = py3eval(expr)
         if ok
-            call timer_start(200, function('s:CheckTask'), {'repeat': -1})
+            call timer_start(200, function('s:CheckRunCodeTask'),
+                        \ {'repeat': -1})
         endif
     else
-        let result = py3eval('leetcode.submit_solution("'.slug.'", "'.file_type.'")')
+        let expr = printf('leetcode.submit_solution("%s", "%s")',
+                    \ slug, filetype)
+        let result = py3eval(expr)
         if type(result) != v:t_dict
             return
         endif
-        call s:ShowResult(result)
+        call s:ShowRunResultInPreview(result)
     endif
 endfunction
 
-function! s:MultiLineIfExists(title, block, level)
+function! FormatSection(title, block, level)
     let result = []
     if len(a:block) > 0
-        call add(result, repeat('#', a:level).' '.a:title)
+        call add(result, repeat('#', a:level) . ' ' . a:title)
         for line in a:block
-            call add(result, '    '.line)
+            call add(result, '    ' . line)
         endfor
     endif
     return result
 endfunction
 
-function! s:TestCasePassText(pass_all)
-    if a:pass_all
+function! s:TestSummary(all_passed)
+    if a:all_passed
         return 'OK: all test cases passed'
     else
         return 'WARNING: some test cases failed'
@@ -523,42 +526,50 @@ endfunction
 
 function! s:FormatResult(result_)
     let result = a:result_
-    let output = [result['title'],
-                \ repeat('=', min([winwidth(0), 80])),
+    let output = ['# ' . result['title'],
+                \ '',
                 \ '## State',
-                \ '  - '.result['state'],
+                \ '  - ' . result['state'],
+                \ '',
                 \ '## Runtime',
-                \ '  - '.result['runtime']]
+                \ '  - ' . result['runtime'],
+                \ '']
     if string(result['runtime_percentile'])
+        let message = printf('  - Faster than %s%% submissions',
+                    \ result['runtime_percentile'])
         call extend(output, [
                     \ '## Runtime Rank',
-                    \ printf('  - Faster than %s%% submissions', result['runtime_percentile'])
+                    \ message,
+                    \ '',
                     \ ])
     endif
 
     if result['total'] > 0
+        let test_summary = s:TestSummary(result['passed'] == result['total'])
         call extend(output, [
                     \ '## Test Cases',
-                    \ '  - Passed: '.result['passed'],
-                    \ '  - Total:  '.result['total'],
-                    \ '  - '.s:TestCasePassText(result['passed'] == result['total'])
+                    \ '  - Passed: ' . result['passed'],
+                    \ '  - Total:  ' . result['total'],
+                    \ '  - ' . test_summary,
+                    \ '',
                     \ ])
     endif
 
-    call extend(output, s:MultiLineIfExists('Error', result['error'], 2))
-    call extend(output, s:MultiLineIfExists('Standard Output', result['stdout'], 2))
+    call extend(output, FormatSection('Error', result['error'], 2))
+    call extend(output, FormatSection('Standard Output', result['stdout'], 2))
 
-    call extend(output, s:MultiLineIfExists('Input', result['testcase'], 3))
-    call extend(output, s:MultiLineIfExists('Actual Answer', result['answer'], 3))
-    call extend(output, s:MultiLineIfExists('Expected Answer', result['expected_answer'], 3))
+    call extend(output, FormatSection('Input', result['testcase'], 3))
+    call extend(output, FormatSection('Actual Answer', result['answer'], 3))
+    call extend(output, FormatSection('Expected Answer',
+                \ result['expected_answer'], 3))
     return output
 endfunction
 
-function! s:ShowResult(result_)
+function! s:ShowRunResultInPreview(result)
     call s:CloseAnyPreview()
 
     let saved_winnr = winnr()
-    rightbelow new LeetCode/Result
+    rightbelow new leetcode:///result
     setlocal buftype=nofile
     setlocal noswapfile
     setlocal bufhidden=delete
@@ -570,13 +581,10 @@ function! s:ShowResult(result_)
     setlocal filetype=markdown
     setlocal modifiable
 
-    let result = a:result_
-    let output = s:FormatResult(result)
+    let output = s:FormatResult(a:result)
     call append('$', output)
 
-    " go to the first line and delete it (it is a blank line)
-    normal gg
-    normal dd
+    silent! normal! ggdd
 
     setlocal previewwindow
     setlocal nomodifiable
@@ -602,10 +610,10 @@ function! s:ShowResult(result_)
     hi! link lcOK lcAccepted
     hi! link lcWarning lcFailure
 
-    execute saved_winnr.'wincmd w'
+    execute saved_winnr . 'wincmd w'
 endfunction
 
-function! s:CheckTask(timer)
+function! s:CheckRunCodeTask(timer)
     if !py3eval('leetcode.task_done')
         let prog = py3eval('leetcode.task_progress')
         echo prog
@@ -624,7 +632,7 @@ function! s:CheckTask(timer)
 
     if task_name == 'test_solution' || task_name == 'submit_solution'
         if type(task_output) == v:t_dict
-            call s:ShowResult(task_output)
+            call s:ShowRunResultInPreview(task_output)
         endif
     else
         echo 'unrecognized task name: '.task_name
@@ -787,12 +795,12 @@ function! s:CloseAnyPreview()
     try
         pclose
     catch /E444:/
-        let curwin = winnr()
+        let saved_winnr = winnr()
         for i in range(1, winnr('$'))
-            execute i.'wincmd w'
+            execute i . 'wincmd w'
             setlocal nopreviewwindow
         endfor
-        execute curwin.'wincmd w'
+        execute saved_winnr . 'wincmd w'
     endtry
 endfunction
 
