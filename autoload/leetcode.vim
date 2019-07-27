@@ -517,6 +517,7 @@ function! s:FormatSection(title, block, level) abort
         for line in a:block
             call add(result, '    ' . line)
         endfor
+        call add(result, '')
     endif
     return result
 endfunction
