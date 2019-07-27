@@ -791,7 +791,6 @@ endfunction
 
 function! s:FormatIntoColumns(words) abort
     let max_word_width = 0
-
     for word in a:words
         if strwidth(word) > max_word_width
             let max_word_width = strwidth(word)
@@ -804,24 +803,19 @@ function! s:FormatIntoColumns(words) abort
     endif
 
     let num_rows = float2nr(ceil(len(a:words) / num_columns))
-
     let lines = []
 
     for i in range(num_rows)
         let line = ''
-
         for j in range(num_columns)
             let word_index = j * num_rows + i
-
             if word_index < len(a:words)
                 let word = a:words[word_index]
             else
                 let word = ''
             endif
-
             let line .= printf('%-' . max_word_width . 'S ', word)
         endfor
-
         call add(lines, line)
     endfor
 
