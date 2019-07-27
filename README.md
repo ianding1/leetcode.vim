@@ -70,7 +70,9 @@ Default value is `''`.
 
 ## Updates
 
-- 2019/07/27: Support LeetCode China
+- 2019/07/27:
+  + Support LeetCode China accounts
+  + Refresh the problem list with `r`
 - 2019/07/23: Support topics and companies
 
 ## FAQ

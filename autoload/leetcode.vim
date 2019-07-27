@@ -72,6 +72,7 @@ function! s:SetupProblemListBuffer() abort
     setlocal bufhidden=hide
     nnoremap <silent> <buffer> <return> :call <SID>HandleProblemListCR()<cr>
     nnoremap <silent> <buffer> s :call <SID>HandleProblemListS()<cr>
+    nnoremap <silent> <buffer> r :call <SID>HandleProblemListR()<cr>
 
     syn match lcEasy /| Easy /hs=s+2
     syn match lcMedium /| Medium /hs=s+2
@@ -107,6 +108,8 @@ function! s:PrintProblemList(problems) abort
                 \ '### Keys',
                 \ '  - <cr>  open the problem/go to the topic or company',
                 \ '  - s     view the submissions',
+                \ '  - r     refresh',
+                \ '',
                 \ '### Indicators',
                 \ '  - [P] = paid-only problems',
                 \ ''])
@@ -135,15 +138,22 @@ function! s:PrintProblemList(problems) abort
     let b:leetcode_problem_end_line = line('$')
 endfunction
 
-function! s:ListProblemsOfTopic(topic_slug) abort
+function! s:ListProblemsOfTopic(topic_slug, refresh) abort
     let buf_name = 'leetcode:///problems/topic/' . a:topic_slug
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
-        return
+        if a:refresh
+            setlocal modifiable
+            silent! normal! ggdG
+        else
+            return
+        endif
+    else
+        execute 'rightbelow new ' . buf_name
+        call s:SetupProblemListBuffer()
+        let b:leetcode_buffer_type = 'topic'
+        let b:leetcode_buffer_topic = a:topic_slug
     endif
-
-    execute 'rightbelow new ' . buf_name
-    call s:SetupProblemListBuffer()
 
     let expr = printf('leetcode.get_problems_of_topic("%s")', a:topic_slug)
     let problems = py3eval(expr)['problems']
@@ -164,15 +174,22 @@ function! s:ListProblemsOfTopic(topic_slug) abort
     silent! only
 endfunction
 
-function! s:ListProblemsOfCompany(company_slug) abort
+function! s:ListProblemsOfCompany(company_slug, refresh) abort
     let bufname = 'leetcode:///problems/company/' . a:company_slug
     if buflisted(bufname)
         execute bufnr(bufname) . 'buffer'
-        return
+        if a:refresh
+            setlocal modifiable
+            silent! normal! ggdG
+        else
+            return
+        endif
+    else
+        execute 'rightbelow new ' . bufname
+        call s:SetupProblemListBuffer()
+        let b:leetcode_buffer_type = 'company'
+        let b:leetcode_buffer_company = a:company_slug
     endif
-
-    execute 'rightbelow new ' . bufname
-    call s:SetupProblemListBuffer()
 
     let expr = printf('leetcode.get_problems_of_company("%s")', a:company_slug)
     let problems = py3eval(expr)['problems']
@@ -181,8 +198,6 @@ function! s:ListProblemsOfCompany(company_slug) abort
     let b:leetcode_topic_end_line = 0
     let b:leetcode_company_start_line = 0
     let b:leetcode_company_end_line = 0
-
-    setlocal modifiable
 
     call append('$', ['# LeetCode [company:' . a:company_slug . ']', ''])
 
@@ -193,7 +208,7 @@ function! s:ListProblemsOfCompany(company_slug) abort
     silent! only
 endfunction
 
-function! leetcode#ListProblems() abort
+function! leetcode#ListProblems(refresh) abort
     if s:CheckSignIn() == v:false
         return
     endif
@@ -201,7 +216,16 @@ function! leetcode#ListProblems() abort
     let buf_name = 'leetcode:///problems/all'
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
-        return
+        if a:refresh
+            setlocal modifiable
+            silent! normal! ggdG
+        else
+            return
+        endif
+    else
+        execute 'rightbelow new ' . buf_name
+        call s:SetupProblemListBuffer()
+        let b:leetcode_buffer_type = 'all'
     endif
 
     let expr = printf('leetcode.get_problems(["all"])')
@@ -210,11 +234,6 @@ function! leetcode#ListProblems() abort
     let topics_and_companies = py3eval('leetcode.get_topics_and_companies()')
     let topics = topics_and_companies['topics']
     let companies = topics_and_companies['companies']
-
-    execute 'rightbelow new ' . buf_name
-    call s:SetupProblemListBuffer()
-
-    set modifiable
 
     " concatenate the topics into a string
     let topic_slugs = map(topics, 'v:val["topic_slug"]')
@@ -251,7 +270,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_topic_end_line
         let topic_slug = expand('<cWORD>')
         if topic_slug != ''
-            call s:ListProblemsOfTopic(topic_slug)
+            call s:ListProblemsOfTopic(topic_slug, 0)
         endif
         return
     endif
@@ -260,7 +279,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_company_end_line
         let company_slug = expand('<cWORD>')
         if company_slug != ''
-            call s:ListProblemsOfCompany(company_slug)
+            call s:ListProblemsOfCompany(company_slug, 0)
         endif
         return
     endif
@@ -279,6 +298,16 @@ function! s:HandleProblemListCR() abort
 
         execute 'rightbelow vnew ' . problem_file_name
         call leetcode#ResetSolution(1)
+    endif
+endfunction
+
+function! s:HandleProblemListR() abort
+    if b:leetcode_buffer_type ==# 'all'
+        call leetcode#ListProblems(1)
+    elseif b:leetcode_buffer_type ==# 'topic'
+        call s:ListProblemsOfTopic(b:leetcode_buffer_topic, 1)
+    elseif b:leetcode_buffer_type ==# 'company'
+        call s:ListProblemsOfCompany(b:leetcode_buffer_company, 1)
     endif
 endfunction
 
