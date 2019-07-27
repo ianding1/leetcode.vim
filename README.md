@@ -39,6 +39,12 @@ nnoremap <leader>li :LeetCodeSignIn<cr>
 
 ## Customization
 
+### `g:leetcode_china`
+
+When non-zero, use LeetCode China accounts instead.
+
+Default value is `0`.
+
 ### `g:leetcode_solution_filetype`
 
 The preferred programming language. 
