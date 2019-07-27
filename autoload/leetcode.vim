@@ -277,35 +277,24 @@ function! s:HandleProblemListCR()
     endif
 endfunction
 
-function! s:SolutionFileExt(ft_)
-    let ft = a:ft_
-    if ft == 'cpp'
-        return 'cpp'
-    elseif ft == 'java'
-        return 'java'
-    elseif ft == 'python'
-        return 'py'
-    elseif ft == 'python3'
-        return 'py'
-    elseif ft == 'c'
-        return 'c'
-    elseif ft == 'csharp'
-        return 'cs'
-    elseif ft == 'javascript'
-        return 'js'
-    elseif ft == 'ruby'
-        return 'rb'
-    elseif ft == 'swift'
-        return 'swift'
-    elseif ft == 'golang'
-        return 'go'
-    elseif ft == 'scala'
-        return 'scala'
-    elseif ft == 'kotlin'
-        return 'kt'
-    elseif ft == 'rust'
-        return 'rs'
-    endif
+let s:file_type_to_ext = {
+            \ 'cpp': 'cpp',
+            \ 'java': 'java',
+            \ 'python': 'py',
+            \ 'python3': 'py',
+            \ 'c': 'c',
+            \ 'csharp': 'cs',
+            \ 'javascript': 'js',
+            \ 'ruby': 'rb',
+            \ 'swift': 'swift',
+            \ 'golang': 'go',
+            \ 'scala': 'scala',
+            \ 'kotlin': 'kt',
+            \ 'rust': 'rs',
+            \ }
+
+function! s:SolutionFileExt(filetype)
+    return s:file_type_to_ext[a:filetype]
 endfunction
 
 function! leetcode#ResetSolution(latest_submission)
