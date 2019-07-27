@@ -297,52 +297,55 @@ function! s:SolutionFileExt(filetype)
     return s:file_type_to_ext[a:filetype]
 endfunction
 
-function! leetcode#ResetSolution(latest_submission)
+function! leetcode#ResetSolution(with_latest_submission)
     if s:CheckSignIn() == v:false
         return
     endif
 
-    " expand('%:t:r') returns the file name without extension
-    let slug = expand('%:t:r')
-    let problem = py3eval('leetcode.get_problem("'.slug.'")')
-    let filetype = g:leetcode_solution_filetype
+    let problem_slug = expand('%:t:r')
+    let expr = printf('leetcode.get_problem("%s")', problem_slug)
+    let problem = py3eval(expr)
     if type(problem) != v:t_dict
         return
     endif
 
+    let filetype = g:leetcode_solution_filetype
     if !has_key(problem['templates'], filetype)
-        echo 'the file type is not supported'
+        echo 'the file type is not supported: ' . filetype
         return
     endif
 
-    " try downloading the latest submission
     let code = []
-    if a:latest_submission
-        let submissions = py3eval('leetcode.get_submissions("'.slug.'")')
+    if a:with_latest_submission
+        let expr = printf('leetcode.get_submissions("%s")', problem_slug)
+        let submissions = py3eval(expr)
         if type(submissions) == v:t_list
-            for item in submissions
-                let subm = py3eval('leetcode.get_submission('.item['id'].')')
-                if type(subm) == v:t_dict && subm['filetype'] == filetype
-                    let code = subm['code']
+            for submission in submissions
+                let expr = printf('leetcode.get_submission(%s)',
+                            \ submission['id'])
+                let detail = py3eval(expr)
+                if type(detail) == v:t_dict && detail['filetype'] ==# filetype
+                    let code = detail['code']
                     break
                 endif
             endfor
         endif
     endif
 
-    " clear the buffer
-    normal gg
-    normal dG
+    if len(code) == 0
+        let code = problem['templates'][filetype]
+    endif
 
-    " show the problem description as comments
+    silent! normal! ggdG
+
     let output = []
     call add(output, s:CommentStart(filetype, problem['title']))
-    let desc = '['.problem['level'].'] [AC:'.
-                \ printf('%s %s of %s', problem['ac_rate'],
-                \ problem['total_accepted'], problem['total_submission']).
-                \ '] [filetype:'.filetype.']'
+    let meta_format = '[%s] [AC:%s %s of %s] [filetype:%s]'
+    let meta = printf(meta_format, problem['level'], problem['ac_rate'],
+                \ problem['total_accepted'], problem['total_submission'],
+                \ filetype)
     call add(output, s:CommentLine(filetype, ''))
-    call add(output, s:CommentLine(filetype, desc))
+    call add(output, s:CommentLine(filetype, meta))
     call add(output, s:CommentLine(filetype, ''))
     for line in problem['desc']
         call add(output, s:CommentLine(filetype, line))
@@ -350,49 +353,46 @@ function! leetcode#ResetSolution(latest_submission)
     call add(output, s:CommentEnd(filetype))
     call append('$', output)
 
-    " wrap the long lines according to the option textwidth
-    normal gg
-    normal gqG
+    silent! normal! gggqG
 
-    " append the submitted code or the code template
-    if len(code) == 0
-        let code = problem['templates'][filetype]
-    endif
     call append('$', code)
 
-    " go to the first line and delete it (a blank line)
-    normal gg
-    normal dd
+    silent! normal! ggdd
 endfunction
 
-function! s:CommentStart(ft, title)
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
-        let head = '/* '
-    elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
-        let head = '# '
-    elseif index(['golang'], a:ft) >= 0
-        let head = '// '
+function! s:CommentStart(filetype, title)
+    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
+                \ 'kotlin', 'rust'], a:filetype) >= 0
+        return '/* ' . a:title
+    elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
+        return '# ' . a:title
+    elseif index(['golang'], a:filetype) >= 0
+        return '// ' . a:title
+    else
+        return a:title
     endif
-    return head.a:title
 endfunction
 
-function! s:CommentLine(ft, line)
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
-        return ' * '.a:line
-    elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
+function! s:CommentLine(filetype, line)
+    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
+                \ 'kotlin', 'rust'], a:filetype) >= 0
+        return ' * ' . a:line
+    elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
         return '# '.a:line
-    elseif index(['golang'], a:ft) >= 0
+    elseif index(['golang'], a:filetype) >= 0
         return '// '.a:line
+    else
+        return a:line
     endif
-    return a:line
 endfunction
 
-function! s:CommentEnd(ft)
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala', 'kotlin', 'rust'], a:ft) >= 0
+function! s:CommentEnd(filetype)
+    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
+                \ 'kotlin', 'rust'], a:filetype) >= 0
         return ' * [End of Description] */'
-    elseif index(['python', 'python3', 'ruby'], a:ft) >= 0
+    elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
         return '# [End of Description]:'
-    elseif index(['golang'], a:ft) >= 0
+    elseif index(['golang'], a:filetype) >= 0
         return '// [End of Description]'
     else
         return ''
