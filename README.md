@@ -62,6 +62,11 @@ Set to the LeetCode password for auto login.
 
 Default value is `''`.
 
+## Updates
+
+- 2019/07/27: Support LeetCode China
+- 2019/07/23: Support topics and companies
+
 ## FAQ
 
 ### Why can't I test the problem/submit the problem/list the problems?
