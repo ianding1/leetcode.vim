@@ -18,7 +18,7 @@ except ImportError:
     vim = None
 
 
-LC_BASE = os.environ["LEETCODE_BASE_URL"]
+LC_BASE = os.environ['LEETCODE_BASE_URL']
 LC_CSRF = LC_BASE + '/ensure_csrf/'
 LC_LOGIN = LC_BASE + '/accounts/login/'
 LC_GRAPHQL = LC_BASE + '/graphql'
@@ -133,7 +133,7 @@ def is_login():
 def signin(username, password):
     global session
     session = requests.Session()
-    if LC_BASE.find("cn"):
+    if 'cn' in LC_BASE:
         res = session.get(LC_CSRF)
     else:
         res = session.get(LC_LOGIN)

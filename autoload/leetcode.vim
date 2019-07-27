@@ -15,10 +15,10 @@ if plugin_dir not in sys.path:
 if thirdparty_dir not in sys.path:
   sys.path.append(thirdparty_dir)
 
-if vim.eval('g:leetcode_china'):
-    os.environ["LEETCODE_BASE_URL"] = "https://leetcode-cn.com"
+if int(vim.eval('g:leetcode_china')):
+    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode-cn.com'
 else:
-    os.environ["LEETCODE_BASE_URL"] = "https://leetcode.com"
+    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.com'
 
 import leetcode
 EOF
