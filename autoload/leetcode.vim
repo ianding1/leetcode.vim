@@ -640,88 +640,68 @@ function! s:CheckRunCodeTask(timer)
 endfunction
 
 function! s:HandleProblemListS()
+    let line_nr = line('.')
     if line_nr >= b:leetcode_problem_start_line &&
                 \ line_nr < b:leetcode_problem_end_line
         let problem_nr = line_nr - b:leetcode_problem_start_line
         let problem_slug = b:leetcode_problems[problem_nr]['slug']
-        call s:ShowSubmissions(problem_slug)
+        call s:ListSubmissions(problem_slug)
     endif
 endfunction
 
-function! s:ViewSubmissions()
-    if s:CheckSignIn() == v:false
+function! s:ListSubmissions(slug)
+    let buf_name = 'leetcode:///submissions/' . a:slug
+    if buflisted(buf_name)
+        execute bufnr(buf_name) . 'buffer'
         return
     endif
-    " expand('%:t:r') returns the file name without the extension name
-    let slug = expand('%:t:r')
-    call s:ShowSubmissions(slug)
-endfunction
 
-function! s:ShowSubmissions(slug)
-    let submissions = py3eval('leetcode.get_submissions("'.a:slug.'")')
+    execute 'rightbelow new ' . buf_name
+
+    let expr = printf('leetcode.get_submissions("%s")', a:slug)
+    let submissions = py3eval(expr)
+    let b:leetcode_submissions = submissions
     if type(submissions) != v:t_list
         return
     endif
-    let problem = py3eval('leetcode.get_problem("'.a:slug.'")')
+
+    let expr = printf('leetcode.get_problem("%s")', a:slug)
+    let problem = py3eval(expr)
     if type(problem) != v:t_dict
         return
     endif
 
-    let winnr = bufwinnr('LeetCode/Submissions')
-    if winnr == -1
-        rightbelow new LeetCode/Submissions
-        setlocal buftype=nofile
-        setlocal noswapfile
-        setlocal bufhidden=delete
-        setlocal nospell
-        setlocal nonumber
-        setlocal norelativenumber
-        setlocal nobuflisted
-        setlocal filetype=markdown
-        nnoremap <silent> <buffer> <return> :call <SID>ViewSubmission()<cr>
+    setlocal buftype=nofile
+    setlocal noswapfile
+    setlocal nobackup
+    setlocal bufhidden=hide
+    setlocal nospell
+    setlocal nonumber
+    setlocal norelativenumber
+    setlocal filetype=markdown
+    nnoremap <silent> <buffer> <return> :call <SID>HandleSubmissionsCR()<cr>
 
-        " add custom syntax rules
-        syn keyword lcAccepted Accepted
-        syn match lcFailure /Wrong Answer/
-        syn match lcFailure /Memory Limit Exceeded/
-        syn match lcFailure /Output Limit Exceeded/
-        syn match lcFailure /Time Limit Exceeded/
-        syn match lcFailure /Runtime Error/
-        syn match lcFailure /Internal Error/
-        syn match lcFailure /Compile Error/
-        syn match lcFailure /Unknown Error/
-        syn match lcFailure /Unknown State/
-        syn match lcNA /N\/A/
+    syn keyword lcAccepted Accepted
+    syn match lcFailure /Wrong Answer/
+    syn match lcFailure /Memory Limit Exceeded/
+    syn match lcFailure /Output Limit Exceeded/
+    syn match lcFailure /Time Limit Exceeded/
+    syn match lcFailure /Runtime Error/
+    syn match lcFailure /Internal Error/
+    syn match lcFailure /Compile Error/
+    syn match lcFailure /Unknown Error/
+    syn match lcFailure /Unknown State/
+    syn match lcNA /N\/A/
 
-        " add custom highlighting rules
-        hi! lcAccepted term=bold gui=bold ctermfg=lightgreen guifg=lightgreen
-        hi! lcFailure term=bold gui=bold ctermfg=red guifg=red
-        hi! lcNA ctermfg=gray guifg=gray
-    else
-        execute winnr.'wincmd w'
-    endif
+    hi! lcAccepted term=bold gui=bold ctermfg=lightgreen guifg=lightgreen
+    hi! lcFailure term=bold gui=bold ctermfg=red guifg=red
+    hi! lcNA ctermfg=gray guifg=gray
 
     set modifiable
 
-    " clear the content
-    normal gg
-    normal dG
-
-    " show the submissions in a table
-    let max_time_len = 4
-    let max_id_len = 2
-    let max_runtime_len = 7
-    for s in submissions
-        if strlen(s['time']) > max_time_len
-            let max_time_len = strlen(s['time'])
-        endif
-        if strlen(s['id']) > max_id_len
-            let id_width = strlen(s['id'])
-        endif
-        if strlen(s['runtime']) > max_runtime_len
-            let max_runtime_len = strlen(s['runtime'])
-        endif
-    endfor
+    let time_width = s:MaxWidthOfKey(submissions, 'time', 4)
+    let id_width = s:MaxWidthOfKey(submissions, 'id', 2)
+    let runtime_width = s:MaxWidthOfKey(submissions, 'runtime', 7)
 
     let output = []
     call add(output, '# '.problem['title'])
@@ -729,66 +709,70 @@ function! s:ShowSubmissions(slug)
     call add(output, '## Submissions')
     call add(output, '  - return = view submission')
     call add(output, '')
-    let head = '| ID'.repeat(' ', max_id_len-2).' | Time'.repeat(' ', max_time_len-4).' | Status                | Runtime'.repeat(' ', max_runtime_len-7).
-                \' |'
-    let separator= '| '.repeat('-', max_id_len).' | '.repeat('-', max_time_len).' | --------------------- | '.repeat('-', max_runtime_len).' |'
-    call extend(output, [separator, head, separator])
-
-    let format = '| %-'.string(max_id_len).'S | %-'.string(max_time_len).'S | %-21S | %-'.string(max_runtime_len).'S |'
-    for s in submissions
-        call add(output, printf(format, s['id'], s['time'], s['status'], s['runtime']))
-    endfor
-    call add(output, separator)
+    let format = '| %-' . id_width . 'S | %-' . time_width .
+                \ 'S | %-21S | %-' . runtime_width . 'S |'
+    let header = printf(format, 'ID', 'Time', 'Status', 'Runtime')
+    let separator= printf(format, repeat('-', id_width),
+                \ repeat('-', time_width), repeat('-', 21),
+                \ repeat('-', runtime_width))
+    call extend(output, [header, separator])
     call append('$', output)
 
-    normal gg
-    normal dd
+    let submission_lines = []
+    for submission in submissions
+        let line = printf(format, submission['id'], submission['time'],
+                    \ submission['status'], submission['runtime'])
+        call add(submission_lines, line)
+    endfor
 
+    let b:leetcode_submission_start = line('$')
+    call append('$', submission_lines)
+    let b:leetcode_submission_end = line('$')
+
+    silent! normal! ggdd
     setlocal nomodifiable
 endfunction
 
-function! s:ViewSubmission()
-    if s:CheckSignIn() == v:false
+function! s:HandleSubmissionsCR()
+    let line_nr = line('.')
+    if line_nr < b:leetcode_submission_start ||
+                \ line_nr >= b:leetcode_submission_end
         return
     endif
 
-    " Parse the submission number from the line
-    let line = getline('.')
-    let id = matchstr(line, '[1-9][0-9]*')
-    if !id
+    let submission_nr = line_nr - b:leetcode_submission_start
+    let submission_id = b:leetcode_submissions[submission_nr]['id']
+
+    let expr = printf('leetcode.get_submission(%s)', submission_id)
+    let submission = py3eval(expr)
+    if type(submission) != v:t_dict
         return
     endif
 
-    let subm = py3eval('leetcode.get_submission('.id.')')
-    if type(subm) != v:t_dict
+    let file_name = printf('%s.%s.%s', submission['slug'], submission_id,
+                \ s:SolutionFileExt(submission['filetype']))
+
+    if bufexists(file_name)
+        execute bufnr(file_name) . 'buffer'
         return
     endif
 
-    " create the submission file
-    execute 'rightbelow vnew '.subm['slug'].'.'.id.'.'.s:SolutionFileExt(subm['filetype'])
+    execute 'rightbelow vnew ' . file_name
     set modifiable
 
-    " clear the buffer
-    normal gg
-    normal dG
-
-    " show the submission description as comments
-    let desc = s:FormatResult(subm)
-    call extend(desc, ['', '## Runtime Rank',
-                \ printf('  - Faster than %s submissions', subm['runtime_percentile'])])
-    let filetype = subm['filetype']
-    let output = [s:CommentStart(filetype, 'Submission '.id),
+    " Show the submission description as comments.
+    let result = s:FormatResult(submission)
+    let filetype = submission['filetype']
+    let output = [s:CommentStart(filetype, 'Submission ' . submission_id),
                 \ s:CommentLine(filetype, '')]
-    for line in desc
+    for line in result
         call add(output, s:CommentLine(filetype, line))
     endfor
     call add(output, s:CommentEnd(filetype))
     call append('$', output)
-    call append('$', subm['code'])
+    call append('$', submission['code'])
 
-    " delete the first line (it is a blank line)
-    normal gg
-    normal dd
+    silent! normal! ggdd
 endfunction
 
 function! s:CloseAnyPreview()
