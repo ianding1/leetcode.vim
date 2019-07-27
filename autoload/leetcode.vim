@@ -680,18 +680,51 @@ function! s:HandleProblemListS() abort
                 \ line_nr < b:leetcode_problem_end_line
         let problem_nr = line_nr - b:leetcode_problem_start_line
         let problem_slug = b:leetcode_problems[problem_nr]['slug']
-        call s:ListSubmissions(problem_slug)
+        call s:ListSubmissions(problem_slug, 0)
     endif
 endfunction
 
-function! s:ListSubmissions(slug) abort
+function! s:ListSubmissions(slug, refresh) abort
     let buf_name = 'leetcode:///submissions/' . a:slug
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
-        return
+        if a:refresh
+            setlocal modifiable
+            silent! normal! ggdG
+        else
+            return
+        endif
+    else
+        execute 'rightbelow new ' . buf_name
+        setlocal buftype=nofile
+        setlocal noswapfile
+        setlocal nobackup
+        setlocal bufhidden=hide
+        setlocal nospell
+        setlocal nonumber
+        setlocal norelativenumber
+        setlocal filetype=markdown
+        nnoremap <silent> <buffer> <return> :call <SID>HandleSubmissionsCR()<cr>
+        nnoremap <silent> <buffer> r :call <SID>HandleSubmissionsRefresh()<cr>
+
+        syn keyword lcAccepted Accepted
+        syn match lcFailure /Wrong Answer/
+        syn match lcFailure /Memory Limit Exceeded/
+        syn match lcFailure /Output Limit Exceeded/
+        syn match lcFailure /Time Limit Exceeded/
+        syn match lcFailure /Runtime Error/
+        syn match lcFailure /Internal Error/
+        syn match lcFailure /Compile Error/
+        syn match lcFailure /Unknown Error/
+        syn match lcFailure /Unknown State/
+        syn match lcNA /N\/A/
+
+        hi! lcAccepted term=bold gui=bold ctermfg=lightgreen guifg=lightgreen
+        hi! lcFailure term=bold gui=bold ctermfg=red guifg=red
+        hi! lcNA ctermfg=gray guifg=gray
     endif
 
-    execute 'rightbelow new ' . buf_name
+    let b:leetcode_problem_slug = a:slug
 
     let expr = printf('leetcode.get_submissions("%s")', a:slug)
     let submissions = py3eval(expr)
@@ -706,34 +739,6 @@ function! s:ListSubmissions(slug) abort
         return
     endif
 
-    setlocal buftype=nofile
-    setlocal noswapfile
-    setlocal nobackup
-    setlocal bufhidden=hide
-    setlocal nospell
-    setlocal nonumber
-    setlocal norelativenumber
-    setlocal filetype=markdown
-    nnoremap <silent> <buffer> <return> :call <SID>HandleSubmissionsCR()<cr>
-
-    syn keyword lcAccepted Accepted
-    syn match lcFailure /Wrong Answer/
-    syn match lcFailure /Memory Limit Exceeded/
-    syn match lcFailure /Output Limit Exceeded/
-    syn match lcFailure /Time Limit Exceeded/
-    syn match lcFailure /Runtime Error/
-    syn match lcFailure /Internal Error/
-    syn match lcFailure /Compile Error/
-    syn match lcFailure /Unknown Error/
-    syn match lcFailure /Unknown State/
-    syn match lcNA /N\/A/
-
-    hi! lcAccepted term=bold gui=bold ctermfg=lightgreen guifg=lightgreen
-    hi! lcFailure term=bold gui=bold ctermfg=red guifg=red
-    hi! lcNA ctermfg=gray guifg=gray
-
-    set modifiable
-
     let time_width = s:MaxWidthOfKey(submissions, 'time', 4)
     let id_width = s:MaxWidthOfKey(submissions, 'id', 2)
     let runtime_width = s:MaxWidthOfKey(submissions, 'runtime', 7)
@@ -742,7 +747,8 @@ function! s:ListSubmissions(slug) abort
     call add(output, '# '.problem['title'])
     call add(output, '')
     call add(output, '## Submissions')
-    call add(output, '  - return = view submission')
+    call add(output, '  - <cr>   view submission')
+    call add(output, '  - r      refresh')
     call add(output, '')
     let format = '| %-' . id_width . 'S | %-' . time_width .
                 \ 'S | %-21S | %-' . runtime_width . 'S |'
@@ -808,6 +814,10 @@ function! s:HandleSubmissionsCR() abort
     call append('$', submission['code'])
 
     silent! normal! ggdd
+endfunction
+
+function! s:HandleSubmissionsRefresh() abort
+    call s:ListSubmissions(b:leetcode_problem_slug, 1)
 endfunction
 
 function! s:CloseAnyPreview() abort
