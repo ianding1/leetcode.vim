@@ -61,6 +61,12 @@ function! s:CheckSignIn() abort
     return v:true
 endfunction
 
+function! s:SetupBasicSyntax() abort
+    syn match lcHeader /\v^#{1,7} .*/
+
+    hi! link lcHeader Title
+endfunction
+
 function! s:SetupProblemListBuffer() abort
     setlocal buftype=nofile
     setlocal noswapfile
@@ -68,11 +74,12 @@ function! s:SetupProblemListBuffer() abort
     setlocal nonumber
     setlocal norelativenumber
     setlocal nospell
-    setlocal filetype=markdown
     setlocal bufhidden=hide
     nnoremap <silent> <buffer> <return> :call <SID>HandleProblemListCR()<cr>
     nnoremap <silent> <buffer> s :call <SID>HandleProblemListS()<cr>
     nnoremap <silent> <buffer> r :call <SID>HandleProblemListR()<cr>
+
+    call s:SetupBasicSyntax()
 
     syn match lcEasy /| Easy /hs=s+2
     syn match lcMedium /| Medium /hs=s+2
@@ -106,12 +113,12 @@ function! s:PrintProblemList(problems) abort
     call append('$', ['## Problem List',
                 \ '',
                 \ '### Keys',
-                \ '  - <cr>  open the problem/go to the topic or company',
-                \ '  - s     view the submissions',
-                \ '  - r     refresh',
+                \ '  <cr>  open the problem/go to the topic or company',
+                \ '  s     view the submissions',
+                \ '  r     refresh',
                 \ '',
                 \ '### Indicators',
-                \ '  - [P] = paid-only problems',
+                \ '  [P]   paid-only problems',
                 \ ''])
 
     let format = '|%1S| %-' . id_width . 'S | %-' . title_width .
@@ -613,7 +620,6 @@ function! s:ShowRunResultInPreview(result) abort
     setlocal norelativenumber
     setlocal nocursorline
     setlocal nobuflisted
-    setlocal filetype=markdown
     setlocal modifiable
 
     let output = s:FormatResult(a:result)
@@ -624,6 +630,8 @@ function! s:ShowRunResultInPreview(result) abort
     setlocal previewwindow
     setlocal nomodifiable
     setlocal nomodified
+
+    call s:SetupBasicSyntax()
 
     " add custom syntax rules
     syn keyword lcAccepted Accepted
@@ -703,9 +711,10 @@ function! s:ListSubmissions(slug, refresh) abort
         setlocal nospell
         setlocal nonumber
         setlocal norelativenumber
-        setlocal filetype=markdown
         nnoremap <silent> <buffer> <return> :call <SID>HandleSubmissionsCR()<cr>
         nnoremap <silent> <buffer> r :call <SID>HandleSubmissionsRefresh()<cr>
+
+        call s:SetupBasicSyntax()
 
         syn keyword lcAccepted Accepted
         syn match lcFailure /Wrong Answer/
@@ -747,8 +756,8 @@ function! s:ListSubmissions(slug, refresh) abort
     call add(output, '# '.problem['title'])
     call add(output, '')
     call add(output, '## Submissions')
-    call add(output, '  - <cr>   view submission')
-    call add(output, '  - r      refresh')
+    call add(output, '  <cr>  view submission')
+    call add(output, '  r     refresh')
     call add(output, '')
     let format = '| %-' . id_width . 'S | %-' . time_width .
                 \ 'S | %-21S | %-' . runtime_width . 'S |'
