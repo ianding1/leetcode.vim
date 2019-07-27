@@ -24,7 +24,7 @@ if g:leetcode_debug
     python3 leetcode.enable_logging()
 endif
 
-function! leetcode#SignIn(ask)
+function! leetcode#SignIn(ask) abort
     if !s:inited
         return v:false
     endif
@@ -49,14 +49,14 @@ function! leetcode#SignIn(ask)
     return success
 endfunction
 
-function! s:CheckSignIn()
+function! s:CheckSignIn() abort
     if !py3eval('leetcode.is_login()')
         return leetcode#SignIn(0)
     endif
     return v:true
 endfunction
 
-function! s:SetupProblemListBuffer()
+function! s:SetupProblemListBuffer() abort
     setlocal buftype=nofile
     setlocal noswapfile
     setlocal nobackup
@@ -83,7 +83,7 @@ function! s:SetupProblemListBuffer()
     hi! lcPaidOnly ctermfg=yellow guifg=yellow
 endfunction
 
-function! s:MaxWidthOfKey(list_of_dict, key, min_width)
+function! s:MaxWidthOfKey(list_of_dict, key, min_width) abort
     let max_width = a:min_width
     for item in a:list_of_dict
         let max_width = max([max_width, strwidth(item[a:key])])
@@ -91,7 +91,7 @@ function! s:MaxWidthOfKey(list_of_dict, key, min_width)
     return max_width
 endfunction
 
-function! s:PrintProblemList(problems)
+function! s:PrintProblemList(problems) abort
     let b:leetcode_problems = a:problems
 
     let id_width = s:MaxWidthOfKey(a:problems, 'fid', 1)
@@ -130,7 +130,7 @@ function! s:PrintProblemList(problems)
     let b:leetcode_problem_end_line = line('$')
 endfunction
 
-function! s:ListProblemsOfTopic(topic_slug)
+function! s:ListProblemsOfTopic(topic_slug) abort
     let buf_name = 'leetcode:///problems/topic/' . a:topic_slug
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
@@ -159,7 +159,7 @@ function! s:ListProblemsOfTopic(topic_slug)
     silent! only
 endfunction
 
-function! s:ListProblemsOfCompany(company_slug)
+function! s:ListProblemsOfCompany(company_slug) abort
     let bufname = 'leetcode:///problems/company/' . a:company_slug
     if buflisted(bufname)
         execute bufnr(bufname) . 'buffer'
@@ -188,7 +188,7 @@ function! s:ListProblemsOfCompany(company_slug)
     silent! only
 endfunction
 
-function! leetcode#ListProblems()
+function! leetcode#ListProblems() abort
     if s:CheckSignIn() == v:false
         return
     endif
@@ -238,7 +238,7 @@ function! leetcode#ListProblems()
     silent! only
 endfunction
 
-function! s:HandleProblemListCR()
+function! s:HandleProblemListCR() abort
     " Parse the problem number from the line
     let line_nr = line('.')
 
@@ -293,11 +293,11 @@ let s:file_type_to_ext = {
             \ 'rust': 'rs',
             \ }
 
-function! s:SolutionFileExt(filetype)
+function! s:SolutionFileExt(filetype) abort
     return s:file_type_to_ext[a:filetype]
 endfunction
 
-function! leetcode#ResetSolution(with_latest_submission)
+function! leetcode#ResetSolution(with_latest_submission) abort
     if s:CheckSignIn() == v:false
         return
     endif
@@ -360,7 +360,7 @@ function! leetcode#ResetSolution(with_latest_submission)
     silent! normal! ggdd
 endfunction
 
-function! s:CommentStart(filetype, title)
+function! s:CommentStart(filetype, title) abort
     if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
                 \ 'kotlin', 'rust'], a:filetype) >= 0
         return '/* ' . a:title
@@ -373,7 +373,7 @@ function! s:CommentStart(filetype, title)
     endif
 endfunction
 
-function! s:CommentLine(filetype, line)
+function! s:CommentLine(filetype, line) abort
     if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
                 \ 'kotlin', 'rust'], a:filetype) >= 0
         return ' * ' . a:line
@@ -386,7 +386,7 @@ function! s:CommentLine(filetype, line)
     endif
 endfunction
 
-function! s:CommentEnd(filetype)
+function! s:CommentEnd(filetype) abort
     if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
                 \ 'kotlin', 'rust'], a:filetype) >= 0
         return ' * [End of Description] */'
@@ -399,7 +399,7 @@ function! s:CommentEnd(filetype)
     endif
 endfunction
 
-function! s:GuessFileType()
+function! s:GuessFileType() abort
     " Try figuring out the file type from the comment in the first 10
     " lines. If failed, try guessing it from the extension name.
     for line in getline(1, 10)
@@ -439,7 +439,7 @@ function! s:GuessFileType()
     return ''
 endfunction
 
-function! leetcode#TestSolution()
+function! leetcode#TestSolution() abort
     if s:CheckSignIn() == v:false
         return
     endif
@@ -472,7 +472,7 @@ function! leetcode#TestSolution()
     endif
 endfunction
 
-function! leetcode#SubmitSolution()
+function! leetcode#SubmitSolution() abort
     if s:CheckSignIn() == v:false
         return
     endif
@@ -505,7 +505,7 @@ function! leetcode#SubmitSolution()
     endif
 endfunction
 
-function! FormatSection(title, block, level)
+function! FormatSection(title, block, level) abort
     let result = []
     if len(a:block) > 0
         call add(result, repeat('#', a:level) . ' ' . a:title)
@@ -516,7 +516,7 @@ function! FormatSection(title, block, level)
     return result
 endfunction
 
-function! s:TestSummary(all_passed)
+function! s:TestSummary(all_passed) abort
     if a:all_passed
         return 'OK: all test cases passed'
     else
@@ -524,7 +524,7 @@ function! s:TestSummary(all_passed)
     endif
 endfunction
 
-function! s:FormatResult(result_)
+function! s:FormatResult(result_) abort
     let result = a:result_
     let output = ['# ' . result['title'],
                 \ '',
@@ -565,7 +565,7 @@ function! s:FormatResult(result_)
     return output
 endfunction
 
-function! s:ShowRunResultInPreview(result)
+function! s:ShowRunResultInPreview(result) abort
     call s:CloseAnyPreview()
 
     let saved_winnr = winnr()
@@ -613,7 +613,7 @@ function! s:ShowRunResultInPreview(result)
     execute saved_winnr . 'wincmd w'
 endfunction
 
-function! s:CheckRunCodeTask(timer)
+function! s:CheckRunCodeTask(timer) abort
     if !py3eval('leetcode.task_done')
         let prog = py3eval('leetcode.task_progress')
         echo prog
@@ -639,7 +639,7 @@ function! s:CheckRunCodeTask(timer)
     endif
 endfunction
 
-function! s:HandleProblemListS()
+function! s:HandleProblemListS() abort
     let line_nr = line('.')
     if line_nr >= b:leetcode_problem_start_line &&
                 \ line_nr < b:leetcode_problem_end_line
@@ -649,7 +649,7 @@ function! s:HandleProblemListS()
     endif
 endfunction
 
-function! s:ListSubmissions(slug)
+function! s:ListSubmissions(slug) abort
     let buf_name = 'leetcode:///submissions/' . a:slug
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
@@ -733,7 +733,7 @@ function! s:ListSubmissions(slug)
     setlocal nomodifiable
 endfunction
 
-function! s:HandleSubmissionsCR()
+function! s:HandleSubmissionsCR() abort
     let line_nr = line('.')
     if line_nr < b:leetcode_submission_start ||
                 \ line_nr >= b:leetcode_submission_end
@@ -775,7 +775,7 @@ function! s:HandleSubmissionsCR()
     silent! normal! ggdd
 endfunction
 
-function! s:CloseAnyPreview()
+function! s:CloseAnyPreview() abort
     try
         pclose
     catch /E444:/
