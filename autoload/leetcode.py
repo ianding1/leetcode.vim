@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import time
+import os
 from threading import Semaphore, Thread, current_thread
 
 try:
@@ -17,18 +18,18 @@ except ImportError:
     vim = None
 
 
-LC_BASE = 'https://leetcode.com'
-LC_LOGIN = 'https://leetcode.com/accounts/login/'
-LC_GRAPHQL = 'https://leetcode.com/graphql'
-LC_CATEGORY_PROBLEMS = 'https://leetcode.com/api/problems/{category}'
-LC_PROBLEM = 'https://leetcode.com/problems/{slug}/description'
-LC_TEST = 'https://leetcode.com/problems/{slug}/interpret_solution/'
-LC_SUBMIT = 'https://leetcode.com/problems/{slug}/submit/'
-LC_SUBMISSIONS = 'https://leetcode.com/api/submissions/{slug}'
-LC_SUBMISSION = 'https://leetcode.com/submissions/detail/{submission}/'
-LC_CHECK = 'https://leetcode.com/submissions/detail/{submission}/check/'
-LC_PROBLEM_SET_ALL = 'https://leetcode.com/problemset/all/'
-
+LC_BASE = os.environ['LEETCODE_BASE_URL']
+LC_CSRF = LC_BASE + '/ensure_csrf/'
+LC_LOGIN = LC_BASE + '/accounts/login/'
+LC_GRAPHQL = LC_BASE + '/graphql'
+LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}'
+LC_PROBLEM = LC_BASE + '/problems/{slug}/description'
+LC_TEST = LC_BASE + '/problems/{slug}/interpret_solution/'
+LC_SUBMIT = LC_BASE + '/problems/{slug}/submit/'
+LC_SUBMISSIONS = LC_BASE + '/api/submissions/{slug}'
+LC_SUBMISSION = LC_BASE + '/submissions/detail/{submission}/'
+LC_CHECK = LC_BASE + '/submissions/detail/{submission}/check/'
+LC_PROBLEM_SET_ALL = LC_BASE + '/problemset/all/'
 
 session = None
 task_running = False
@@ -132,9 +133,12 @@ def is_login():
 def signin(username, password):
     global session
     session = requests.Session()
-    res = session.get(LC_LOGIN)
+    if 'cn' in LC_BASE:
+        res = session.get(LC_CSRF)
+    else:
+        res = session.get(LC_LOGIN)
     if res.status_code != 200:
-        _echoerr('cannot open ' + LC_LOGIN)
+        _echoerr('cannot open ' + LC_BASE)
         return False
 
     headers = {'Origin': LC_BASE,

@@ -1,5 +1,9 @@
 " vim: sts=4 sw=4 expandtab
 
+if !exists('g:leetcode_china')
+    let g:leetcode_china = 0
+endif
+
 if !exists('g:leetcode_username')
     let g:leetcode_username = ''
 endif
