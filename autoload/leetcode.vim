@@ -78,6 +78,7 @@ function! s:SetupProblemListBuffer() abort
     nnoremap <silent> <buffer> <return> :call <SID>HandleProblemListCR()<cr>
     nnoremap <silent> <buffer> s :call <SID>HandleProblemListS()<cr>
     nnoremap <silent> <buffer> r :call <SID>HandleProblemListR()<cr>
+    nnoremap <silent> <buffer> S :call <SID>HandleProblemListSort()<cr>
 
     call s:SetupBasicSyntax()
 
@@ -104,33 +105,87 @@ function! s:MaxWidthOfKey(list_of_dict, key, min_width) abort
     return max_width
 endfunction
 
-function! s:PrintProblemList(problems) abort
-    let b:leetcode_problems = a:problems
+function! s:ProgressBar(percentile, width) abort
+    let num_full_blocks = float2nr(ceil(a:percentile * a:width))
+    let result = repeat('#', num_full_blocks)
+    return printf('%-' . a:width . 'S', result)
+endfunction
 
-    let id_width = s:MaxWidthOfKey(a:problems, 'fid', 1)
-    let title_width = s:MaxWidthOfKey(a:problems, 'title', 1) + 4
+function! s:Max(values) abort
+    let max_value = 0
+    for value in a:values
+        if value > max_value
+            let max_value = value
+        endif
+    endfor
+    return max_value
+endfunction
 
+let s:time_period_to_index_map = {'six-months': 0, 'one-year': 1,
+            \ 'two-years': 2, 'all': 3}
+
+let s:sort_column_to_name_map = {'state': 'Problem state',
+            \ 'id': 'ID',
+            \ 'title': 'Title',
+            \ 'ac_rate': 'Accepted',
+            \ 'level': 'Difficulty',
+            \ 'frequency': 'Frequency'}
+
+let s:sort_order_to_name_map = {'asc': 'From low to high',
+            \ 'desc': 'From high to low'}
+
+function! s:PrintProblemList() abort
+    if exists('b:leetcode_time_period')
+        let frequency_index = s:time_period_to_index_map[b:leetcode_time_period]
+        for problem in b:leetcode_downloaded_problems
+            let problem['frequency'] = problem['frequencies'][frequency_index]
+        endfor
+    endif
+
+    let sorted_problems = leetcode#sort#SortProblems(
+                \ b:leetcode_downloaded_problems,
+                \ b:leetcode_sort_column)
+
+    if b:leetcode_sort_order ==# 'desc'
+        call reverse(sorted_problems)
+    endif
+
+    let b:leetcode_problems = sorted_problems
+
+    let id_width = s:MaxWidthOfKey(sorted_problems, 'fid', 1)
+    let title_width = s:MaxWidthOfKey(sorted_problems, 'title', 1) + 4
+    let max_frequency = s:Max(map(copy(sorted_problems), 'v:val["frequency"]'))
+
+    let sort_column_name = s:sort_column_to_name_map[b:leetcode_sort_column]
+    let sort_order_name = s:sort_order_to_name_map[b:leetcode_sort_order]
     call append('$', ['## Problem List',
+                \ '',
+                \ '### Sorted by',
+                \ '  Column:  ' . sort_column_name,
+                \ '  Order:   ' . sort_order_name,
                 \ '',
                 \ '### Keys',
                 \ '  <cr>  open the problem/go to the topic or company',
                 \ '  s     view the submissions',
                 \ '  r     refresh',
+                \ '  S     sort by column',
                 \ '',
                 \ '### Indicators',
                 \ '  [P]   paid-only problems',
                 \ ''])
 
     let format = '|%1S| %-' . id_width . 'S | %-' . title_width .
-                \ 'S | %-8S | %-10S |'
-    let header = printf(format, ' ', '#', 'Title', 'Accepted', 'Difficulty')
+                \ 'S | %-8S | %-10S | %-10S |'
+    let header = printf(format, ' ', '#', 'Title', 'Accepted', 'Difficulty',
+                \ 'Frequency')
     let separator = printf(format, '-', repeat('-', id_width),
-                \ repeat('-', title_width), repeat('-', 8), repeat('-', 10))
+                \ repeat('-', title_width), repeat('-', 8), repeat('-', 10),
+                \ repeat('-', 10))
 
     call append('$', [header, separator])
 
     let problem_lines = []
-    for problem in a:problems
+    for problem in sorted_problems
         let title = substitute(problem['title'], '`', "'", 'g')
         if problem['paid_only']
             let title .= ' [P]'
@@ -138,7 +193,8 @@ function! s:PrintProblemList(problems) abort
         call add(problem_lines, printf(format, problem['state'],
                     \ problem['fid'], title,
                     \ printf('%7.1f%%', problem['ac_rate'] * 100),
-                    \ problem['level']))
+                    \ problem['level'],
+                    \ s:ProgressBar(problem['frequency'] / max_frequency, 10)))
     endfor
     let b:leetcode_problem_start_line = line('$')
     call append('$', problem_lines)
@@ -149,21 +205,26 @@ function! s:ListProblemsOfTopic(topic_slug, refresh) abort
     let buf_name = 'leetcode:///problems/topic/' . a:topic_slug
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
-        if a:refresh
-            setlocal modifiable
-            silent! normal! ggdG
-        else
+        let saved_view = winsaveview()
+        if a:refresh ==# 'redownload'
+            let expr = printf('leetcode.get_problems_of_topic("%s")',
+                        \ a:topic_slug)
+            let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        elseif a:refresh ==# 'norefresh'
             return
         endif
+        setlocal modifiable
+        silent! normal! ggdG
     else
         execute 'rightbelow new ' . buf_name
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'topic'
         let b:leetcode_buffer_topic = a:topic_slug
+        let expr = printf('leetcode.get_problems_of_topic("%s")', a:topic_slug)
+        let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        let b:leetcode_sort_column = 'id'
+        let b:leetcode_sort_order = 'asc'
     endif
-
-    let expr = printf('leetcode.get_problems_of_topic("%s")', a:topic_slug)
-    let problems = py3eval(expr)['problems']
 
     let b:leetcode_topic_start_line = 0
     let b:leetcode_topic_end_line = 0
@@ -174,45 +235,88 @@ function! s:ListProblemsOfTopic(topic_slug, refresh) abort
 
     call append('$', ['# LeetCode [topic:' . a:topic_slug . ']', ''])
 
-    call s:PrintProblemList(problems)
+    call s:PrintProblemList()
 
     silent! normal! ggdd
     setlocal nomodifiable
     silent! only
+
+    if exists('saved_view')
+        call winrestview(saved_view)
+    endif
+endfunction
+
+function! s:ChooseTimePeriod() abort
+    let choice = inputlist(['Choose time period:',
+                \ '1 - 6 months',
+                \ '2 - 1 year',
+                \ '3 - 2 years',
+                \ '4 - all time'])
+    if choice == 1
+        let b:leetcode_time_period = 'six-months'
+    elseif choice == 2
+        let b:leetcode_time_period = 'one-year'
+    elseif choice == 3
+        let b:leetcode_time_period = 'two-years'
+    elseif choice == 4
+        let b:leetcode_time_period = 'all'
+    else
+        return
+    endif
+    call s:ListProblemsOfCompany(b:leetcode_buffer_company, 'redraw')
 endfunction
 
 function! s:ListProblemsOfCompany(company_slug, refresh) abort
     let bufname = 'leetcode:///problems/company/' . a:company_slug
     if buflisted(bufname)
         execute bufnr(bufname) . 'buffer'
-        if a:refresh
-            setlocal modifiable
-            silent! normal! ggdG
-        else
+        let saved_view = winsaveview()
+        if a:refresh ==# 'redownload'
+            let expr = printf('leetcode.get_problems_of_company("%s")',
+                        \ a:company_slug)
+            let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        elseif a:refresh ==# 'norefresh'
             return
         endif
+        setlocal modifiable
+        silent! normal! ggdG
     else
         execute 'rightbelow new ' . bufname
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'company'
         let b:leetcode_buffer_company = a:company_slug
-    endif
+        let b:leetcode_time_period = 'six-months'
+        nnoremap <buffer> t :call <SID>ChooseTimePeriod()<cr>
 
-    let expr = printf('leetcode.get_problems_of_company("%s")', a:company_slug)
-    let problems = py3eval(expr)['problems']
+        let expr = printf('leetcode.get_problems_of_company("%s")',
+                    \ a:company_slug)
+        let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        let b:leetcode_sort_column = 'id'
+        let b:leetcode_sort_order = 'asc'
+    endif
 
     let b:leetcode_topic_start_line = 0
     let b:leetcode_topic_end_line = 0
     let b:leetcode_company_start_line = 0
     let b:leetcode_company_end_line = 0
 
-    call append('$', ['# LeetCode [company:' . a:company_slug . ']', ''])
+    call append('$', ['# LeetCode [company:' . a:company_slug . ']',
+                \ '',
+                \ '## Frequency',
+                \ '  Time period: ' . b:leetcode_time_period,
+                \ '',
+                \ '  t     choose time period',
+                \ ''])
 
-    call s:PrintProblemList(problems)
+    call s:PrintProblemList()
 
     silent! normal! ggdd
     setlocal nomodifiable
     silent! only
+
+    if exists('saved_view')
+        call winrestview(saved_view)
+    endif
 endfunction
 
 function! leetcode#ListProblems(refresh) abort
@@ -223,27 +327,31 @@ function! leetcode#ListProblems(refresh) abort
     let buf_name = 'leetcode:///problems/all'
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
-        if a:refresh
-            setlocal modifiable
-            silent! normal! ggdG
-        else
+        let saved_view = winsaveview()
+        if a:refresh ==# 'redownload'
+            let expr = printf('leetcode.get_problems(["all"])')
+            let b:leetcode_downloaded_problems = py3eval(expr)
+        elseif a:refresh ==# 'norefresh'
             return
         endif
+        setlocal modifiable
+        silent! normal! ggdG
     else
         execute 'rightbelow new ' . buf_name
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'all'
+        let expr = printf('leetcode.get_problems(["all"])')
+        let b:leetcode_downloaded_problems = py3eval(expr)
+        let b:leetcode_sort_column = 'id'
+        let b:leetcode_sort_order = 'asc'
     endif
-
-    let expr = printf('leetcode.get_problems(["all"])')
-    let problems = py3eval(expr)
 
     let topics_and_companies = py3eval('leetcode.get_topics_and_companies()')
     let topics = topics_and_companies['topics']
     let companies = topics_and_companies['companies']
 
     " concatenate the topics into a string
-    let topic_slugs = map(topics, 'v:val["topic_slug"]')
+    let topic_slugs = map(copy(topics), 'v:val["topic_slug"]')
     let topic_lines = s:FormatIntoColumns(topic_slugs)
 
     call append('$', ['# LeetCode', '', '## Topics', ''])
@@ -252,7 +360,7 @@ function! leetcode#ListProblems(refresh) abort
     call append('$', topic_lines)
     let b:leetcode_topic_end_line = line('$')
 
-    let company_slugs = map(companies, 'v:val["company_slug"]')
+    let company_slugs = map(copy(companies), 'v:val["company_slug"]')
     let company_lines = s:FormatIntoColumns(company_slugs)
 
     call append('$', ['', '## Companies', ''])
@@ -262,11 +370,15 @@ function! leetcode#ListProblems(refresh) abort
     let b:leetcode_company_end_line = line('$')
 
     call append('$', '')
-    call s:PrintProblemList(problems)
+    call s:PrintProblemList()
 
     silent! normal! ggdd
     setlocal nomodifiable
     silent! only
+
+    if exists('saved_view')
+        call winrestview(saved_view)
+    endif
 endfunction
 
 function! s:HandleProblemListCR() abort
@@ -277,7 +389,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_topic_end_line
         let topic_slug = expand('<cWORD>')
         if topic_slug != ''
-            call s:ListProblemsOfTopic(topic_slug, 0)
+            call s:ListProblemsOfTopic(topic_slug, 'norefresh')
         endif
         return
     endif
@@ -286,7 +398,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_company_end_line
         let company_slug = expand('<cWORD>')
         if company_slug != ''
-            call s:ListProblemsOfCompany(company_slug, 0)
+            call s:ListProblemsOfCompany(company_slug, 'norefresh')
         endif
         return
     endif
@@ -310,11 +422,54 @@ endfunction
 
 function! s:HandleProblemListR() abort
     if b:leetcode_buffer_type ==# 'all'
-        call leetcode#ListProblems(1)
+        call leetcode#ListProblems('redownload')
     elseif b:leetcode_buffer_type ==# 'topic'
-        call s:ListProblemsOfTopic(b:leetcode_buffer_topic, 1)
+        call s:ListProblemsOfTopic(b:leetcode_buffer_topic, 'redownload')
     elseif b:leetcode_buffer_type ==# 'company'
-        call s:ListProblemsOfCompany(b:leetcode_buffer_company, 1)
+        call s:ListProblemsOfCompany(b:leetcode_buffer_company, 'redownload')
+    endif
+endfunction
+
+let s:column_choice_map = {
+            \ 1: 'state',
+            \ 2: 'id',
+            \ 3: 'title',
+            \ 4: 'ac_rate',
+            \ 5: 'level',
+            \ 6: 'frequency'
+            \ }
+
+let s:order_choice_map = {1: 'asc', 2: 'desc'}
+
+function! s:HandleProblemListSort() abort
+    let column_choice = inputlist(['Sort by:',
+                \ '1 - State',
+                \ '2 - ID',
+                \ '3 - Title',
+                \ '4 - Accepted',
+                \ '5 - Difficulty',
+                \ '6 - Frequency'])
+    if !(column_choice >= 1 && column_choice <= 6)
+        return
+    endif
+
+    echo "\n"
+    let order_choice = inputlist(['In which order:',
+                \ '1 - From low to high',
+                \ '2 - From high to low'])
+    if order_choice != 1 && order_choice != 2
+        return
+    endif
+
+    let b:leetcode_sort_column = s:column_choice_map[column_choice]
+    let b:leetcode_sort_order = s:order_choice_map[order_choice]
+
+    if b:leetcode_buffer_type ==# 'all'
+        call leetcode#ListProblems('redraw')
+    elseif b:leetcode_buffer_type ==# 'topic'
+        call s:ListProblemsOfTopic(b:leetcode_buffer_topic, 'redraw')
+    elseif b:leetcode_buffer_type ==# 'company'
+        call s:ListProblemsOfCompany(b:leetcode_buffer_company, 'redraw')
     endif
 endfunction
 

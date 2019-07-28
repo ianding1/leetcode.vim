@@ -24,7 +24,7 @@ if !exists('g:leetcode_debug')
     let g:leetcode_debug = 0
 endif
 
-command! -nargs=0 LeetCodeList call leetcode#ListProblems(0)
+command! -nargs=0 LeetCodeList call leetcode#ListProblems('norefresh')
 command! -nargs=0 LeetCodeReset call leetcode#ResetSolution(0)
 command! -nargs=0 LeetCodeTest call leetcode#TestSolution()
 command! -nargs=0 LeetCodeSubmit call leetcode#SubmitSolution()

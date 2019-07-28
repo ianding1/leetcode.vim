@@ -180,7 +180,8 @@ def _get_category_problems(category):
                    'ac_rate': p['stat']['total_acs'] / p['stat']['total_submitted'],
                    'level': _level_to_name(p['difficulty']['level']),
                    'favor': p['is_favor'],
-                   'category': content['category_slug']}
+                   'category': content['category_slug'],
+                   'frequency': p['frequency']}
         problems.append(problem)
     return problems
 
@@ -626,6 +627,7 @@ fragment favoriteFields on FavoriteNode {
         return None
 
     topic_tag = res.json()['data']['topicTag']
+    id_to_frequency_map = json.loads(topic_tag['frequencies'])
 
     def process_problem(p):
         stats = json.loads(p['stats'])
@@ -639,7 +641,8 @@ fragment favoriteFields on FavoriteNode {
             'paid_only': p['isPaidOnly'],
             'ac_rate': stats['totalAcceptedRaw'] / stats['totalSubmissionRaw'],
             'level': p['difficulty'],
-            'favor': False}
+            'favor': False,
+            'frequency': id_to_frequency_map[p['questionId']]}
 
     return {
         'topic_name': topic_tag['name'],
@@ -727,6 +730,7 @@ fragment questionFields on QuestionNode {
         return None
 
     company_tag = res.json()['data']['companyTag']
+    id_to_frequency_map = json.loads(company_tag['frequencies'])
 
     def process_problem(p):
         stats = json.loads(p['stats'])
@@ -740,7 +744,8 @@ fragment questionFields on QuestionNode {
             'paid_only': p['isPaidOnly'],
             'ac_rate': stats['totalAcceptedRaw'] / stats['totalSubmissionRaw'],
             'level': p['difficulty'],
-            'favor': False}
+            'favor': False,
+            'frequencies': id_to_frequency_map[p['questionId']][4:]}
 
     return {
         'company_name': company_tag['name'],
