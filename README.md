@@ -49,7 +49,7 @@ Default value is `0`.
 
 ### `g:leetcode_solution_filetype`
 
-The preferred programming language. 
+The preferred programming language.
 
 Values: `'cpp'`, `'java'`, `'python'`, `'python3'`, `'csharp'`, `'javascript'`,
 `'ruby'`, `'swift'`, `'golang'`, `'scala'`, `'kotlin'`, ``'rust'``.
