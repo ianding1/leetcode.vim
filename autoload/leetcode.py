@@ -31,6 +31,8 @@ LC_SUBMISSION = LC_BASE + '/submissions/detail/{submission}/'
 LC_CHECK = LC_BASE + '/submissions/detail/{submission}/check/'
 LC_PROBLEM_SET_ALL = LC_BASE + '/problemset/all/'
 
+EMPTY_FREQUENCIES = [0, 0, 0, 0, 0, 0, 0, 0]
+
 session = None
 task_running = False
 task_done = False
@@ -221,11 +223,12 @@ def get_problem(slug):
         return None
 
     q = res.json()['data']['question']
-    if q is None:
+    content = q['translatedContent'] or q['content']
+    if content is None:
         _echoerr('cannot get the problem: {}'.format(slug))
         return None
 
-    soup = BeautifulSoup(q['translatedContent'] or q['content'], features='html.parser')
+    soup = BeautifulSoup(content, features='html.parser')
     problem = {}
     problem['id'] = q['questionId']
     problem['title'] = q['title']
@@ -565,51 +568,9 @@ def get_problems_of_topic(topic_slug):
       stats
       difficulty
       isPaidOnly
-      topicTags {
-        name
-        translatedName
-        slug
-        __typename
-      }
-      companyTags {
-        name
-        translatedName
-        slug
-        __typename
-      }
-      __typename
     }
     frequencies
-    __typename
   }
-  favoritesLists {
-    publicFavorites {
-      ...favoriteFields
-      __typename
-    }
-    privateFavorites {
-      ...favoriteFields
-      __typename
-    }
-    __typename
-  }
-}
-
-fragment favoriteFields on FavoriteNode {
-  idHash
-  id
-  name
-  isPublicFavorite
-  viewCount
-  creator
-  isWatched
-  questions {
-    questionId
-    title
-    titleSlug
-    __typename
-  }
-  __typename
 }
 '''}
 
@@ -624,10 +585,17 @@ fragment favoriteFields on FavoriteNode {
 
     if res.status_code != 200:
         _echoerr('cannot get problems of the topic')
-        return None
+        return {'topic_name': topic_slug, 'problems': []}
 
     topic_tag = res.json()['data']['topicTag']
-    id_to_frequency_map = json.loads(topic_tag['frequencies'])
+
+    if not topic_tag:
+        return {'topic_name': topic_slug, 'problems': []}
+    
+    if topic_tag['frequencies']:
+        id_to_frequency_map = json.loads(topic_tag['frequencies'])
+    else:
+        id_to_frequency_map = {}
 
     def process_problem(p):
         stats = json.loads(p['stats'])
@@ -642,7 +610,7 @@ fragment favoriteFields on FavoriteNode {
             'ac_rate': stats['totalAcceptedRaw'] / stats['totalSubmissionRaw'],
             'level': p['difficulty'],
             'favor': False,
-            'frequency': id_to_frequency_map[p['questionId']]}
+            'frequency': id_to_frequency_map.get(p['questionId'], 0)}
 
     return {
         'topic_name': topic_tag['name'],
@@ -660,38 +628,8 @@ def get_problems_of_company(company_slug):
     frequencies
     questions {
       ...questionFields
-      __typename
     }
-    __typename
   }
-  favoritesLists {
-    publicFavorites {
-      ...favoriteFields
-      __typename
-    }
-    privateFavorites {
-      ...favoriteFields
-      __typename
-    }
-    __typename
-  }
-}
-
-fragment favoriteFields on FavoriteNode {
-  idHash
-  id
-  name
-  isPublicFavorite
-  viewCount
-  creator
-  isWatched
-  questions {
-    questionId
-    title
-    titleSlug
-    __typename
-  }
-  __typename
 }
 
 fragment questionFields on QuestionNode {
@@ -704,14 +642,7 @@ fragment questionFields on QuestionNode {
   stats
   difficulty
   isPaidOnly
-  topicTags {
-    name
-    translatedName
-    slug
-    __typename
-  }
   frequencyTimePeriod
-  __typename
 }
 '''}
 
@@ -727,10 +658,18 @@ fragment questionFields on QuestionNode {
 
     if res.status_code != 200:
         _echoerr('cannot get problems of the company')
-        return None
+        return {'company_name': company_slug, 'problems': []}
 
     company_tag = res.json()['data']['companyTag']
-    id_to_frequency_map = json.loads(company_tag['frequencies'])
+
+    if not company_tag:
+        _echoerr('cannot get problems of the company')
+        return {'company_name': company_slug, 'problems': []}
+
+    if company_tag['frequencies']:
+        id_to_frequency_map = json.loads(company_tag['frequencies'])
+    else:
+        id_to_frequency_map = {}
 
     def process_problem(p):
         stats = json.loads(p['stats'])
@@ -745,7 +684,8 @@ fragment questionFields on QuestionNode {
             'ac_rate': stats['totalAcceptedRaw'] / stats['totalSubmissionRaw'],
             'level': p['difficulty'],
             'favor': False,
-            'frequencies': id_to_frequency_map[p['questionId']][4:]}
+            'frequencies': id_to_frequency_map.get(p['questionId'], 
+                                                   EMPTY_FREQUENCIES)[4:]}
 
     return {
         'company_name': company_tag['name'],
