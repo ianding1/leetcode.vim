@@ -4,7 +4,7 @@
 
 Solve LeetCode problems in Vim!
 
-**Supported sorting by columns (Hooray🎉) Now you can solve problems by frequency!**
+**Supported sorting by columns (Hooray🎉🎉🎉) Now you can solve problems by frequency!**
 
 This Vim plugin is inspired by [skygragon/leetcode-cli][leetcode-cli].
 
