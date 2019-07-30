@@ -1,0 +1,77 @@
+leetcode.txt        LeetCode client
+
+INTRODUCTION                                            *leetcode*
+
+This plugin makes it possible to solve LeetCode problems in Vim.
+
+COMMANDS                                                *leetcode-commands*
+
+                                                        *:LeetCodeList*
+:LeetCodeList       List all the problems in a new window.
+
+                                                        *:LeetCodeTest*
+
+:LeetCodeTest       Run the code in the current buffer with the default test
+                    input.
+
+                                                        *:LeetCodeSubmit*
+:LeetCodeSubmit     Submit the code in the current buffer.
+
+                                                        *:LeetCodeSignIn*
+:LeetCodeSignIn     Manually sign in.
+
+                                                        *:LeetCodeReset*
+:LeetCodeReset      Reset the code in the current buffer to the initial code
+                    template.
+
+
+MAPPINGS                                                *leetcode-mappings*
+
+These mappings are available in the problem list buffers.
+
+                                                        *leetcode-<CR>*
+<CR>                Open the problem under the cursor or list the problems of
+                    the topic or company under the cursor.
+
+                                                        *leetcode-s*
+s                   List the submissions of the problem under the cursor.
+
+                                                        *leetcode-r*
+r                   Refresh the problem list (redownloading all the contents).
+
+                                                        *leetcode-S*
+S                   Sort the problem list. The command will prompt users to
+                    choose the column to be sorted and the sorting order.
+
+                                                        *leetcode-t*
+t                   Choose the time period of the frequency to show. This
+                    command is only available in the company problem list.
+
+
+CUSTOMIZATIONS                                          *leetcode-customization*
+
+                                                        *g:leetcode_username*
+g:leetcode_username Set it to the username/email to allow autologin.
+
+                    Default: ''
+
+                                                        *g:leetcode_password*
+g:leetcode_password Set it to the password to allow autologin.
+
+                    Default: ''
+
+                                                        *g:leetcode_china*
+g:leetcode_china    Set it to 1 to login to a LeetCode China account.
+
+                    Default: 0
+
+                                              *g:leetcode_solution_filetype*
+g:leetcode_solution_filetype
+                    The language to use to solve LeetCode problems.
+
+                    Default: "cpp"
+                    Values: "cpp", "java", "python", "python3", "csharp",
+                            "javascript", "ruby", "swift", "golang", "scala",
+                            "kotlin", "rust"
+
+ vim:tw=78:ts=8:et:ft=help:norl:
