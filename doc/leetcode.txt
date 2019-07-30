@@ -48,7 +48,7 @@ t                   Choose the time period of the frequency to show. This
                     command is only available in the company problem list.
 
 
-CUSTOMIZATIONS                                          *leetcode-customization*
+CUSTOMIZATIONS                                       *leetcode-customizations*
 
                                                         *g:leetcode_username*
 g:leetcode_username Set it to the username/email to allow autologin.
