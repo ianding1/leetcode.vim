@@ -649,18 +649,90 @@ function! leetcode#TestSolution() abort
     let slug = split(file_name, '\.')[0]
     let filetype = s:GuessFileType()
 
+    if exists('b:leetcode_problem')
+        let problem = b:leetcode_problem
+    else
+        let problem = py3eval(printf('leetcode.get_problem("%s")', slug))
+        let b:leetcode_problem = problem
+    endif
+
+    if !problem['testable']
+        echomsg 'the problem is not testable'
+        return
+    endif
+
+    let code = join(getline('1', '$'), "\n")
+
+    call s:AskTestInputAndRunTest(problem, filetype, code)
+endfunction
+
+let s:saved_test_input = {}
+
+function! s:AskTestInputAndRunTest(problem, filetype, code) abort
+    execute 'rightbelow new ' . tempname()
+    setlocal noswapfile
+    setlocal nobackup
+    setlocal bufhidden=delete
+    setlocal nospell
+    setlocal nobuflisted
+
+    syn match TestInputComment /\v^#.*/
+    hi! link TestInputComment Comment
+
+    let slug = a:problem['slug']
+
+    if has_key(s:saved_test_input, slug)
+        let default_test_input = s:saved_test_input[slug]
+    else
+        let default_test_input = ['# Test Input'] +
+                    \ split(a:problem['testcase'], '\n', 1) +
+                    \ ['', '# Delete or comment out all lines to abort']
+        let s:saved_test_input[slug] = default_test_input
+    endif
+
+    call append('$', default_test_input)
+
+    silent! normal! ggdd
+
+    let s:leetcode_problem = a:problem
+    let s:leetcode_code = a:code
+    let s:leetcode_filetype = a:filetype
+
+    autocmd BufUnload <buffer> call <SID>RunTest()
+endfunction
+
+let s:comment_pattern = '\v(^#.*)|(^\s*$)'
+
+function! s:RunTest() abort
+    let problem = s:leetcode_problem
+    let code = s:leetcode_code
+    let filetype = s:leetcode_filetype
+
+    let test_input = getline('1', '$')
+    let s:saved_test_input[problem['slug']] = test_input
+    let test_input = filter(copy(test_input), 'v:val !~# s:comment_pattern')
+    let test_input = join(test_input, "\n")
+
+    if test_input == ''
+        echo 'Abort testing because the test input is empty'
+        return
+    endif
+
+    let args = {'problem_id': problem['id'],
+                \ 'title': problem['title'],
+                \ 'slug': problem['slug'],
+                \ 'filetype': filetype,
+                \ 'code': code,
+                \ 'test_input': test_input}
+
     if has('timers')
-        let expr = printf('leetcode.test_solution_async("%s", "%s")',
-                    \ slug, filetype)
-        let ok = py3eval(expr)
+        let ok = py3eval('leetcode.test_solution_async(**vim.eval("args"))')
         if ok
             call timer_start(200, function('s:CheckRunCodeTask'),
                         \ {'repeat': -1})
         endif
     else
-        let expr = printf('leetcode.test_solution("%s", "%s")',
-                    \ slug, filetype)
-        let result = py3eval(expr)
+        let result = py3eval('leetcode.test_solution(**vim.eval("args"))')
         if type(result) != v:t_dict
             return
         endif

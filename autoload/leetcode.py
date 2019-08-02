@@ -312,24 +312,16 @@ def _check_result(submission_id):
     return result
 
 
-def test_solution(slug, filetype, code=None):
+def test_solution(problem_id, title, slug, filetype, code, test_input):
     assert is_login()
-    problem = get_problem(slug)
-    if not problem:
-        return None
 
-    if not problem['testable']:
-        _echoerr('the problem is not testable, please submit directly')
-        return None
-
-    if code is None:
-        code = '\n'.join(vim.current.buffer)
+    code = _remove_description(code)
 
     headers = _make_headers()
     headers['Referer'] = LC_PROBLEM.format(slug=slug)
-    body = {'data_input': problem['testcase'],
+    body = {'data_input': test_input,
             'lang': filetype,
-            'question_id': str(problem['id']),
+            'question_id': str(problem_id),
             'test_mode': False,
             'typed_code': code}
     url = LC_TEST.format(slug=slug)
@@ -345,25 +337,27 @@ def test_solution(slug, filetype, code=None):
 
     actual = _check_result(res.json()['interpret_id'])
     expected = _check_result(res.json()['interpret_expected_id'])
-    actual['testcase'] = problem['testcase'].split('\n')
+    actual['testcase'] = test_input.split('\n')
     actual['expected_answer'] = expected['answer']
-    actual['title'] = problem['title']
+    actual['title'] = title
     return actual
 
 
-def test_solution_async(slug, filetype, code=None):
+def test_solution_async(problem_id, title, slug, filetype, code, test_input):
     assert is_login()
     global task_input, task_name
     if task_running:
         _echoerr('there is other task running: ' + task_name)
         return False
 
-    if code is None:
-        code = '\n'.join(vim.current.buffer)
+    log.info('code %s', code)
+
     code = _remove_description(code)
 
+    log.info('code removed %s', code)
+
     task_name = 'test_solution'
-    task_input = [slug, filetype, code]
+    task_input = [problem_id, title, slug, filetype, code, test_input]
     task_trigger.release()
     return True
 
@@ -591,7 +585,7 @@ def get_problems_of_topic(topic_slug):
 
     if not topic_tag:
         return {'topic_name': topic_slug, 'problems': []}
-    
+
     if topic_tag['frequencies']:
         id_to_frequency_map = json.loads(topic_tag['frequencies'])
     else:
@@ -684,7 +678,7 @@ fragment questionFields on QuestionNode {
             'ac_rate': stats['totalAcceptedRaw'] / stats['totalSubmissionRaw'],
             'level': p['difficulty'],
             'favor': False,
-            'frequencies': id_to_frequency_map.get(p['questionId'], 
+            'frequencies': id_to_frequency_map.get(p['questionId'],
                                                    EMPTY_FREQUENCIES)[4:]}
 
     return {
@@ -704,11 +698,9 @@ def _thread_main():
         log.info('task thread input: name="%s" input="%s"', task_name, task_input)
         try:
             if task_name == 'test_solution':
-                slug, file_type, code = task_input
-                task_output = test_solution(slug, file_type, code)
+                task_output = test_solution(*task_input)
             elif task_name == 'submit_solution':
-                slug, file_type, code = task_input
-                task_output = submit_solution(slug, file_type, code)
+                task_output = submit_solution(*task_input)
         except BaseException as e:
             task_err = str(e)
         log.info('task thread output: name="%s" output="%s" error="%s"', task_name, task_output,
