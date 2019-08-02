@@ -350,11 +350,7 @@ def test_solution_async(problem_id, title, slug, filetype, code, test_input):
         _echoerr('there is other task running: ' + task_name)
         return False
 
-    log.info('code %s', code)
-
     code = _remove_description(code)
-
-    log.info('code removed %s', code)
 
     task_name = 'test_solution'
     task_input = [problem_id, title, slug, filetype, code, test_input]
