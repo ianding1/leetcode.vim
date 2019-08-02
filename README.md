@@ -72,6 +72,7 @@ Default value is `''`.
 
 ## Updates
 
+- 2019/08/01: Support custom test input
 - 2019/07/28: Support showing frequencies and sorting by columns
 - 2019/07/27:
   + Support LeetCode China accounts
