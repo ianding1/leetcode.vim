@@ -381,6 +381,14 @@ function! leetcode#ListProblems(refresh) abort
     endif
 endfunction
 
+function! s:FileNameToSlug(file_name) abort
+    return substitute(a:file_name, '_', '-', 'g')
+endfunction
+
+function! s:SlugToFileName(slug) abort
+    return substitute(a:slug, '-', '_', 'g')
+endfunction
+
 function! s:HandleProblemListCR() abort
     " Parse the problem number from the line
     let line_nr = line('.')
@@ -408,7 +416,8 @@ function! s:HandleProblemListCR() abort
         let problem_nr = line_nr - b:leetcode_problem_start_line
         let problem_slug = b:leetcode_problems[problem_nr]['slug']
         let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
-        let problem_file_name = printf('%s.%s', problem_slug, problem_ext)
+        let problem_file_name = printf('%s.%s', s:SlugToFileName(problem_slug),
+                    \ problem_ext)
 
         if buflisted(problem_file_name)
             execute bufnr(problem_file_name) . 'buffer'
@@ -498,7 +507,7 @@ function! leetcode#ResetSolution(with_latest_submission) abort
         return
     endif
 
-    let problem_slug = expand('%:t:r')
+    let problem_slug = s:FileNameToSlug(expand('%:t:r'))
     let expr = printf('leetcode.get_problem("%s")', problem_slug)
     let problem = py3eval(expr)
     if type(problem) != v:t_dict
@@ -640,7 +649,7 @@ function! leetcode#TestSolution() abort
         return
     endif
 
-    let file_name = expand('%:t:r')
+    let file_name = s:FileNameToSlug(expand('%:t:r'))
     if file_name == ''
         echo 'no file name'
         return
@@ -745,7 +754,7 @@ function! leetcode#SubmitSolution() abort
         return
     endif
 
-    let file_name = expand('%:t:r')
+    let file_name = s:FileNameToSlug(expand('%:t:r'))
     if file_name == ''
         echo 'no file name'
         return
@@ -1026,8 +1035,8 @@ function! s:HandleSubmissionsCR() abort
         return
     endif
 
-    let file_name = printf('%s.%s.%s', submission['slug'], submission_id,
-                \ s:SolutionFileExt(submission['filetype']))
+    let file_name = printf('%s.%s.%s', s:SlugToFileName(submission['slug']),
+                \ submission_id, s:SolutionFileExt(submission['filetype']))
 
     if bufexists(file_name)
         execute bufnr(file_name) . 'buffer'
