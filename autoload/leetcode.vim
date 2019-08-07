@@ -21,15 +21,33 @@ else:
     os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.com'
 
 import leetcode
+
+try:
+    import keyring
+    has_keyring = True
+except ImportError:
+    has_keyring = False
 EOF
 
 let s:inited = py3eval('leetcode.inited')
+
+let s:has_keyring = py3eval('has_keyring')
 
 if g:leetcode_debug
     python3 leetcode.enable_logging()
 endif
 
-function! leetcode#SignIn(ask) abort
+function! s:DoSignIn(username, password) abort
+    let expr = printf('leetcode.signin("%s", "%s")', a:username, a:password)
+    let success = py3eval(expr)
+
+    if success
+        echo 'Signed in as ' . a:username
+    endif
+    return success
+endfunction
+
+function! s:LegacySignIn(ask) abort
     if !s:inited
         return v:false
     endif
@@ -45,13 +63,43 @@ function! leetcode#SignIn(ask) abort
         let password = g:leetcode_password
     endif
 
-    let expr = printf('leetcode.signin("%s", "%s")', username, password)
-    let success = py3eval(expr)
+    return s:DoSignIn(username, password)
+endfunction
 
-    if a:ask && success
-        echo 'succesfully signed in as '.username
+function! s:KeyringSignIn(ask) abort
+    if !s:inited
+        return v:false
     endif
-    return success
+
+    if g:leetcode_username != ''
+        let saved_password = py3eval(
+                    \ printf('keyring.get_password("leetcode.vim", "%s")',
+                    \ g:leetcode_username))
+    else
+        let saved_password = v:null
+    endif
+
+    if a:ask || saved_password == v:null
+        let username = input('Username: ', g:leetcode_username)
+        let password = inputsecret('Password: ')
+        let g:leetcode_username = username
+        call py3eval(printf('keyring.set_password("leetcode.vim", "%s", "%s")',
+                    \ username, password))
+        redraw
+    else
+        let username = g:leetcode_username
+        let password = saved_password
+    endif
+
+    return s:DoSignIn(username, password)
+endfunction
+
+function! leetcode#SignIn(ask) abort
+    if s:has_keyring
+        return s:KeyringSignIn(a:ask)
+    else
+        return s:LegacySignIn(a:ask)
+    endif
 endfunction
 
 function! s:CheckSignIn() abort
@@ -75,6 +123,7 @@ function! s:SetupProblemListBuffer() abort
     setlocal norelativenumber
     setlocal nospell
     setlocal bufhidden=hide
+    setlocal nowrap
     nnoremap <silent> <buffer> <return> :call <SID>HandleProblemListCR()<cr>
     nnoremap <silent> <buffer> s :call <SID>HandleProblemListS()<cr>
     nnoremap <silent> <buffer> r :call <SID>HandleProblemListR()<cr>
@@ -947,6 +996,7 @@ function! s:ListSubmissions(slug, refresh) abort
         setlocal nospell
         setlocal nonumber
         setlocal norelativenumber
+        setlocal nowrap
         nnoremap <silent> <buffer> <return> :call <SID>HandleSubmissionsCR()<cr>
         nnoremap <silent> <buffer> r :call <SID>HandleSubmissionsRefresh()<cr>
 

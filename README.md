@@ -4,9 +4,14 @@
 
 Solve LeetCode problems in Vim!
 
-**Supported sorting by columns (Hooray🎉🎉🎉) Now you can solve problems by frequency!**
-
 This Vim plugin is inspired by [skygragon/leetcode-cli][leetcode-cli].
+
+**Important Update! Please setup keyring for password safety:**
+
+1. Install keyring with `pip3 install keyring --user`
+2. Remove `g:leetcode_password` from your configuration.
+3. The first time you sign in, **leetcode.vim** will prompt for the password
+and store it in keyring.
 
 ## Installation
 
@@ -15,7 +20,11 @@ for Neovim:
 ```sh
 pip3 install pynvim --user
 ```
-2. Install the plugin:
+2. Install **keyring**:
+```sh
+pip3 install keyring --user
+```
+3. Install the plugin:
 ```vim
 Plug 'ianding1/leetcode.vim'
 ```
@@ -64,7 +73,11 @@ Default value is `''`.
 
 ### `g:leetcode_password`
 
-Set to the LeetCode password for auto login.
+**Deprecated in favor of keyring.** Set to the LeetCode password for auto login.
+
+If you have installed keyring, then just leave this option blank.
+**leetcode.vim** will prompt for the password the first time you sign in, and
+store the password in keyring.
 
 **WARNING: the password is stored in plain text.**
 

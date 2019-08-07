@@ -56,7 +56,12 @@ g:leetcode_username Set it to the username/email to allow autologin.
                     Default: ''
 
                                                         *g:leetcode_password*
-g:leetcode_password Set it to the password to allow autologin.
+g:leetcode_password Deprecated in favor of keyring. Set it to the password to
+                    allow autologin.
+
+                    If you have installed keyring, then just leave this option
+                    blank. leetcode.vim will prompt for the password the first
+                    time you sign in, and store the password in keyring.
 
                     Default: ''
 
