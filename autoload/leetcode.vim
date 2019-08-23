@@ -920,6 +920,7 @@ function! s:ShowRunResultInPreview(result) abort
 
     " add custom syntax rules
     syn keyword lcAccepted Accepted
+    syn keyword lcAccepted Finished
     syn match lcFailure /Wrong Answer/
     syn match lcFailure /Memory Limit Exceeded/
     syn match lcFailure /Output Limit Exceeded/

@@ -306,6 +306,9 @@ def _check_result(submission_id):
         result['stdout'] = _split(r.get('std_output', ''))
         result['runtime_percentile'] = r.get('runtime_percentile', '')
     else:
+        # Test states cannot distinguish accepted answers from wrong answers.
+        if result['state'] == 'Accepted':
+            result['state'] = 'Finished'
         result['stdout'] = r.get('code_output', [])
         result['expected_answer'] = []
         result['runtime_percentile'] = r.get('runtime_percentile', '')
