@@ -400,7 +400,7 @@ function! leetcode#ListProblems(refresh) abort
     let companies = topics_and_companies['companies']
 
     " concatenate the topics into a string
-    let topic_slugs = map(copy(topics), 'v:val["topic_slug"]')
+    let topic_slugs = map(copy(topics), 'v:val["topic_slug"] . ":" . v:val["num_problems"]')
     let topic_lines = s:FormatIntoColumns(topic_slugs)
 
     call append('$', ['# LeetCode', '', '## Topics', ''])
@@ -409,7 +409,7 @@ function! leetcode#ListProblems(refresh) abort
     call append('$', topic_lines)
     let b:leetcode_topic_end_line = line('$')
 
-    let company_slugs = map(copy(companies), 'v:val["company_slug"]')
+    let company_slugs = map(copy(companies), 'v:val["company_slug"] . ":" . v:val["num_problems"]')
     let company_lines = s:FormatIntoColumns(company_slugs)
 
     call append('$', ['', '## Companies', ''])
@@ -445,6 +445,7 @@ function! s:HandleProblemListCR() abort
     if line_nr >= b:leetcode_topic_start_line &&
                 \ line_nr < b:leetcode_topic_end_line
         let topic_slug = expand('<cWORD>')
+        let topic_slug = <SID>TagName(topic_slug)
         if topic_slug != ''
             call s:ListProblemsOfTopic(topic_slug, 'norefresh')
         endif
@@ -454,6 +455,7 @@ function! s:HandleProblemListCR() abort
     if line_nr >= b:leetcode_company_start_line &&
                 \ line_nr < b:leetcode_company_end_line
         let company_slug = expand('<cWORD>')
+        let company_slug = <SID>TagName(company_slug)
         if company_slug != ''
             call s:ListProblemsOfCompany(company_slug, 'norefresh')
         endif
@@ -476,6 +478,29 @@ function! s:HandleProblemListCR() abort
         execute 'rightbelow vnew ' . problem_file_name
         call leetcode#ResetSolution(1)
     endif
+endfunction
+
+function! s:TagName(tag)
+    return substitute(a:tag, ':\d*$', '', 'g')
+endfunction
+
+function! s:GetProblem(id)
+    for problem in b:leetcode_downloaded_problems
+        if problem['id'] == a:id
+            return problem
+        endif
+    endfor
+    return {}
+endfunction
+
+function! s:ProblemIdFromNr(nr)
+    let content = getline(a:nr)
+    let items = split(content, '|')
+    if len(items) < 2 
+        return -1
+    endif
+    let strid = trim(items[1], ' ')
+    return strid
 endfunction
 
 function! s:HandleProblemListR() abort
