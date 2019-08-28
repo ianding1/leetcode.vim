@@ -443,11 +443,11 @@ function! leetcode#ListProblems(refresh) abort
         let b:leetcode_state = 'All'
         let b:leetcode_sort_column = 'id'
         let b:leetcode_sort_order = 'asc'
+        let s:topics_and_companies = py3eval('leetcode.get_topics_and_companies()')
     endif
 
-    let topics_and_companies = py3eval('leetcode.get_topics_and_companies()')
-    let topics = topics_and_companies['topics']
-    let companies = topics_and_companies['companies']
+    let topics = s:topics_and_companies['topics']
+    let companies = s:topics_and_companies['companies']
 
     " concatenate the topics into a string
     let topic_slugs = map(copy(topics), 'v:val["topic_slug"] . ":" . v:val["num_problems"]')
