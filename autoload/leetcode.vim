@@ -205,6 +205,20 @@ function! s:PrintProblemList() abort
     let title_width = s:MaxWidthOfKey(sorted_problems, 'title', 1) + 4
     let max_frequency = s:Max(map(copy(sorted_problems), 'v:val["frequency"]'))
 
+    call append('$', [printf('## Difficulty [%s]', b:leetcode_difficulty), ''])
+    let b:leetcode_difficulty_start_line = line('$')
+    let difficulty_line = <SID>FormatIntoColumns(<SID>difficulty_tags())
+    call append('$', difficulty_line)
+    let b:leetcode_difficulty_end_line = line('$')
+    call append('$', '')
+
+    call append('$', [printf('## Status [%s]', <SID>state2status(b:leetcode_state)), ''])
+    let b:leetcode_status_start_line = line('$')
+    let status_line = <SID>FormatIntoColumns(<SID>status_tags())
+    call append('$', status_line)
+    let b:leetcode_status_end_line = line('$')
+    call append('$', '')
+
     let sort_column_name = s:sort_column_to_name_map[b:leetcode_sort_column]
     let sort_order_name = s:sort_order_to_name_map[b:leetcode_sort_order]
     call append('$', ['## Problem List',
@@ -235,6 +249,10 @@ function! s:PrintProblemList() abort
 
     let problem_lines = []
     for problem in sorted_problems
+        if b:leetcode_difficulty != 'All' && b:leetcode_difficulty != problem['level'] ||
+                    \ b:leetcode_state != 'All' && b:leetcode_state != problem['state']
+            continue
+        endif
         let title = substitute(problem['title'], '`', "'", 'g')
         if problem['paid_only']
             let title .= ' [P]'
@@ -248,6 +266,32 @@ function! s:PrintProblemList() abort
     let b:leetcode_problem_start_line = line('$')
     call append('$', problem_lines)
     let b:leetcode_problem_end_line = line('$')
+endfunction
+
+function! s:difficulty_tags()
+    let tags = {'All':0,  'Easy':0, 'Medium': 0, 'Hard':0}
+    for problem in b:leetcode_problems
+        let tags['All'] += 1
+        let tags[problem['level']] += 1
+    endfor
+    return [
+                \ printf("All:%d", tags['All']),
+                \ printf("Easy:%d", tags['Easy']),
+                \ printf("Medium:%d", tags['Medium']),
+                \ printf("Hard:%d", tags['Hard'])]
+endfunction
+
+function! s:status_tags()
+    let tags = {'All':0, 'Todo':0, 'Solved':0, 'Attempted':0}
+    for problem in b:leetcode_problems
+        let tags['All'] += 1
+        let tags[<SID>state2status(problem['state'])] += 1
+    endfor
+    return [
+                \ printf("All:%d", tags['All']),
+                \ printf("Todo:%d", tags['Todo']),
+                \ printf("Solved:%d", tags['Solved']),
+                \ printf("Attempted:%d", tags['Attempted'])]
 endfunction
 
 function! s:ListProblemsOfTopic(topic_slug, refresh) abort
@@ -271,6 +315,8 @@ function! s:ListProblemsOfTopic(topic_slug, refresh) abort
         let b:leetcode_buffer_topic = a:topic_slug
         let expr = printf('leetcode.get_problems_of_topic("%s")', a:topic_slug)
         let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        let b:leetcode_difficulty = 'All'
+        let b:leetcode_state = 'All'
         let b:leetcode_sort_column = 'id'
         let b:leetcode_sort_order = 'asc'
     endif
@@ -340,6 +386,8 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
         let expr = printf('leetcode.get_problems_of_company("%s")',
                     \ a:company_slug)
         let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        let b:leetcode_difficulty = 'All'
+        let b:leetcode_state = 'All'
         let b:leetcode_sort_column = 'id'
         let b:leetcode_sort_order = 'asc'
     endif
@@ -391,6 +439,8 @@ function! leetcode#ListProblems(refresh) abort
         let b:leetcode_buffer_type = 'all'
         let expr = printf('leetcode.get_problems(["all"])')
         let b:leetcode_downloaded_problems = py3eval(expr)
+        let b:leetcode_difficulty = 'All'
+        let b:leetcode_state = 'All'
         let b:leetcode_sort_column = 'id'
         let b:leetcode_sort_order = 'asc'
     endif
@@ -462,10 +512,36 @@ function! s:HandleProblemListCR() abort
         return
     endif
 
+    if line_nr >= b:leetcode_difficulty_start_line && 
+                \ line_nr < b:leetcode_difficulty_end_line
+        let difficulty_slug = expand('<cWORD>')
+        let difficulty_slug = <SID>TagName(difficulty_slug)
+        if difficulty_slug != ''
+            if b:leetcode_difficulty != difficulty_slug
+                let b:leetcode_difficulty = difficulty_slug
+                call <SID>redraw()
+            endif
+        endif
+    endif
+
+    if line_nr >= b:leetcode_status_start_line &&
+                \ line_nr < b:leetcode_status_end_line
+        let status_slug = expand('<cWORD>')
+        let status_slug = <SID>TagName(status_slug)
+        if status_slug != ''
+            let new_state = <SID>status2state(status_slug)
+            if b:leetcode_state != new_state
+                let b:leetcode_state = new_state
+                call <SID>redraw()
+            endif
+        endif
+    endif
+
     if line_nr >= b:leetcode_problem_start_line &&
                 \ line_nr < b:leetcode_problem_end_line
-        let problem_nr = line_nr - b:leetcode_problem_start_line
-        let problem_slug = b:leetcode_problems[problem_nr]['slug']
+        let problem_id = <SID>ProblemIdFromNr(line_nr)
+        let problem = <SID>GetProblem(problem_id)
+        let problem_slug = problem['slug']
         let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
         let problem_file_name = printf('%s.%s', s:SlugToFileName(problem_slug),
                     \ problem_ext)
@@ -477,6 +553,40 @@ function! s:HandleProblemListCR() abort
 
         execute 'rightbelow vnew ' . problem_file_name
         call leetcode#ResetSolution(1)
+    endif
+endfunction
+
+function! s:status2state(status)
+    if a:status == 'Todo'
+        return ' '
+    elseif a:status == 'Solved'
+        return 'X'
+    elseif a:status == 'Attempted'
+        return '?'
+    else
+        return 'All'
+    endif
+endfunction
+
+function! s:state2status(state)
+    if a:state == ' '
+        return 'Todo'
+    elseif a:state == 'X'
+        return 'Solved'
+    elseif a:state == '?'
+        return 'Attempted'
+    else
+        return 'All'
+    endif
+endfunction
+
+function! s:redraw()
+    if b:leetcode_buffer_type ==# 'all'
+        call leetcode#ListProblems('redraw')
+    elseif b:leetcode_buffer_type ==# 'topic'
+        call s:ListProblemsOfTopic(b:leetcode_buffer_topic, 'redraw')
+    elseif b:leetcode_buffer_type ==# 'company'
+        call s:ListProblemsOfCompany(b:leetcode_buffer_company, 'redraw')
     endif
 endfunction
 
@@ -547,13 +657,7 @@ function! s:HandleProblemListSort() abort
     let b:leetcode_sort_column = s:column_choice_map[column_choice]
     let b:leetcode_sort_order = s:order_choice_map[order_choice]
 
-    if b:leetcode_buffer_type ==# 'all'
-        call leetcode#ListProblems('redraw')
-    elseif b:leetcode_buffer_type ==# 'topic'
-        call s:ListProblemsOfTopic(b:leetcode_buffer_topic, 'redraw')
-    elseif b:leetcode_buffer_type ==# 'company'
-        call s:ListProblemsOfCompany(b:leetcode_buffer_company, 'redraw')
-    endif
+    call <SID>redraw()
 endfunction
 
 let s:file_type_to_ext = {
@@ -997,8 +1101,9 @@ function! s:HandleProblemListS() abort
     let line_nr = line('.')
     if line_nr >= b:leetcode_problem_start_line &&
                 \ line_nr < b:leetcode_problem_end_line
-        let problem_nr = line_nr - b:leetcode_problem_start_line
-        let problem_slug = b:leetcode_problems[problem_nr]['slug']
+        let problem_id = <SID>ProblemIdFromNr(line_nr)
+        let problem = <SID>GetProblem(problem_id)
+        let problem_slug = problem['slug']
         call s:ListSubmissions(problem_slug, 0)
     endif
 endfunction
@@ -1169,6 +1274,9 @@ function! s:FormatIntoColumns(words) abort
     endif
 
     let num_rows = float2nr(ceil(len(a:words) / num_columns))
+    if num_rows == 0 
+        let num_rows = 1
+    endif
     let lines = []
 
     for i in range(num_rows)
