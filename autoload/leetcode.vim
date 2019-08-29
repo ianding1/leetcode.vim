@@ -207,14 +207,14 @@ function! s:PrintProblemList() abort
 
     call append('$', [printf('## Difficulty [%s]', b:leetcode_difficulty), ''])
     let b:leetcode_difficulty_start_line = line('$')
-    let difficulty_line = <SID>FormatIntoColumns(<SID>difficulty_tags())
+    let difficulty_line = s:FormatIntoColumns(s:PrintDifficultyTags())
     call append('$', difficulty_line)
     let b:leetcode_difficulty_end_line = line('$')
     call append('$', '')
 
-    call append('$', [printf('## Status [%s]', <SID>state2status(b:leetcode_state)), ''])
+    call append('$', [printf('## Status [%s]', s:StateToName(b:leetcode_state)), ''])
     let b:leetcode_status_start_line = line('$')
-    let status_line = <SID>FormatIntoColumns(<SID>status_tags())
+    let status_line = s:FormatIntoColumns(s:PrintStatusTags())
     call append('$', status_line)
     let b:leetcode_status_end_line = line('$')
     call append('$', '')
@@ -249,8 +249,8 @@ function! s:PrintProblemList() abort
 
     let problem_lines = []
     for problem in sorted_problems
-        if b:leetcode_difficulty != 'All' && b:leetcode_difficulty != problem['level'] ||
-                    \ b:leetcode_state != 'All' && b:leetcode_state != problem['state']
+        if b:leetcode_difficulty !=# 'All' && b:leetcode_difficulty !=# problem['level'] ||
+                    \ b:leetcode_state !=# 'All' && b:leetcode_state !=# problem['state']
             continue
         endif
         let title = substitute(problem['title'], '`', "'", 'g')
@@ -268,30 +268,30 @@ function! s:PrintProblemList() abort
     let b:leetcode_problem_end_line = line('$')
 endfunction
 
-function! s:difficulty_tags()
-    let tags = {'All':0,  'Easy':0, 'Medium': 0, 'Hard':0}
+function! s:PrintDifficultyTags()
+    let tags = {'All': 0,  'Easy': 0, 'Medium': 0, 'Hard': 0}
     for problem in b:leetcode_problems
         let tags['All'] += 1
         let tags[problem['level']] += 1
     endfor
     return [
-                \ printf("All:%d", tags['All']),
-                \ printf("Easy:%d", tags['Easy']),
-                \ printf("Medium:%d", tags['Medium']),
-                \ printf("Hard:%d", tags['Hard'])]
+                \ printf('All:%d', tags['All']),
+                \ printf('Easy:%d', tags['Easy']),
+                \ printf('Medium:%d', tags['Medium']),
+                \ printf('Hard:%d', tags['Hard'])]
 endfunction
 
-function! s:status_tags()
-    let tags = {'All':0, 'Todo':0, 'Solved':0, 'Attempted':0}
+function! s:PrintStatusTags()
+    let tags = {'All': 0, 'Todo': 0, 'Solved': 0, 'Attempted': 0}
     for problem in b:leetcode_problems
         let tags['All'] += 1
-        let tags[<SID>state2status(problem['state'])] += 1
+        let tags[s:StateToName(problem['state'])] += 1
     endfor
     return [
-                \ printf("All:%d", tags['All']),
-                \ printf("Todo:%d", tags['Todo']),
-                \ printf("Solved:%d", tags['Solved']),
-                \ printf("Attempted:%d", tags['Attempted'])]
+                \ printf('All:%d', tags['All']),
+                \ printf('Todo:%d', tags['Todo']),
+                \ printf('Solved:%d', tags['Solved']),
+                \ printf('Attempted:%d', tags['Attempted'])]
 endfunction
 
 function! s:ListProblemsOfTopic(topic_slug, refresh) abort
@@ -381,7 +381,7 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
         let b:leetcode_buffer_type = 'company'
         let b:leetcode_buffer_company = a:company_slug
         let b:leetcode_time_period = 'six-months'
-        nnoremap <buffer> t :call <SID>ChooseTimePeriod()<cr>
+        nnoremap <buffer> t :call s:ChooseTimePeriod()<cr>
 
         let expr = printf('leetcode.get_problems_of_company("%s")',
                     \ a:company_slug)
@@ -495,7 +495,7 @@ function! s:HandleProblemListCR() abort
     if line_nr >= b:leetcode_topic_start_line &&
                 \ line_nr < b:leetcode_topic_end_line
         let topic_slug = expand('<cWORD>')
-        let topic_slug = <SID>TagName(topic_slug)
+        let topic_slug = s:TagName(topic_slug)
         if topic_slug != ''
             call s:ListProblemsOfTopic(topic_slug, 'norefresh')
         endif
@@ -505,7 +505,7 @@ function! s:HandleProblemListCR() abort
     if line_nr >= b:leetcode_company_start_line &&
                 \ line_nr < b:leetcode_company_end_line
         let company_slug = expand('<cWORD>')
-        let company_slug = <SID>TagName(company_slug)
+        let company_slug = s:TagName(company_slug)
         if company_slug != ''
             call s:ListProblemsOfCompany(company_slug, 'norefresh')
         endif
@@ -515,11 +515,11 @@ function! s:HandleProblemListCR() abort
     if line_nr >= b:leetcode_difficulty_start_line && 
                 \ line_nr < b:leetcode_difficulty_end_line
         let difficulty_slug = expand('<cWORD>')
-        let difficulty_slug = <SID>TagName(difficulty_slug)
+        let difficulty_slug = s:TagName(difficulty_slug)
         if difficulty_slug != ''
             if b:leetcode_difficulty != difficulty_slug
                 let b:leetcode_difficulty = difficulty_slug
-                call <SID>redraw()
+                call s:RedrawProblemList()
             endif
         endif
     endif
@@ -527,20 +527,20 @@ function! s:HandleProblemListCR() abort
     if line_nr >= b:leetcode_status_start_line &&
                 \ line_nr < b:leetcode_status_end_line
         let status_slug = expand('<cWORD>')
-        let status_slug = <SID>TagName(status_slug)
+        let status_slug = s:TagName(status_slug)
         if status_slug != ''
-            let new_state = <SID>status2state(status_slug)
+            let new_state = s:ParseState(status_slug)
             if b:leetcode_state != new_state
                 let b:leetcode_state = new_state
-                call <SID>redraw()
+                call s:RedrawProblemList()
             endif
         endif
     endif
 
     if line_nr >= b:leetcode_problem_start_line &&
                 \ line_nr < b:leetcode_problem_end_line
-        let problem_id = <SID>ProblemIdFromNr(line_nr)
-        let problem = <SID>GetProblem(problem_id)
+        let problem_id = s:ProblemIdFromNr(line_nr)
+        let problem = s:GetProblem(problem_id)
         let problem_slug = problem['slug']
         let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
         let problem_file_name = printf('%s.%s', s:SlugToFileName(problem_slug),
@@ -556,7 +556,7 @@ function! s:HandleProblemListCR() abort
     endif
 endfunction
 
-function! s:status2state(status)
+function! s:ParseState(status)
     if a:status == 'Todo'
         return ' '
     elseif a:status == 'Solved'
@@ -568,7 +568,7 @@ function! s:status2state(status)
     endif
 endfunction
 
-function! s:state2status(state)
+function! s:StateToName(state)
     if a:state == ' '
         return 'Todo'
     elseif a:state == 'X'
@@ -580,7 +580,7 @@ function! s:state2status(state)
     endif
 endfunction
 
-function! s:redraw()
+function! s:RedrawProblemList()
     if b:leetcode_buffer_type ==# 'all'
         call leetcode#ListProblems('redraw')
     elseif b:leetcode_buffer_type ==# 'topic'
@@ -657,7 +657,7 @@ function! s:HandleProblemListSort() abort
     let b:leetcode_sort_column = s:column_choice_map[column_choice]
     let b:leetcode_sort_order = s:order_choice_map[order_choice]
 
-    call <SID>redraw()
+    call s:RedrawProblemList()
 endfunction
 
 let s:file_type_to_ext = {
@@ -885,7 +885,7 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     let s:leetcode_code = a:code
     let s:leetcode_filetype = a:filetype
 
-    autocmd BufUnload <buffer> call <SID>RunTest()
+    autocmd BufUnload <buffer> call s:RunTest()
 endfunction
 
 let s:comment_pattern = '\v(^#.*)|(^\s*$)'
@@ -1069,7 +1069,7 @@ function! s:ShowRunResultInPreview(result) abort
     hi! link lcWarning lcFailure
 
     execute saved_winnr . 'wincmd w'
-    call <SID>UpdateSubmitState(a:result)
+    call s:UpdateSubmitState(a:result)
 endfunction
 
 function! s:CheckRunCodeTask(timer) abort
@@ -1102,8 +1102,8 @@ function! s:HandleProblemListS() abort
     let line_nr = line('.')
     if line_nr >= b:leetcode_problem_start_line &&
                 \ line_nr < b:leetcode_problem_end_line
-        let problem_id = <SID>ProblemIdFromNr(line_nr)
-        let problem = <SID>GetProblem(problem_id)
+        let problem_id = s:ProblemIdFromNr(line_nr)
+        let problem = s:GetProblem(problem_id)
         let problem_slug = problem['slug']
         call s:ListSubmissions(problem_slug, 0)
     endif
