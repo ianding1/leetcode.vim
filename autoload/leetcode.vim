@@ -1299,13 +1299,13 @@ endfunction
 
 function! s:UpdateSubmitState(result)
     let state = '?'
-    if a:result['state'] == 'Accepted'
+    if a:result['state'] ==# 'Accepted'
         let state = 'X'
     endif
     let buffers = filter(range(1, bufnr('$')), 'buflisted(v:val)')
     for b in buffers
         let name = bufname(b)
-        if name !~ 'leetcode:\/\/\/problems'
+        if name !~# 'leetcode:\/\/\/problems'
             continue
         endif
 
@@ -1315,7 +1315,7 @@ function! s:UpdateSubmitState(result)
         endif
 
         for problem in problems
-            if problem['title'] == a:result['title'] 
+            if problem['title'] ==# a:result['title'] 
                 let problem['state'] = state
                 break
             endif
