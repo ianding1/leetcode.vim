@@ -1310,7 +1310,7 @@ function! s:UpdateSubmitState(result)
         endif
 
         let problems = getbufvar(b, 'leetcode_downloaded_problems')
-        if type(problems) != 3
+        if type(problems) != v:t_list
             continue
         endif
 
