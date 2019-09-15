@@ -426,7 +426,7 @@ function! leetcode#ListProblems(refresh) abort
         execute bufnr(buf_name) . 'buffer'
         let saved_view = winsaveview()
         if a:refresh ==# 'redownload'
-            let expr = printf('leetcode.get_problems(["all"])')
+            let expr = 'leetcode.get_problems(["all"])'
             let b:leetcode_downloaded_problems = py3eval(expr)
         elseif a:refresh ==# 'norefresh'
             return
@@ -437,7 +437,7 @@ function! leetcode#ListProblems(refresh) abort
         execute 'rightbelow new ' . buf_name
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'all'
-        let expr = printf('leetcode.get_problems(["all"])')
+        let expr = 'leetcode.get_problems(["all"])'
         let b:leetcode_downloaded_problems = py3eval(expr)
         let b:leetcode_difficulty = 'All'
         let b:leetcode_state = 'All'
