@@ -94,6 +94,21 @@ Default value is `''`.
 
 ## FAQ
 
+### I use Ubuntu and get errors when signing in. How can I fix it?
+
+Ubuntu users might see the error message below when signing in.
+```text
+    raise InitError("Failed to unlock the collection!")
+keyring.errors.InitError: Failed to unlock the collection!
+```
+
+It's caused by the misconfiguration of python-keyring. One way to fix it is to create a file `~/.local/share/python_keyring/keyringrc.cfg` with the following content:
+
+```ini
+[backend]
+default-keyring=keyring.backends.Gnome.Keyring
+```
+
 ### Why can't I test the problem/submit the problem/list the problems?
 
 ~~Once you sign in on your browser in LeetCode website, the LeetCode session in
