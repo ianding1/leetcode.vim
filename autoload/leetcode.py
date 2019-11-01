@@ -312,6 +312,7 @@ def _check_result(submission_id):
         result['stdout'] = r.get('code_output', [])
         result['expected_answer'] = []
         result['runtime_percentile'] = r.get('runtime_percentile', '')
+        result['expected_answer'] = r.get('expected_code_answer', [])
     return result
 
 
@@ -338,12 +339,10 @@ def test_solution(problem_id, title, slug, filetype, code, test_input):
             _echoerr('cannot test the solution for ' + slug)
         return None
 
-    actual = _check_result(res.json()['interpret_id'])
-    expected = _check_result(res.json()['interpret_expected_id'])
-    actual['testcase'] = test_input.split('\n')
-    actual['expected_answer'] = expected['answer']
-    actual['title'] = title
-    return actual
+    result = _check_result(res.json()['interpret_id'])
+    result['testcase'] = test_input.split('\n')
+    result['title'] = title
+    return result
 
 
 def test_solution_async(problem_id, title, slug, filetype, code, test_input):
