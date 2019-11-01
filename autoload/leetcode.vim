@@ -512,7 +512,7 @@ function! s:HandleProblemListCR() abort
         return
     endif
 
-    if line_nr >= b:leetcode_difficulty_start_line && 
+    if line_nr >= b:leetcode_difficulty_start_line &&
                 \ line_nr < b:leetcode_difficulty_end_line
         let difficulty_slug = expand('<cWORD>')
         let difficulty_slug = s:TagName(difficulty_slug)
@@ -606,7 +606,7 @@ endfunction
 function! s:ProblemIdFromNr(nr)
     let content = getline(a:nr)
     let items = split(content, '|')
-    if len(items) < 2 
+    if len(items) < 2
         return -1
     endif
     let strid = trim(items[1], ' ')
@@ -872,8 +872,7 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
         let default_test_input = s:saved_test_input[slug]
     else
         let default_test_input = ['# Test Input'] +
-                    \ split(a:problem['testcase'], '\n', 1) +
-                    \ ['', '# Delete or comment out all lines to abort']
+                    \ split(a:problem['testcase'], '\n', 1)
         let s:saved_test_input[slug] = default_test_input
     endif
 
@@ -895,15 +894,20 @@ function! s:RunTest() abort
     let code = s:leetcode_code
     let filetype = s:leetcode_filetype
 
-    let test_input = getline('1', '$')
-    let s:saved_test_input[problem['slug']] = test_input
-    let test_input = filter(copy(test_input), 'v:val !~# s:comment_pattern')
+    " Load the buffer from the disk. If the user executed :q!, the buffer
+    " will be cleared since the file is empty.
+    edit!
+
+    let raw_test_input = getline('1', '$')
+    let test_input = filter(copy(raw_test_input), 'v:val !~# s:comment_pattern')
     let test_input = join(test_input, "\n")
 
     if test_input == ''
         echo 'Abort testing because the test input is empty'
         return
     endif
+
+    let s:saved_test_input[problem['slug']] = raw_test_input
 
     let args = {'problem_id': problem['id'],
                 \ 'title': problem['title'],
@@ -1275,7 +1279,7 @@ function! s:FormatIntoColumns(words) abort
     endif
 
     let num_rows = float2nr(ceil(len(a:words) / num_columns))
-    if num_rows == 0 
+    if num_rows == 0
         let num_rows = 1
     endif
     let lines = []
@@ -1315,7 +1319,7 @@ function! s:UpdateSubmitState(result)
         endif
 
         for problem in problems
-            if problem['title'] ==# a:result['title'] 
+            if problem['title'] ==# a:result['title']
                 let problem['state'] = state
                 break
             endif
