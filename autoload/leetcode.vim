@@ -543,7 +543,7 @@ function! s:HandleProblemListCR() abort
         let problem = s:GetProblem(problem_id)
         let problem_slug = problem['slug']
         let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
-        let problem_file_name = printf('%s.%s', s:SlugToFileName(problem_slug),
+        let problem_file_name = printf('%s.%s.%s', problem_id, s:SlugToFileName(problem_slug),
                     \ problem_ext)
 
         if buflisted(problem_file_name)
@@ -685,7 +685,13 @@ function! leetcode#ResetSolution(with_latest_submission) abort
         return
     endif
 
-    let problem_slug = s:FileNameToSlug(expand('%:t:r'))
+    let problem_file_name = expand('%:t:r')
+    let problem_file_names = split(problem_file_name, '\.')
+    let problem_name = problem_file_names[0]
+    if len(problem_file_names) > 1
+        let problem_name = problem_file_names[1]
+    endif
+    let problem_slug = s:FileNameToSlug(problem_name)
     let expr = printf('leetcode.get_problem("%s")', problem_slug)
     let problem = py3eval(expr)
     if type(problem) != v:t_dict
