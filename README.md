@@ -25,7 +25,7 @@ pip3 install keyring browser-cookie3 --user
 2. Set `g:leetcode_browser` to `'chrome'` or `'firefox'`.
 
 Thanks [@zhuopro](https://github.com/zhoupro)
-(see [#13](https://github.com/ianding1/leetcode.vim/issues/25))
+(see [#25](https://github.com/ianding1/leetcode.vim/issues/25))
 for his brilliant idea!
 
 ## Installation
