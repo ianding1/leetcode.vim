@@ -122,6 +122,13 @@ doing other things.~~ (No longer having this problem)
 According to issue [#5][#5], **if the email address is not active, then you can
 only login and download problems, but cannot test and submit any code.**
 
+### I got some errors like "ModuleNotFoundError: No module named 'keyring.util.escape'"
+
+This solution worked for me:
+```shell
+pip3 install --upgrade keyrings.alt
+```
+
 [thumbnail]: https://asciinema.org/a/200004.png
 [asciicast]: https://asciinema.org/a/200004
 [leetcode-cli]: https://github.com/skygragon/leetcode-cli
