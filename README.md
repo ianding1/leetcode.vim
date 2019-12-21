@@ -6,12 +6,23 @@ Solve LeetCode problems in Vim!
 
 This Vim plugin is inspired by [skygragon/leetcode-cli][leetcode-cli].
 
-**Important Update! Please setup keyring for password safety:**
+**Attention:** Recently LeetCode used Google reCAPTCHA to enhance security,
+prohibiting automatic login through LeetCode API.
 
-1. Install keyring with `pip3 install keyring --user`
-2. Remove `g:leetcode_password` from your configuration.
-3. The first time you sign in, **leetcode.vim** will prompt for the password
-and store it in keyring.
+The new login procedure needs you to **login in your browser first** so that
+**leetcode.vim** can read the LeetCode session cookie from the browser's cookie
+storage.
+
+Supported browsers are: **Chrome**, **Firefox**. Safari is not supported
+yet.
+
+The one-time setup:
+
+1. Install keyring and browser-cookie3:
+```shell
+pip3 install keyring browser-cookie3 --user
+```
+2. Set `g:leetcode_browser` to `'chrome'` or `'firefox'`.
 
 ## Installation
 
@@ -20,9 +31,9 @@ for Neovim:
 ```sh
 pip3 install pynvim --user
 ```
-2. Install **keyring**:
+2. Install **keyring** and **browser-cookie3**:
 ```sh
-pip3 install keyring --user
+pip3 install keyring browser-cookie3 --user
 ```
 3. Install the plugin:
 ```vim
@@ -65,26 +76,17 @@ Values: `'cpp'`, `'java'`, `'python'`, `'python3'`, `'csharp'`, `'javascript'`,
 
 Default value is `'cpp'`.
 
-### `g:leetcode_username`
+### `g:leetcode_browser`
 
-Set to the LeetCode username or email for auto login.
+Set to the browser that stores the LeetCode session cookie.
 
-Default value is `''`.
+Values: `'disabled'`, `'chrome'`, `'firefox'`
 
-### `g:leetcode_password`
-
-**Deprecated in favor of keyring.** Set to the LeetCode password for auto login.
-
-If you have installed keyring, then just leave this option blank.
-**leetcode.vim** will prompt for the password the first time you sign in, and
-store the password in keyring.
-
-**WARNING: the password is stored in plain text.**
-
-Default value is `''`.
+Default value is `'disabled'`.
 
 ## Updates
 
+- 2019/12/20: Fix the login issue caused by reCAPTCHA.
 - 2019/08/01: Support custom test input
 - 2019/07/28: Support showing frequencies and sorting by columns
 - 2019/07/27:
