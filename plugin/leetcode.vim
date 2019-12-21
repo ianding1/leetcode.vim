@@ -4,12 +4,8 @@ if !exists('g:leetcode_china')
     let g:leetcode_china = 0
 endif
 
-if !exists('g:leetcode_username')
-    let g:leetcode_username = ''
-endif
-
-if !exists('g:leetcode_password')
-    let g:leetcode_password = ''
+if !exists('g:leetcode_browser')
+    let g:leetcode_browser = 'disabled'
 endif
 
 if !exists('g:leetcode_categories')

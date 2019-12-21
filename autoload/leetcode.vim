@@ -21,85 +21,29 @@ else:
     os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.com'
 
 import leetcode
-
-try:
-    import keyring
-    has_keyring = True
-except ImportError:
-    has_keyring = False
 EOF
 
 let s:inited = py3eval('leetcode.inited')
-
-let s:has_keyring = py3eval('has_keyring')
 
 if g:leetcode_debug
     python3 leetcode.enable_logging()
 endif
 
-function! s:DoSignIn(username, password) abort
-    let expr = printf('leetcode.signin("%s", "%s")', a:username, a:password)
-    let success = py3eval(expr)
+function! s:LoadSessionCookie() abort
+    if g:leetcode_browser ==# 'disabled'
+       echo 'g:leetcode_browser is disabled.'
+       return v:false
+    endif
 
+    let success = py3eval('leetcode.load_session_cookie("' . g:leetcode_browser . '")')
     if success
-        echo 'Signed in as ' . a:username
+       echo 'Signed in.'
     endif
     return success
 endfunction
 
-function! s:LegacySignIn(ask) abort
-    if !s:inited
-        return v:false
-    endif
-
-    if a:ask || g:leetcode_username == '' || g:leetcode_password == ''
-        let username = input('Username: ', g:leetcode_username)
-        let password = inputsecret('Password: ')
-        let g:leetcode_username = username
-        let g:leetcode_password = password
-        redraw
-    else
-        let username = g:leetcode_username
-        let password = g:leetcode_password
-    endif
-
-    return s:DoSignIn(username, password)
-endfunction
-
-function! s:KeyringSignIn(ask) abort
-    if !s:inited
-        return v:false
-    endif
-
-    if g:leetcode_username != ''
-        let saved_password = py3eval(
-                    \ printf('keyring.get_password("leetcode.vim", "%s")',
-                    \ g:leetcode_username))
-    else
-        let saved_password = v:null
-    endif
-
-    if a:ask || saved_password == v:null
-        let username = input('Username: ', g:leetcode_username)
-        let password = inputsecret('Password: ')
-        let g:leetcode_username = username
-        call py3eval(printf('keyring.set_password("leetcode.vim", "%s", "%s")',
-                    \ username, password))
-        redraw
-    else
-        let username = g:leetcode_username
-        let password = saved_password
-    endif
-
-    return s:DoSignIn(username, password)
-endfunction
-
 function! leetcode#SignIn(ask) abort
-    if s:has_keyring
-        return s:KeyringSignIn(a:ask)
-    else
-        return s:LegacySignIn(a:ask)
-    endif
+    return s:LoadSessionCookie()
 endfunction
 
 function! s:CheckSignIn() abort

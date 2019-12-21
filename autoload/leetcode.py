@@ -3,6 +3,7 @@ import logging
 import re
 import time
 import os
+import pickle
 from threading import Semaphore, Thread, current_thread
 
 try:
@@ -16,6 +17,16 @@ try:
     import vim
 except ImportError:
     vim = None
+
+try:
+    import browser_cookie3
+except ImportError:
+    browser_cookie3 = None
+
+try:
+    import keyring
+except ImportError:
+    keyring = None
 
 
 LC_BASE = os.environ['LEETCODE_BASE_URL']
@@ -132,30 +143,39 @@ def is_login():
     return session and 'LEETCODE_SESSION' in session.cookies
 
 
-def signin(username, password):
-    global session
-    session = requests.Session()
-    if 'cn' in LC_BASE:
-        res = session.get(LC_CSRF)
-    else:
-        res = session.get(LC_LOGIN)
-    if res.status_code != 200:
-        _echoerr('cannot open ' + LC_BASE)
+def load_session_cookie(browser):
+    if browser_cookie3 is None:
+        _echoerr('browser_cookie3 not installed: pip3 install browser_cookie3 --user')
+        return False
+    if keyring is None:
+        _echoerr('keyring not installed: pip3 install keyring --user')
         return False
 
-    headers = {'Origin': LC_BASE,
-               'Referer': LC_LOGIN}
-    form = {'csrfmiddlewaretoken': session.cookies['csrftoken'],
-            'login': username,
-            'password': password}
-    log.info('signin request: headers="%s" login="%s"', headers, username)
-    # requests follows the redirect url by default
-    # disable redirection explicitly
-    res = session.post(LC_LOGIN, data=form, headers=headers, allow_redirects=False)
-    log.info('signin response: status="%s" body="%s"', res.status_code, res.text)
-    if res.status_code != 302:
-        _echoerr('password incorrect')
+    session_cookie_raw = keyring.get_password('leetcode.vim', 'SESSION_COOKIE')
+    if session_cookie_raw is None:
+        cookies = getattr(browser_cookie3, browser)(domain_name='leetcode.com')
+        for cookie in cookies:
+            if cookie.name == 'LEETCODE_SESSION':
+                session_cookie = cookie
+                session_cookie_raw = pickle.dumps(cookie, protocol=0).decode('utf-8')
+                break
+        else:
+            _echoerr('Leetcode session cookie not found. Please login in browser.')
+            return False
+        keyring.set_password('leetcode.vim', 'SESSION_COOKIE', session_cookie_raw)
+    else:
+        session_cookie = pickle.loads(session_cookie_raw.encode('utf-8'))
+
+    global session
+    session = requests.Session()
+    session.cookies.set_cookie(session_cookie)
+
+    res = session.get(LC_BASE)
+    if res.status_code != 200:
+        _echoerr('cannot open ' + LC_BASE + '. Session might have expired.')
+        keyring.delete_password('leetcode.vim', 'SESSION_COOKIE')
         return False
+
     return True
 
 
