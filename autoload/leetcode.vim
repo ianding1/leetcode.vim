@@ -1,5 +1,8 @@
 " vim: sts=4 sw=4 expandtab
-
+if exists("g:leetcode_list_buffer_exists")
+    echo 'buffer exists'
+    finish
+endif
 let s:current_dir = expand("<sfile>:p:h")
 
 python3 <<EOF
@@ -361,11 +364,10 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
 endfunction
 
 function! leetcode#ListProblems(refresh) abort
+    let buf_name = 'leetcode:///problems/all'
     if s:CheckSignIn() == v:false
         return
     endif
-
-    let buf_name = 'leetcode:///problems/all'
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
         let saved_view = winsaveview()
@@ -378,6 +380,7 @@ function! leetcode#ListProblems(refresh) abort
         setlocal modifiable
         silent! normal! ggdG
     else
+        let g:leetcode_list_buffer_exists=1
         execute 'rightbelow new ' . buf_name
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'all'
