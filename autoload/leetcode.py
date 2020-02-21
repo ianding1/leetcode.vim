@@ -70,7 +70,8 @@ def _make_headers():
     assert is_login()
     headers = {'Origin': LC_BASE,
                'Referer': LC_BASE,
-               'X-Requested-With': 'XMLHttpRequest'}
+               'X-Requested-With': 'XMLHttpRequest',
+               'X-CSRFToken': session.cookies.get('csrftoken', '')}
     return headers
 
 
