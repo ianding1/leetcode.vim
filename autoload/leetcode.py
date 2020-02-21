@@ -41,6 +41,7 @@ LC_SUBMISSIONS = LC_BASE + '/api/submissions/{slug}'
 LC_SUBMISSION = LC_BASE + '/submissions/detail/{submission}/'
 LC_CHECK = LC_BASE + '/submissions/detail/{submission}/check/'
 LC_PROBLEM_SET_ALL = LC_BASE + '/problemset/all/'
+LC_PROGRESS_ALL = LC_BASE + '/api/progress/all/'
 
 EMPTY_FREQUENCIES = [0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -69,7 +70,6 @@ def _make_headers():
     assert is_login()
     headers = {'Origin': LC_BASE,
                'Referer': LC_BASE,
-               'X-CSRFToken': session.cookies['csrftoken'],
                'X-Requested-With': 'XMLHttpRequest'}
     return headers
 
@@ -143,6 +143,19 @@ def is_login():
     return session and 'LEETCODE_SESSION' in session.cookies
 
 
+def get_progress():
+    headers = _make_headers()
+    res = session.get(LC_PROGRESS_ALL, headers=headers)
+    if res.status_code != 200:
+        _echoerr('cannot get the progress')
+        return None
+
+    data = res.json()
+    if 'solvedTotal' not in data:
+        return None
+    return data
+
+
 def load_session_cookie(browser):
     if browser_cookie3 is None:
         _echoerr('browser_cookie3 not installed: pip3 install browser_cookie3 --user')
@@ -170,9 +183,9 @@ def load_session_cookie(browser):
     session = requests.Session()
     session.cookies.set_cookie(session_cookie)
 
-    res = session.get(LC_BASE)
-    if res.status_code != 200:
-        _echoerr('cannot open ' + LC_BASE + '. Session might have expired.')
+    progress = get_progress()
+    if progress is None:
+        _echoerr('cannot get progress. Please relogin in your browser.')
         keyring.delete_password('leetcode.vim', 'SESSION_COOKIE')
         return False
 
@@ -182,7 +195,11 @@ def load_session_cookie(browser):
 def _get_category_problems(category):
     headers = _make_headers()
     url = LC_CATEGORY_PROBLEMS.format(category=category)
+    log.info('_get_category_problems request: url="%s" headers="%s"',
+             url, headers)
     res = session.get(url, headers=headers)
+    log.info('_get_category_problems response: status="%s" body="%s"',
+             res.status_code, res.text)
     if res.status_code != 200:
         _echoerr('cannot get the category: {}'.format(category))
         return []
