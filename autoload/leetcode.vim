@@ -786,7 +786,7 @@ function! leetcode#TestSolution() abort
         return
     endif
 
-    let slug = split(file_name, '\.')[0]
+    let slug = split(file_name, '\.')[1]
     let filetype = s:GuessFileType()
 
     if exists('b:leetcode_problem')
