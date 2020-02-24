@@ -435,6 +435,25 @@ function! s:SlugToFileName(slug) abort
     return substitute(a:slug, '-', '_', 'g')
 endfunction
 
+function! s:ProblemSlugFromFileName() abort
+    let parts = split(expand('%:t:r'), '\.')  " Filename without the extension
+    if len(parts) == 1
+        " Old style, e.g. two-sum
+        return s:FileNameToSlug(parts[0])
+    elseif len(parts) == 2 && parts[0] =~ '\v^[0-9]+$'
+        " New style, e.g. 1.two-sum
+        return s:FileNameToSlug(parts[1])
+    elseif len(parts) == 2
+        " Old style with submission id, e.g. two-sum.1234 
+        return s:FileNameToSlug(parts[0])
+    elseif len(parts) == 3
+        " New style with submission id, e.g. 1.two-sum.1234
+        return s:FileNameToSlug(parts[1])
+    else
+        throw 'leetcode: invalid file name: ' . expand('%:t:r')
+    endif
+endfunction
+
 function! s:HandleProblemListCR() abort
     " Parse the problem number from the line
     let line_nr = line('.')
@@ -490,7 +509,8 @@ function! s:HandleProblemListCR() abort
         let problem = s:GetProblem(problem_id)
         let problem_slug = problem['slug']
         let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
-        let problem_file_name = printf('%s.%s.%s', problem_id, s:SlugToFileName(problem_slug),
+        let problem_file_name = printf('%s.%s.%s', problem_id,
+                    \  s:SlugToFileName(problem_slug),
                     \ problem_ext)
 
         if buflisted(problem_file_name)
@@ -632,13 +652,7 @@ function! leetcode#ResetSolution(with_latest_submission) abort
         return
     endif
 
-    let problem_file_name = expand('%:t:r')
-    let problem_file_names = split(problem_file_name, '\.')
-    let problem_name = problem_file_names[0]
-    if len(problem_file_names) > 1
-        let problem_name = problem_file_names[1]
-    endif
-    let problem_slug = s:FileNameToSlug(problem_name)
+    let problem_slug = s:ProblemSlugFromFileName()
     let expr = printf('leetcode.get_problem("%s")', problem_slug)
     let problem = py3eval(expr)
     if type(problem) != v:t_dict
@@ -780,13 +794,7 @@ function! leetcode#TestSolution() abort
         return
     endif
 
-    let file_name = s:FileNameToSlug(expand('%:t:r'))
-    if file_name == ''
-        echo 'no file name'
-        return
-    endif
-
-    let slug = split(file_name, '\.')[0]
+    let slug = s:ProblemSlugFromFileName()
     let filetype = s:GuessFileType()
 
     if exists('b:leetcode_problem')
@@ -889,13 +897,7 @@ function! leetcode#SubmitSolution() abort
         return
     endif
 
-    let file_name = s:FileNameToSlug(expand('%:t:r'))
-    if file_name == ''
-        echo 'no file name'
-        return
-    endif
-
-    let slug = split(file_name, '\.')[0]
+    let slug = s:ProblemSlugFromFileName()
     let filetype = s:GuessFileType()
 
     if has('timers')
@@ -1174,7 +1176,9 @@ function! s:HandleSubmissionsCR() abort
         return
     endif
 
-    let file_name = printf('%s.%s.%s', s:SlugToFileName(submission['slug']),
+    let file_name = printf('%s.%s.%s.%s', 
+                \ submission['problem_id'],
+                \ s:SlugToFileName(submission['slug']),
                 \ submission_id, s:SolutionFileExt(submission['filetype']))
 
     if bufexists(file_name)
