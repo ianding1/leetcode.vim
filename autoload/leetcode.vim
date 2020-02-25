@@ -563,7 +563,7 @@ endfunction
 
 function! s:GetProblem(id)
     for problem in b:leetcode_downloaded_problems
-        if problem['id'] == a:id
+        if problem['fid'] == a:id
             return problem
         endif
     endfor
