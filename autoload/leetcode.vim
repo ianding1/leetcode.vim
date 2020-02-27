@@ -832,8 +832,7 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     if has_key(s:saved_test_input, slug)
         let default_test_input = s:saved_test_input[slug]
     else
-        let default_test_input = ['# Test Input'] +
-                    \ split(a:problem['testcase'], '\n', 1)
+        let default_test_input = ['# Test Input'] + a:problem['testcase']
         let s:saved_test_input[slug] = default_test_input
     endif
 

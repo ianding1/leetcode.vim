@@ -234,6 +234,23 @@ def get_problems(categories):
     return sorted(problems, key=lambda p: p['id'])
 
 
+def _split(s):
+    if isinstance(s, list):
+        lines = []
+        for element in s:
+            lines.extend(_split(element))
+        return lines
+
+    # Replace all \r\n to \n and all \r (alone) to \n
+    s = s.replace('\r\n', '\n').replace('\r', '\n').replace('\0', '\n')
+    # str.split has an disadvantage that ''.split('\n') results in [''], but what we want
+    # is []. This small function returns [] if `s` is a blank string, that is, containing no
+    # characters other than whitespaces.
+    if s.strip() == '':
+        return []
+    return s.split('\n')
+
+
 def get_problem(slug):
     assert is_login()
     headers = _make_headers()
@@ -277,21 +294,12 @@ def get_problem(slug):
     for t in json.loads(q['codeDefinition']):
         problem['templates'][t['value']] = _break_code_lines(t['defaultCode'])
     problem['testable'] = q['enableRunCode']
-    problem['testcase'] = q['sampleTestCase']
+    problem['testcase'] = _split(q['sampleTestCase'])
     stats = json.loads(q['stats'])
     problem['total_accepted'] = stats['totalAccepted']
     problem['total_submission'] = stats['totalSubmission']
     problem['ac_rate'] = stats['acRate']
     return problem
-
-
-def _split(s):
-    # str.split has an disadvantage that ''.split('\n') results in [''], but what we want
-    # is []. This small function returns [] if `s` is a blank string, that is, containing no
-    # characters other than whitespaces.
-    if s.strip() == '':
-        return []
-    return s.split('\n')
 
 
 def _check_result(submission_id):
@@ -333,7 +341,7 @@ def _check_result(submission_id):
         'testcase': _split(r.get('input', r.get('last_testcase', ''))),
         'passed': r.get('total_correct') or 0,
         'total': r.get('total_testcases') or 0,
-        'error': [v for k, v in r.items() if 'error' in k and v]
+        'error': _split([v for k, v in r.items() if 'error' in k and v])
     }
 
     # the keys differs between the result of testing the code and submitting it
