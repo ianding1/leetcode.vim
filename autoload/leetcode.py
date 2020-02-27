@@ -347,7 +347,7 @@ def _check_result(submission_id):
         # Test states cannot distinguish accepted answers from wrong answers.
         if result['state'] == 'Accepted':
             result['state'] = 'Finished'
-        result['stdout'] = r.get('code_output', [])
+        result['stdout'] = _split(r.get('code_output', []))
         result['expected_answer'] = []
         result['runtime_percentile'] = r.get('runtime_percentile', '')
         result['expected_answer'] = r.get('expected_code_answer', [])
