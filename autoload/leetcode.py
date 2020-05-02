@@ -769,7 +769,6 @@ def _echoerr(s):
 
 def _unescape_with_Chinese(code) :
     for ch in set(re.findall(r'\\u\w{4}', code)):
-        print(ch)
         code = code.replace(ch, ch.encode('utf-8').decode('unicode_escape'))
     log.info("code is %s", code)
     return code.splitlines()
