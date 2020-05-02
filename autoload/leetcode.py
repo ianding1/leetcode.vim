@@ -525,8 +525,10 @@ def get_submission(sid):
 
     # the punctuations and newlines in the code are escaped like '\\u0010' ('\\' => real backslash)
     # to unscape the string, we do the trick '\\u0010'.encode().decode('unicode_escape') ==> '\n'
-    submission['code'] = _break_code_lines(_unescape(_group1(
-        re.search("submissionCode: '([^']*)'", s), '')))
+    # submission['code'] = _break_code_lines(_unescape(_group1(
+    #     re.search("submissionCode: '([^']*)'", s), '')))
+    submission['code'] = _unescape_with_Chinese(
+        _group1(re.search("submissionCode: '([^']*)'", s), ''))
 
     dist_str = _unescape(_group1(re.search("runtimeDistributionFormatted: '([^']*)'", s),
                                  '{"distribution":[]}'))
@@ -763,6 +765,16 @@ def _echoerr(s):
         task_err = s
     else:
         print(s)
+
+
+def _unescape_with_Chinese(code) :
+    for ch in set(re.findall(r'\\u\w{4}', code)):
+        print(ch)
+        code = code.replace(ch, ch.encode('utf-8').decode('unicode_escape'))
+    log.info("code is %s", code)
+    return code.splitlines()
+
+
 
 
 task_thread = Thread(target=_thread_main, daemon=True)
