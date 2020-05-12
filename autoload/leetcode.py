@@ -167,7 +167,7 @@ def load_session_cookie(browser):
 
     session_cookie_raw = keyring.get_password('leetcode.vim', 'SESSION_COOKIE')
     if session_cookie_raw is None:
-        cookies = getattr(browser_cookie3, browser)(domain_name='leetcode.com')
+        cookies = getattr(browser_cookie3, browser)(domain_name=LC_BASE.split('/')[-1])
         for cookie in cookies:
             if cookie.name == 'LEETCODE_SESSION':
                 session_cookie = cookie
