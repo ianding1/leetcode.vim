@@ -509,7 +509,7 @@ function! s:HandleProblemListCR() abort
         let problem = s:GetProblem(problem_id)
         let problem_slug = problem['slug']
         let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
-        let problem_file_name = printf('[DESC] %s.%s.%s', problem_id,
+        let problem_file_name = printf('%s.%s.%s', problem_id,
                     \  s:SlugToFileName(problem_slug),
                     \ problem_ext)
 
@@ -701,23 +701,23 @@ function! leetcode#ResetSolution(with_latest_submission) abort
         call add(output, s:CommentLine(filetype, line))
     endfor
     call add(output, s:CommentEnd(filetype))
-    call append('$', output)
+    call append('$', code)
     silent! normal! gggqG
 
-    let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
-    " TODO avoid recalculation of problem_ext twice
-    let problem_new_file_name = printf('%s.%s.%s', problem['id'], problem_slug, problem_ext)
-    if buflisted(problem_file_name)
-        execute bufnr(problem_new_file_name) . 'buffer'
+    let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['id'], problem_slug)
+    if buflisted(problem_desc_file_name)
+        execute bufnr(problem_desc_file_name) . 'buffer'
         return
     endif
 
-    execute 'rightbelow new ' . problem_new_file_name
+    execute 'leftabove '. len(output). 'new ' . problem_desc_file_name
 
 
-    call append('$', code)
+    call append('$', output)
+    setlocal nomodifiable
 
     silent! normal! ggdd
+    execute 'wincmd j'
 endfunction
 
 function! s:CommentStart(filetype, title) abort
