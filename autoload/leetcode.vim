@@ -715,6 +715,8 @@ function! leetcode#ResetSolution(with_latest_submission) abort
 
     call append('$', output)
     setlocal nomodifiable
+    setlocal buftype=nofile
+    setlocal nospell
 
     silent! normal! ggdd
     execute 'wincmd j'
