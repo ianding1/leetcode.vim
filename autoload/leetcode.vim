@@ -147,6 +147,9 @@ function! s:PrintProblemList() abort
     endif
 
     let b:leetcode_problems = sorted_problems
+    if g:leetcode_hide_paid_only
+        call filter(b:leetcode_problems, 'v:val["paid_only"] == 0')
+    endif
 
     let id_width = s:MaxWidthOfKey(sorted_problems, 'fid', 1)
     let title_width = s:MaxWidthOfKey(sorted_problems, 'title', 1) + 4
