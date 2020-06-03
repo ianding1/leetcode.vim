@@ -399,24 +399,28 @@ function! leetcode#ListProblems(refresh) abort
     let topics = s:topics_and_companies['topics']
     let companies = s:topics_and_companies['companies']
 
-    " concatenate the topics into a string
-    let topic_slugs = map(copy(topics), 'v:val["topic_slug"] . ":" . v:val["num_problems"]')
-    let topic_lines = s:FormatIntoColumns(topic_slugs)
+    if g:leetcode_hide_topics == 0
+        " concatenate the topics into a string
+        let topic_slugs = map(copy(topics), 'v:val["topic_slug"] . ":" . v:val["num_problems"]')
+        let topic_lines = s:FormatIntoColumns(topic_slugs)
 
-    call append('$', ['# LeetCode', '', '## Topics', ''])
+        call append('$', ['# LeetCode', '', '## Topics', ''])
 
-    let b:leetcode_topic_start_line = line('$')
-    call append('$', topic_lines)
-    let b:leetcode_topic_end_line = line('$')
+        let b:leetcode_topic_start_line = line('$')
+        call append('$', topic_lines)
+        let b:leetcode_topic_end_line = line('$')
+    endif
 
-    let company_slugs = map(copy(companies), 'v:val["company_slug"] . ":" . v:val["num_problems"]')
-    let company_lines = s:FormatIntoColumns(company_slugs)
+    if g:leetcode_hide_companies == 0
+        let company_slugs = map(copy(companies), 'v:val["company_slug"] . ":" . v:val["num_problems"]')
+        let company_lines = s:FormatIntoColumns(company_slugs)
 
-    call append('$', ['', '## Companies', ''])
+        call append('$', ['', '## Companies', ''])
 
-    let b:leetcode_company_start_line = line('$')
-    call append('$', company_lines)
-    let b:leetcode_company_end_line = line('$')
+        let b:leetcode_company_start_line = line('$')
+        call append('$', company_lines)
+        let b:leetcode_company_end_line = line('$')
+    endif
 
     call append('$', '')
     call s:PrintProblemList()
@@ -461,8 +465,8 @@ function! s:HandleProblemListCR() abort
     " Parse the problem number from the line
     let line_nr = line('.')
 
-    if line_nr >= b:leetcode_topic_start_line &&
-                \ line_nr < b:leetcode_topic_end_line
+    if line_nr >= get(b:, 'leetcode_topic_start_line', 0) &&
+                \ line_nr < get(b:, 'leetcode_topic_end_line', 0)
         let topic_slug = expand('<cWORD>')
         let topic_slug = s:TagName(topic_slug)
         if topic_slug != ''
@@ -471,8 +475,8 @@ function! s:HandleProblemListCR() abort
         return
     endif
 
-    if line_nr >= b:leetcode_company_start_line &&
-                \ line_nr < b:leetcode_company_end_line
+    if line_nr >= get(b:, 'leetcode_company_start_line', 0) &&
+                \ line_nr < get(b:, 'leetcode_company_end_line', 0)
         let company_slug = expand('<cWORD>')
         let company_slug = s:TagName(company_slug)
         if company_slug != ''

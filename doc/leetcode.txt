@@ -85,4 +85,16 @@ g:leetcode_hide_paid_only
 
                     Default: 0
 
+                                                     *g:leetcode_hide_topics*
+g:leetcode_hide_topics
+                    Hide the topics section.
+
+                    Default: 0
+
+                                                  *g:leetcode_hide_companies*
+g:leetcode_hide_companies
+                    Hide the companies section.
+
+                    Default: 0
+
  vim:tw=78:ts=8:et:ft=help:norl:

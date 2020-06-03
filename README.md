@@ -94,6 +94,18 @@ Hide the paid only problems on the list.
 
 Default value is `0`.
 
+### `g:leetcode_hide_topics`
+
+Hide the topics section.
+
+Default value is `0`
+
+### `g:leetcode_hide_companies`
+
+Hide the companies section.
+
+Default value is `0`
+
 ## Updates
 
 - 2019/12/20: Fix the login issue caused by reCAPTCHA.
