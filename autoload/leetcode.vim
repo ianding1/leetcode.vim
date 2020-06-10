@@ -1056,6 +1056,16 @@ function! s:CheckRunCodeTask(timer) abort
 
     if task_name == 'test_solution' || task_name == 'submit_solution'
         if type(task_output) == v:t_dict
+            if task_name == 'test_solution'
+                if task_output['state'] == 'Finished' && 
+                            \task_output['answer'] != task_output['expected_answer']
+                    let task_output['state'] = 'Wrong Answer'
+                endif
+            elseif task_name == 'submit_solution'
+                if task_output['state'] == 'Finished'
+                    let task_output['state'] = 'Accepted'
+                endif
+            endif
             call s:ShowRunResultInPreview(task_output)
         endif
     else
