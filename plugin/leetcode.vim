@@ -32,6 +32,10 @@ if !exists('g:leetcode_hide_companies')
     let g:leetcode_hide_companies = 0
 endif
 
+if !exists('g:leetcode_problemset')
+    let g:leetcode_problemset = 'all'
+endif
+
 command! -nargs=0 LeetCodeList call leetcode#ListProblems('redraw')
 command! -nargs=0 LeetCodeReset call leetcode#ResetSolution(0)
 command! -nargs=0 LeetCodeTest call leetcode#TestSolution()

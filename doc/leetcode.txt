@@ -97,4 +97,10 @@ g:leetcode_hide_companies
 
                     Default: 0
 
+                                                      *g:leetcode_problemset*
+g:leetcode_problemset
+                    Set the problemset to get from leetcode.
+
+                    Default: 'all'
+
  vim:tw=78:ts=8:et:ft=help:norl:
