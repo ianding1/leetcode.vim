@@ -106,6 +106,12 @@ Hide the companies section.
 
 Default value is `0`
 
+### `g:leetcode_problemset`
+
+Set the problemset to get from leetcode. 
+
+Default value is `all`
+
 ## Updates
 
 - 2019/12/20: Fix the login issue caused by reCAPTCHA.

@@ -367,15 +367,16 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
 endfunction
 
 function! leetcode#ListProblems(refresh) abort
-    let buf_name = 'leetcode:///problems/all'
+    let buf_name = 'leetcode:///problems/' . g:leetcode_problemset
     if s:CheckSignIn() == v:false
         return
     endif
+    let problemset = printf('leetcode.get_problems(["%s"])', g:leetcode_problemset)
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
         let saved_view = winsaveview()
         if a:refresh ==# 'redownload'
-            let expr = 'leetcode.get_problems(["all"])'
+            let expr = problemset
             let b:leetcode_downloaded_problems = py3eval(expr)
         elseif a:refresh ==# 'norefresh'
             return
@@ -387,7 +388,7 @@ function! leetcode#ListProblems(refresh) abort
         execute 'rightbelow new ' . buf_name
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'all'
-        let expr = 'leetcode.get_problems(["all"])'
+        let expr = problemset
         let b:leetcode_downloaded_problems = py3eval(expr)
         let b:leetcode_difficulty = 'All'
         let b:leetcode_state = 'All'
