@@ -705,6 +705,14 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     endif
 
     silent! normal! ggdG
+    call append('$', code)
+    silent! normal! ggdd
+
+    let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['id'], problem_slug)
+    if buflisted(problem_desc_file_name)
+        execute bufnr(problem_desc_file_name) . 'buffer'
+        return
+    endif
 
     let output = []
     call add(output, s:CommentStart(filetype, problem['title']))
@@ -719,24 +727,16 @@ function! leetcode#ResetSolution(with_latest_submission) abort
         call add(output, s:CommentLine(filetype, line))
     endfor
     call add(output, s:CommentEnd(filetype))
-    call append('$', code)
-    silent! normal! gggqG
-
-    let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['id'], problem_slug)
-    if buflisted(problem_desc_file_name)
-        execute bufnr(problem_desc_file_name) . 'buffer'
-        return
-    endif
 
     execute 'leftabove '. len(output). 'new ' . problem_desc_file_name
-
-
     call append('$', output)
+    silent! normal! ggdd
+    silent! normal! gggqG
+
     setlocal nomodifiable
     setlocal buftype=nofile
     setlocal nospell
 
-    silent! normal! ggdd
     execute 'wincmd j'
 endfunction
 
