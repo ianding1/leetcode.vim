@@ -451,11 +451,21 @@ function! s:ProblemSlugFromFileName() abort
         " New style, e.g. 1.two-sum
         return s:FileNameToSlug(parts[1])
     elseif len(parts) == 2
-        " Old style with submission id, e.g. two-sum.1234 
-        return s:FileNameToSlug(parts[0])
+        if parts[-1] =~# '^\d\+$'
+            " Old style with submission id, e.g. two-sum.1234 
+            return s:FileNameToSlug(parts[0])
+        else
+            " There some problems like `面试题59 - II.dui_lie_de_zui_da_zhi_lcof.cpp` in leetcode-cn
+            return s:FileNameToSlug(parts[-1])
+        endif
     elseif len(parts) == 3
-        " New style with submission id, e.g. 1.two-sum.1234
-        return s:FileNameToSlug(parts[1])
+        if parts[-1] =~# '^\d\+$'
+            " New style with submission id, e.g. 1.two-sum.1234
+            return s:FileNameToSlug(parts[1])
+        else
+            " There some problems like `面试题 02.06.palindrome_linked_list_lcci.cpp` in leetcode-cn
+            return s:FileNameToSlug(parts[-1])
+        endif
     else
         throw 'leetcode: invalid file name: ' . expand('%:t:r')
     endif
