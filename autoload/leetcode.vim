@@ -480,7 +480,7 @@ function! s:HandleProblemListCR() abort
         let topic_slug = expand('<cWORD>')
         let topic_slug = s:TagName(topic_slug)
         if topic_slug != ''
-            call s:ListProblemsOfTopic(topic_slug, 'norefresh')
+            call s:ListProblemsOfTopic(topic_slug, 'redraw')
         endif
         return
     endif
@@ -490,7 +490,7 @@ function! s:HandleProblemListCR() abort
         let company_slug = expand('<cWORD>')
         let company_slug = s:TagName(company_slug)
         if company_slug != ''
-            call s:ListProblemsOfCompany(company_slug, 'norefresh')
+            call s:ListProblemsOfCompany(company_slug, 'redraw')
         endif
         return
     endif
