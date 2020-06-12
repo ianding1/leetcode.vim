@@ -258,6 +258,7 @@ def get_problem(slug):
     body = {'query': '''query getQuestionDetail($titleSlug : String!) {
   question(titleSlug: $titleSlug) {
     questionId
+    questionFrontendId
     title
     content
     stats
@@ -286,6 +287,7 @@ def get_problem(slug):
     soup = BeautifulSoup(content, features='html.parser')
     problem = {}
     problem['id'] = q['questionId']
+    problem['fid'] = q['questionFrontendId']
     problem['title'] = q['title']
     problem['slug'] = slug
     problem['level'] = q['difficulty']
