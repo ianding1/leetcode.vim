@@ -720,9 +720,8 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     endfor
     call add(output, s:CommentEnd(filetype))
     call append('$', code)
-    silent! normal! gggqG
 
-    let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['id'], problem_slug)
+    let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['fid'], problem_slug)
     if buflisted(problem_desc_file_name)
         execute bufnr(problem_desc_file_name) . 'buffer'
         return
