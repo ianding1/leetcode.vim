@@ -338,6 +338,7 @@ def _check_result(submission_id):
 
     result = {
         'answer': r.get('code_answer', []),
+        'code_output': r.get('code_output'),
         'runtime': r['status_runtime'],
         'state': _status_to_name(r['status_code']),
         'testcase': _split(r.get('input', r.get('last_testcase', ''))),
