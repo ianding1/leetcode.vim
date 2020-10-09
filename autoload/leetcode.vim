@@ -1000,8 +1000,7 @@ function! s:FormatResult(result_) abort
     endif
 
     call extend(output, s:FormatSection('Error', result['error'], 2))
-    call extend(output, s:FormatSection('Output', result['stdout'], 2))
-    call extend(output, s:FormatSection('Standard Output', result['code_output'], 2))
+    call extend(output, s:FormatSection('Standard Output', result['stdout'], 2))
 
     call extend(output, s:FormatSection('Input', result['testcase'], 3))
     call extend(output, s:FormatSection('Actual Answer', result['answer'], 3))
