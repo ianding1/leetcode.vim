@@ -653,6 +653,7 @@ let s:file_type_to_ext = {
             \ 'c': 'c',
             \ 'csharp': 'cs',
             \ 'javascript': 'js',
+            \ 'typescript': 'ts',
             \ 'ruby': 'rb',
             \ 'swift': 'swift',
             \ 'golang': 'go',
@@ -741,7 +742,7 @@ function! leetcode#ResetSolution(with_latest_submission) abort
 endfunction
 
 function! s:CommentStart(filetype, title) abort
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
+    if index(['java', 'c', 'javascript', 'typescript', 'cpp', 'csharp', 'swift', 'scala',
                 \ 'kotlin', 'rust'], a:filetype) >= 0
         return '/* ' . a:title
     elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
@@ -754,7 +755,7 @@ function! s:CommentStart(filetype, title) abort
 endfunction
 
 function! s:CommentLine(filetype, line) abort
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
+    if index(['java', 'c', 'javascript', 'typescript', 'cpp', 'csharp', 'swift', 'scala',
                 \ 'kotlin', 'rust'], a:filetype) >= 0
         return ' * ' . a:line
     elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
@@ -767,7 +768,7 @@ function! s:CommentLine(filetype, line) abort
 endfunction
 
 function! s:CommentEnd(filetype) abort
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
+    if index(['java', 'c', 'javascript', 'typescript', 'cpp', 'csharp', 'swift', 'scala',
                 \ 'kotlin', 'rust'], a:filetype) >= 0
         return ' * [End of Description] */'
     elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
