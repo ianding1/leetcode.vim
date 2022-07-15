@@ -19,7 +19,7 @@ if thirdparty_dir not in sys.path:
   sys.path.append(thirdparty_dir)
 
 if int(vim.eval('g:leetcode_china')):
-    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode-cn.com'
+    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.cn'
 else:
     os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.com'
 
