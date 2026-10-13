@@ -75,6 +75,8 @@ class FakeLeetCode:
         self.upstream = upstream.rstrip('/') if upstream else None
         self.record_dir = Path(record_dir) if record_dir else None
         self.requests = []
+        # When set, only these LEETCODE_SESSION values count as signed in.
+        self.valid_sessions = None
         self._overrides = {}
         self._sequences = {}
         self._lock = threading.Lock()
@@ -150,7 +152,7 @@ class FakeLeetCode:
             if ok and self.record_dir and route:
                 self._record(route, key, status, headers, payload)
         elif (route in REQUIRES_LOGIN and not self._has_override(route, key)
-              and 'LEETCODE_SESSION=' not in record['headers'].get('cookie', '')):
+              and not self._signed_in(record['headers'].get('cookie', ''))):
             status, headers, payload = 403, {'Content-Type': 'text/plain'}, b'not signed in'
         else:
             status, headers, payload = self._replay(route, key)
@@ -165,6 +167,13 @@ class FakeLeetCode:
         h.send_header('Content-Length', str(len(payload)))
         h.end_headers()
         h.wfile.write(payload)
+
+    def _signed_in(self, cookie_header):
+        cookies = dict(c.strip().split('=', 1) for c in cookie_header.split(';') if '=' in c)
+        session = cookies.get('LEETCODE_SESSION')
+        if self.valid_sessions is None:
+            return bool(session)
+        return session in self.valid_sessions
 
     def _has_override(self, route, key):
         return (route, key) in self._overrides or (route, None) in self._overrides

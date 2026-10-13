@@ -34,9 +34,23 @@ def test_missing_dependencies_are_reported(scenario, bare_vim_env):
 
 
 def test_china_uses_leetcode_cn(scenario):
-    s = scenario().plugin_imports_itself().let('leetcode_china', 1)
+    s = scenario().plugin_imports_itself().let('leetcode_china', 1).let('leetcode_base_url', '')
     s.step('runtime autoload/leetcode.vim')
     s.capture('base', "py3eval('leetcode.LC_BASE')")
     r = s.run()
     r.assert_ok()
     assert r.vars['base'] == 'https://leetcode.cn'
+
+
+def test_base_url_option(scenario, lc):
+    """g:leetcode_base_url points the plugin at another site (here: the fake
+    one), with no help from the test harness."""
+    s = scenario().plugin_imports_itself().let('leetcode_base_url', lc.base_url + '/')
+    s.step('runtime autoload/leetcode.vim')
+    s.capture('base', "py3eval('leetcode.LC_BASE')")
+    s.type_ahead('LEETCODE_SESSION=e2e-session\\<CR>')
+    s.step('LeetCodeList')
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['base'] == lc.base_url
+    assert 'Two Sum' in r.text(r'^leetcode:///problems/all$'), r.describe()

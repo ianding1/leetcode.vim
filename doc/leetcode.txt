@@ -18,12 +18,34 @@ COMMANDS                                                *leetcode-commands*
 :LeetCodeSubmit     Submit the code in the current buffer.
 
                                                         *:LeetCodeSignIn*
-:LeetCodeSignIn     Manually sign in.
+:LeetCodeSignIn     Sign in, or replace the saved cookie (e.g. to switch
+                    accounts). See |leetcode-sign-in|.
+
+                                                        *:LeetCodeSignOut*
+:LeetCodeSignOut    Sign out and forget the saved cookie.
 
                                                         *:LeetCodeReset*
 :LeetCodeReset      Reset the code in the current buffer to the initial code
                     template.
 
+
+SIGNING IN                                              *leetcode-sign-in*
+
+LeetCode has no API tokens, and its login page uses a CAPTCHA, so the plugin
+signs in with the session cookie of a browser where you are signed in to
+LeetCode. By default it asks for that cookie the first time it needs it:
+
+1. Sign in to LeetCode in your browser.
+2. Open the developer tools (F12), then the Network tab, and reload the page.
+3. Click any request to leetcode.com and copy the value of its "Cookie"
+   request header. Copying only the LEETCODE_SESSION cookie also works, but
+   then LeetCode may reject running and submitting code.
+4. Paste it at the prompt. Nothing is shown while you paste.
+
+The plugin keeps only the LEETCODE_SESSION and csrftoken cookies, in a file
+that only you can read (see |g:leetcode_cookie_file|). When the session
+expires, it asks again. See |g:leetcode_browser| for other ways to provide
+the cookie.
 
 MAPPINGS                                                *leetcode-mappings*
 
@@ -50,37 +72,35 @@ t                   Choose the time period of the frequency to show. This
 
 CUSTOMIZATIONS                                       *leetcode-customizations*
 
-                                                        *g:leetcode_username*
-g:leetcode_username Set it to the username/email to allow autologin.
-
-                    Default: ''
-
-                                                        *g:leetcode_password*
-g:leetcode_password Deprecated in favor of keyring. Set it to the password to
-                    allow autologin.
-
-                    If you have installed keyring, then just leave this option
-                    blank. leetcode.vim will prompt for the password the first
-                    time you sign in, and store the password in keyring.
-
-                    Default: ''
-
                                                         *g:leetcode_china*
 g:leetcode_china    Set it to 1 to login to a LeetCode China (leetcode.cn)
                     account.
 
                     Default: 0
 
-                                                      *g:leetcode_browser*
-g:leetcode_browser  Where to find the LeetCode session cookie. "chrome" and
-                    "firefox" read it from the browser (needs the
-                    browser-cookie3 and keyring packages). "env" reads
-                    $LEETCODE_SESSION and $LEETCODE_CSRFTOKEN, which you copy
-                    from the LEETCODE_SESSION and csrftoken cookies of a
-                    signed-in browser.
+                                                      *g:leetcode_base_url*
+g:leetcode_base_url The LeetCode site to use, e.g. "https://leetcode.cn".
+                    Overrides |g:leetcode_china| when set.
 
-                    Default: "disabled"
-                    Values: "disabled", "chrome", "firefox", "env"
+                    Default: ''
+
+                                                      *g:leetcode_browser*
+g:leetcode_browser  Where the LeetCode session cookie comes from:
+                    "paste"    ask for it, see |leetcode-sign-in|.
+                    "chrome", "firefox"
+                               read it from the browser's cookie store
+                               (needs the browser-cookie3 and keyring
+                               Python packages).
+                    "env"      read $LEETCODE_SESSION and $LEETCODE_CSRFTOKEN.
+
+                    Default: "paste"
+
+                                                    *g:leetcode_cookie_file*
+g:leetcode_cookie_file
+                    Where pasted cookies are saved. Default: "leetcode.vim/
+                    cookies.json" under stdpath("data") in Neovim, and under
+                    $XDG_DATA_HOME (or ~/.local/share, or %LOCALAPPDATA% on
+                    Windows) in Vim.
 
                                               *g:leetcode_solution_filetype*
 g:leetcode_solution_filetype

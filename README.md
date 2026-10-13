@@ -6,27 +6,13 @@ Solve LeetCode problems in Vim!
 
 This Vim plugin is inspired by [skygragon/leetcode-cli][leetcode-cli].
 
-**Attention:** Recently LeetCode used Google reCAPTCHA to enhance security,
-prohibiting automatic login through LeetCode API.
-
-The new login procedure needs you to **login in your browser first** so that
-**leetcode.vim** can read the LeetCode session cookie from the browser's cookie
-storage.
-
-Supported browsers are: **Chrome**, **Firefox**. Safari is not supported
-yet.
-
-The one-time setup:
-
-1. Install keyring and browser-cookie3:
-```shell
-pip3 install keyring browser-cookie3 --user
-```
-2. Set `g:leetcode_browser` to `'chrome'` or `'firefox'`.
-
-Thanks [@zhuopro](https://github.com/zhoupro)
-(see [#25](https://github.com/ianding1/leetcode.vim/issues/25))
-for his brilliant idea!
+**Signing in:** LeetCode has no API tokens and its login page uses a CAPTCHA,
+so leetcode.vim signs in with the session cookie of a browser where you are
+signed in. The first time it needs one, it asks you to paste the `Cookie`
+header of any leetcode.com request (browser developer tools → Network). It
+keeps only the `LEETCODE_SESSION` and `csrftoken` cookies, in a file only you
+can read, and asks again when the session expires. See `:help
+leetcode-sign-in`.
 
 ## Installation
 
@@ -43,8 +29,9 @@ This is not always the `python3` on your `PATH`: check with
 python3 -m pip install --user requests beautifulsoup4
 ```
 If they are missing, the plugin says so and prints the command to run.
-3. To read the session cookie from your browser, also install **keyring** and
-**browser-cookie3** (not needed with `g:leetcode_browser = 'env'`):
+3. Only if you set `g:leetcode_browser` to `'chrome'` or `'firefox'` to read
+the session cookie from the browser: install **keyring** and
+**browser-cookie3**:
 ```sh
 pip3 install keyring browser-cookie3 --user
 ```
@@ -58,7 +45,8 @@ Plug 'ianding1/leetcode.vim'
 - `:LeetCodeList`: browse the problems.
 - `:LeetCodeTest`: run the code with the default test case.
 - `:LeetCodeSubmit`: submit the code.
-- `:LeetCodeSignIn`: manually sign in.
+- `:LeetCodeSignIn`: sign in, or replace the saved cookie.
+- `:LeetCodeSignOut`: sign out and forget the saved cookie.
 
 ## Key mappings
 
@@ -91,14 +79,19 @@ Default value is `'cpp'`.
 
 ### `g:leetcode_browser`
 
-Set to the browser that stores the LeetCode session cookie, or to `'env'` to
-read the cookies from the environment instead: copy the `LEETCODE_SESSION` and
-`csrftoken` cookies from a signed-in browser into `$LEETCODE_SESSION` and
-`$LEETCODE_CSRFTOKEN`.
+Where the session cookie comes from: `'paste'` asks for it (see above);
+`'chrome'` or `'firefox'` read it from the browser's cookie store (needs the
+`keyring` and `browser-cookie3` Python packages); `'env'` reads
+`$LEETCODE_SESSION` and `$LEETCODE_CSRFTOKEN`.
 
-Values: `'disabled'`, `'chrome'`, `'firefox'`, `'env'`
+Values: `'paste'`, `'chrome'`, `'firefox'`, `'env'`
 
-Default value is `'disabled'`.
+Default value is `'paste'`.
+
+### `g:leetcode_base_url`
+
+The LeetCode site to use, e.g. `'https://leetcode.cn'`. Overrides
+`g:leetcode_china` when set.
 
 ### `g:leetcode_hide_paid_only`
 

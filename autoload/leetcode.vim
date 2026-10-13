@@ -5,6 +5,15 @@ if exists("g:leetcode_list_buffer_exists")
 endif
 let s:current_dir = expand("<sfile>:p:h")
 
+if !empty(get(g:, 'leetcode_base_url', ''))
+    let s:base_url = substitute(g:leetcode_base_url, '/\+$', '', '')
+elseif g:leetcode_china
+    let s:base_url = 'https://leetcode.cn'
+else
+    let s:base_url = 'https://leetcode.com'
+endif
+let s:host = matchstr(s:base_url, '://\zs[^/]\+')
+
 python3 <<EOF
 import os
 import sys
@@ -15,10 +24,7 @@ plugin_dir = vim.eval('s:current_dir')
 if plugin_dir not in sys.path:
   sys.path.append(plugin_dir)
 
-if int(vim.eval('g:leetcode_china')):
-    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.cn'
-else:
-    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.com'
+os.environ['LEETCODE_BASE_URL'] = vim.eval('s:base_url')
 
 import leetcode
 EOF
@@ -42,17 +48,49 @@ if g:leetcode_debug
     python3 leetcode.enable_logging()
 endif
 
-function! s:LoadSessionCookie() abort
-    if g:leetcode_browser ==# 'disabled'
-       echo 'g:leetcode_browser is disabled.'
-       return v:false
+function! s:StartSession(cookies) abort
+    return py3eval('leetcode.start_session_with_cookies(vim.eval("a:cookies"))')
+endfunction
+
+" Sign in with a saved cookie, or ask for one. With `ask`, always ask, so
+" :LeetCodeSignIn can replace the saved cookie (e.g. to switch accounts).
+function! s:PasteSignIn(ask) abort
+    if !a:ask
+        let saved = leetcode#auth#Load(s:host)
+        if !empty(saved)
+            if s:StartSession(saved)
+                return v:true
+            endif
+            call leetcode#auth#Save(s:host, {})
+            echohl WarningMsg
+            echomsg 'leetcode.vim: the saved LeetCode session has expired. Please paste a new cookie.'
+            echohl None
+        endif
     endif
 
-    let success = py3eval('leetcode.load_session_cookie("' . g:leetcode_browser . '")')
-    if success
-       echo 'Signed in.'
+    let text = inputsecret(printf('Cookie from a browser signed in to %s '
+                \ . '(see :help leetcode-sign-in): ', s:host))
+    redraw
+    let cookies = leetcode#auth#ParseCookie(text)
+    if empty(cookies)
+        echo 'Sign-in cancelled.'
+        return v:false
     endif
-    return success
+    if !has_key(cookies, 'LEETCODE_SESSION')
+        echohl ErrorMsg
+        echomsg 'leetcode.vim: no LEETCODE_SESSION in the pasted cookie.'
+        echohl None
+        return v:false
+    endif
+    if !s:StartSession(cookies)
+        echohl ErrorMsg
+        echomsg 'leetcode.vim: LeetCode did not accept this cookie. '
+                    \ . 'Is it from a signed-in browser, and complete?'
+        echohl None
+        return v:false
+    endif
+    call leetcode#auth#Save(s:host, cookies)
+    return v:true
 endfunction
 
 function! leetcode#SignIn(ask) abort
@@ -60,7 +98,23 @@ function! leetcode#SignIn(ask) abort
         call s:ReportMissingDependencies()
         return v:false
     endif
-    return s:LoadSessionCookie()
+    if index(['chrome', 'firefox', 'env'], g:leetcode_browser) >= 0
+        let success = py3eval('leetcode.load_session_cookie("' . g:leetcode_browser . '")')
+    else
+        let success = s:PasteSignIn(a:ask)
+    endif
+    if success
+        echo 'Signed in.'
+    endif
+    return success
+endfunction
+
+function! leetcode#SignOut() abort
+    call leetcode#auth#Save(s:host, {})
+    if s:inited
+        python3 leetcode.session = None
+    endif
+    echo 'Signed out.'
 endfunction
 
 function! s:CheckSignIn() abort

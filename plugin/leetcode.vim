@@ -5,7 +5,7 @@ if !exists('g:leetcode_china')
 endif
 
 if !exists('g:leetcode_browser')
-    let g:leetcode_browser = 'disabled'
+    let g:leetcode_browser = 'paste'
 endif
 
 if !exists('g:leetcode_categories')
@@ -41,3 +41,4 @@ command! -nargs=0 LeetCodeReset call leetcode#ResetSolution(0)
 command! -nargs=0 LeetCodeTest call leetcode#TestSolution()
 command! -nargs=0 LeetCodeSubmit call leetcode#SubmitSolution()
 command! -nargs=0 LeetCodeSignIn call leetcode#SignIn(1)
+command! -nargs=0 LeetCodeSignOut call leetcode#SignOut()

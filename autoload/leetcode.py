@@ -187,7 +187,18 @@ def _start_session(cookies):
     session = requests.Session()
     for cookie in cookies:
         session.cookies.set_cookie(cookie)
-    return get_progress() is not None
+    if get_progress() is None:
+        # Don't leave rejected cookies behind as if signed in.
+        session = None
+        return False
+    return True
+
+
+def start_session_with_cookies(cookies):
+    """Sign in with {name: value} cookies; True if LeetCode accepts them."""
+    jar = [requests.cookies.create_cookie(name, value)
+           for name, value in cookies.items() if value]
+    return _start_session(jar)
 
 
 def _cookies_from_env():

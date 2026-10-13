@@ -81,7 +81,9 @@ class Scenario:
         }
         self.options = {
             'leetcode_solution_filetype': 'cpp',
-            'leetcode_browser': 'disabled',
+            'leetcode_browser': 'paste',
+            'leetcode_base_url': base_url,
+            'leetcode_cookie_file': str(self.workdir / 'cookies.json'),
         }
         self.lines = []
 
@@ -112,6 +114,14 @@ class Scenario:
     def step(self, cmd):
         self.lines.append('call E2EStep({})'.format(_vim_str(cmd)))
         return self
+
+    def type_ahead(self, keys):
+        """Queue keys for the next prompt (input(), inputsecret(), ...).
+
+        Headless editors can't answer a prompt with no keys queued: Vim exits
+        and Neovim waits forever.
+        """
+        return self.step('call feedkeys("' + keys.replace('"', '\\"') + '", "t")')
 
     def press(self, keys):
         """Type normal-mode keys, e.g. press('\\<CR>'). Buffer maps apply."""
