@@ -36,6 +36,10 @@ if !exists('g:leetcode_problemset')
     let g:leetcode_problemset = 'all'
 endif
 
+if !exists('g:leetcode_browser_cookie_path')
+    let g:leetcode_browser_cookie_path = ''
+endif
+
 command! -nargs=0 LeetCodeList call leetcode#ListProblems('redraw')
 command! -nargs=0 LeetCodeReset call leetcode#ResetSolution(0)
 command! -nargs=0 LeetCodeTest call leetcode#TestSolution()

@@ -41,7 +41,7 @@ pip3 install keyring browser-cookie3 --user
 ```
 3. Install the plugin:
 ```vim
-Plug 'ianding1/leetcode.vim'
+Plug 'motangpuar/leetcode.vim'
 ```
 
 ## Quick Start

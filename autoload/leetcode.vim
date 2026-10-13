@@ -33,12 +33,16 @@ if g:leetcode_debug
 endif
 
 function! s:LoadSessionCookie() abort
-    if g:leetcode_browser ==# 'disabled'
-       echo 'g:leetcode_browser is disabled.'
-       return v:false
+    let cookie_path = get(g:, 'leetcode_browser_cookie_path', '')
+    if empty(cookie_path)
+        if g:leetcode_browser ==# 'disabled'
+           echo 'g:leetcode_browser is disabled.'
+           return v:false
+        endif
+        let success = py3eval('leetcode.load_session_cookie("' . g:leetcode_browser . '")')
+    else
+        let success = py3eval('leetcode.load_session_cookie_with_path("' . cookie_path . '")')
     endif
-
-    let success = py3eval('leetcode.load_session_cookie("' . g:leetcode_browser . '")')
     if success
        echo 'Signed in.'
     endif
