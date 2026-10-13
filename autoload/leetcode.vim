@@ -14,29 +14,39 @@ else
 endif
 let s:host = matchstr(s:base_url, '://\zs[^/]\+')
 
-python3 <<EOF
-import os
-import sys
-import vim
+" Which implementation of the LeetCode API to use:
+"   'python'  autoload/leetcode.py (needs +python3 with requests and bs4)
+"   'vim'     autoload/leetcode/api.vim (needs curl, no Python)
+let s:backend = get(g:, 'leetcode_backend', 'python')
 
-plugin_dir = vim.eval('s:current_dir')
-
-if plugin_dir not in sys.path:
-  sys.path.append(plugin_dir)
-
-os.environ['LEETCODE_BASE_URL'] = vim.eval('s:base_url')
-
-import leetcode
-EOF
-
-let s:inited = py3eval('leetcode.inited')
+if s:backend ==# 'vim'
+    let s:inited = 1
+    call leetcode#api#Init(s:base_url)
+elseif has('python3')
+    python3 import os, sys, vim
+    python3 sys.path.append(vim.eval('s:current_dir')) if vim.eval('s:current_dir') not in sys.path else None
+    python3 os.environ['LEETCODE_BASE_URL'] = vim.eval('s:base_url')
+    python3 import leetcode
+    let s:inited = py3eval('leetcode.inited')
+    if g:leetcode_debug
+        python3 leetcode.enable_logging()
+    endif
+else
+    let s:inited = 0
+endif
 
 function! s:ReportMissingDependencies() abort
-    let py_version = py3eval('"%d.%d" % sys.version_info[:2]')
     echohl ErrorMsg
-    echomsg printf('leetcode.vim: %s. Install the dependencies for the Python %s '
-                \ . 'that Vim uses: python%s -m pip install --user requests beautifulsoup4',
-                \ py3eval('leetcode.import_error'), py_version, py_version)
+    if !has('python3')
+        echomsg printf('leetcode.vim: %s has no Python 3 support. Set g:leetcode_backend '
+                    \ . 'to ''vim'' (needs curl), or use %s.', has('nvim') ? 'Neovim' : 'this Vim',
+                    \ has('nvim') ? 'pip install pynvim' : 'a Vim with +python3')
+    else
+        let py_version = py3eval('"%d.%d" % sys.version_info[:2]')
+        echomsg printf('leetcode.vim: %s. Install the dependencies for the Python %s '
+                    \ . 'that Vim uses: python%s -m pip install --user requests beautifulsoup4',
+                    \ py3eval('leetcode.import_error'), py_version, py_version)
+    endif
     echohl None
 endfunction
 
@@ -44,12 +54,56 @@ if !s:inited
     call s:ReportMissingDependencies()
 endif
 
-if g:leetcode_debug
-    python3 leetcode.enable_logging()
-endif
+let s:python_names = {
+            \ 'IsLogin': 'is_login',
+            \ 'StartSessionWithCookies': 'start_session_with_cookies',
+            \ 'GetProgress': 'get_progress',
+            \ 'GetProblems': 'get_problems',
+            \ 'GetProblem': 'get_problem',
+            \ 'GetProblemsOfTopic': 'get_problems_of_topic',
+            \ 'GetProblemsOfCompany': 'get_problems_of_company',
+            \ 'GetTopicsAndCompanies': 'get_topics_and_companies',
+            \ 'GetSubmissions': 'get_submissions',
+            \ 'GetSubmission': 'get_submission',
+            \ }
+
+" Call the LeetCode API function `name` of the selected backend.
+function! leetcode#Api(name, ...) abort
+    if s:backend ==# 'vim'
+        return call('leetcode#api#' . a:name, a:000)
+    endif
+    let l:args = a:000
+    return py3eval(printf('leetcode.%s(*vim.eval("l:args"))', s:python_names[a:name]))
+endfunction
+
+" Whether a test run or submission is still in progress.
+function! leetcode#Busy() abort
+    if s:backend ==# 'vim'
+        return !empty(leetcode#api#TaskName())
+    endif
+    return !empty(filter(timer_info(), 'string(v:val.callback) =~# "CheckRunCodeTask"'))
+endfunction
+
+function! leetcode#BaseUrl() abort
+    return s:base_url
+endfunction
 
 function! s:StartSession(cookies) abort
-    return py3eval('leetcode.start_session_with_cookies(vim.eval("a:cookies"))')
+    return leetcode#Api('StartSessionWithCookies', a:cookies) ? v:true : v:false
+endfunction
+
+function! s:EnvSignIn() abort
+    let cookies = {'LEETCODE_SESSION': $LEETCODE_SESSION, 'csrftoken': $LEETCODE_CSRFTOKEN}
+    if empty(cookies.LEETCODE_SESSION)
+        echomsg '$LEETCODE_SESSION is not set. Copy the LEETCODE_SESSION (and csrftoken) '
+                    \ . 'cookie from your browser into $LEETCODE_SESSION (and $LEETCODE_CSRFTOKEN).'
+        return v:false
+    endif
+    if !s:StartSession(cookies)
+        echomsg 'cannot get progress. Please update $LEETCODE_SESSION.'
+        return v:false
+    endif
+    return v:true
 endfunction
 
 " Sign in with a saved cookie, or ask for one. With `ask`, always ask, so
@@ -98,7 +152,14 @@ function! leetcode#SignIn(ask) abort
         call s:ReportMissingDependencies()
         return v:false
     endif
-    if index(['chrome', 'firefox', 'env'], g:leetcode_browser) >= 0
+    if g:leetcode_browser ==# 'env'
+        let success = s:EnvSignIn()
+    elseif index(['chrome', 'firefox'], g:leetcode_browser) >= 0
+        if s:backend ==# 'vim'
+            echomsg printf('leetcode.vim: reading cookies from %s needs g:leetcode_backend = '
+                        \ . '''python''. Use g:leetcode_browser = ''paste'' instead.', g:leetcode_browser)
+            return v:false
+        endif
         let success = py3eval('leetcode.load_session_cookie("' . g:leetcode_browser . '")')
     else
         let success = s:PasteSignIn(a:ask)
@@ -111,7 +172,9 @@ endfunction
 
 function! leetcode#SignOut() abort
     call leetcode#auth#Save(s:host, {})
-    if s:inited
+    if s:backend ==# 'vim'
+        call leetcode#api#SignOut()
+    elseif s:inited
         python3 leetcode.session = None
     endif
     echo 'Signed out.'
@@ -122,7 +185,7 @@ function! s:CheckSignIn() abort
         call s:ReportMissingDependencies()
         return v:false
     endif
-    if !py3eval('leetcode.is_login()')
+    if !leetcode#Api('IsLogin')
         return leetcode#SignIn(0)
     endif
     return v:true
@@ -322,9 +385,8 @@ function! s:ListProblemsOfTopic(topic_slug, refresh) abort
         execute bufnr(buf_name) . 'buffer'
         let saved_view = winsaveview()
         if a:refresh ==# 'redownload'
-            let expr = printf('leetcode.get_problems_of_topic("%s")',
-                        \ a:topic_slug)
-            let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+            let b:leetcode_downloaded_problems =
+                        \ leetcode#Api('GetProblemsOfTopic', a:topic_slug)['problems']
         elseif a:refresh ==# 'norefresh'
             return
         endif
@@ -335,8 +397,8 @@ function! s:ListProblemsOfTopic(topic_slug, refresh) abort
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'topic'
         let b:leetcode_buffer_topic = a:topic_slug
-        let expr = printf('leetcode.get_problems_of_topic("%s")', a:topic_slug)
-        let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        let b:leetcode_downloaded_problems =
+                    \ leetcode#Api('GetProblemsOfTopic', a:topic_slug)['problems']
         let b:leetcode_difficulty = 'All'
         let b:leetcode_state = 'All'
         let b:leetcode_sort_column = 'id'
@@ -389,9 +451,8 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
         execute bufnr(bufname) . 'buffer'
         let saved_view = winsaveview()
         if a:refresh ==# 'redownload'
-            let expr = printf('leetcode.get_problems_of_company("%s")',
-                        \ a:company_slug)
-            let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+            let b:leetcode_downloaded_problems =
+                        \ leetcode#Api('GetProblemsOfCompany', a:company_slug)['problems']
         elseif a:refresh ==# 'norefresh'
             return
         endif
@@ -405,9 +466,8 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
         let b:leetcode_time_period = 'six-months'
         nnoremap <silent> <buffer> t :call <SID>ChooseTimePeriod()<cr>
 
-        let expr = printf('leetcode.get_problems_of_company("%s")',
-                    \ a:company_slug)
-        let b:leetcode_downloaded_problems = py3eval(expr)['problems']
+        let b:leetcode_downloaded_problems =
+                    \ leetcode#Api('GetProblemsOfCompany', a:company_slug)['problems']
         let b:leetcode_difficulty = 'All'
         let b:leetcode_state = 'All'
         let b:leetcode_sort_column = 'id'
@@ -443,13 +503,12 @@ function! leetcode#ListProblems(refresh) abort
     if s:CheckSignIn() == v:false
         return
     endif
-    let problemset = printf('leetcode.get_problems(["%s"])', g:leetcode_problemset)
     if buflisted(buf_name)
         execute bufnr(buf_name) . 'buffer'
         let saved_view = winsaveview()
         if a:refresh ==# 'redownload'
-            let expr = problemset
-            let b:leetcode_downloaded_problems = py3eval(expr)
+            let b:leetcode_downloaded_problems =
+                        \ leetcode#Api('GetProblems', [g:leetcode_problemset])
         elseif a:refresh ==# 'norefresh'
             return
         endif
@@ -460,13 +519,13 @@ function! leetcode#ListProblems(refresh) abort
         execute 'rightbelow new ' . buf_name
         call s:SetupProblemListBuffer()
         let b:leetcode_buffer_type = 'all'
-        let expr = problemset
-        let b:leetcode_downloaded_problems = py3eval(expr)
+        let b:leetcode_downloaded_problems =
+                    \ leetcode#Api('GetProblems', [g:leetcode_problemset])
         let b:leetcode_difficulty = 'All'
         let b:leetcode_state = 'All'
         let b:leetcode_sort_column = 'id'
         let b:leetcode_sort_order = 'asc'
-        let s:topics_and_companies = py3eval('leetcode.get_topics_and_companies()')
+        let s:topics_and_companies = leetcode#Api('GetTopicsAndCompanies')
     endif
 
     let topics = s:topics_and_companies['topics']
@@ -750,8 +809,7 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     endif
 
     let problem_slug = s:ProblemSlugFromFileName()
-    let expr = printf('leetcode.get_problem("%s")', problem_slug)
-    let problem = py3eval(expr)
+    let problem = leetcode#Api('GetProblem', problem_slug)
     if type(problem) != v:t_dict
         return
     endif
@@ -764,13 +822,10 @@ function! leetcode#ResetSolution(with_latest_submission) abort
 
     let code = []
     if a:with_latest_submission
-        let expr = printf('leetcode.get_submissions("%s")', problem_slug)
-        let submissions = py3eval(expr)
+        let submissions = leetcode#Api('GetSubmissions', problem_slug)
         if type(submissions) == v:t_list
             for submission in submissions
-                let expr = printf('leetcode.get_submission(%s)',
-                            \ submission['id'])
-                let detail = py3eval(expr)
+                let detail = leetcode#Api('GetSubmission', submission['id'])
                 if type(detail) == v:t_dict && detail['filetype'] ==# filetype
                     let code = detail['code']
                     break
@@ -914,7 +969,7 @@ function! leetcode#TestSolution() abort
     if exists('b:leetcode_problem')
         let problem = b:leetcode_problem
     else
-        let problem = py3eval(printf('leetcode.get_problem("%s")', slug))
+        let problem = leetcode#Api('GetProblem', slug)
         if type(problem) != v:t_dict
             return
         endif
@@ -993,7 +1048,11 @@ function! s:RunTest() abort
                 \ 'code': code,
                 \ 'test_input': test_input}
 
-    if has('timers')
+    if s:backend ==# 'vim'
+        call leetcode#api#TestSolutionAsync(args.problem_id, args.title, args.slug,
+                    \ args.filetype, args.code, args.test_input,
+                    \ function('s:HandleTaskResult', ['test_solution']))
+    elseif has('timers')
         let ok = py3eval('leetcode.test_solution_async(**vim.eval("args"))')
         if ok
             call timer_start(200, function('s:CheckRunCodeTask'),
@@ -1016,7 +1075,10 @@ function! leetcode#SubmitSolution() abort
     let slug = s:ProblemSlugFromFileName()
     let filetype = s:GuessFileType()
 
-    if has('timers')
+    if s:backend ==# 'vim'
+        call leetcode#api#SubmitSolutionAsync(slug, filetype, join(getline(1, '$'), "\n"),
+                    \ function('s:HandleTaskResult', ['submit_solution']))
+    elseif has('timers')
         let expr = printf('leetcode.submit_solution_async("%s", "%s")',
                     \ slug, filetype)
         let ok = py3eval(expr)
@@ -1154,33 +1216,32 @@ function! s:CheckRunCodeTask(timer) abort
         return
     endif
 
-    echo 'Done'
     call timer_stop(a:timer)
-    let task_name = py3eval('leetcode.task_name')
-    let task_output = py3eval('leetcode.task_output')
-    let task_err = py3eval('leetcode.task_err')
+    call s:HandleTaskResult(py3eval('leetcode.task_name'), py3eval('leetcode.task_output'),
+                \ py3eval('leetcode.task_err'))
+endfunction
 
-    if task_err != ''
-        echom 'error: '.task_err
+" Show the result of a test run or submission, from either backend.
+function! s:HandleTaskResult(task_name, output, error) abort
+    echo 'Done'
+    if a:error != ''
+        echom 'error: ' . a:error
     endif
-
-    if task_name == 'test_solution' || task_name == 'submit_solution'
-        if type(task_output) == v:t_dict
-            if task_name == 'test_solution'
-                if task_output['state'] == 'Finished' && 
-                            \task_output['answer'] != task_output['expected_answer']
-                    let task_output['state'] = 'Wrong Answer'
-                endif
-            elseif task_name == 'submit_solution'
-                if task_output['state'] == 'Finished'
-                    let task_output['state'] = 'Accepted'
-                endif
-            endif
-            call s:ShowRunResultInPreview(task_output)
+    let task_output = a:output
+    if type(task_output) != v:t_dict
+        return
+    endif
+    if a:task_name == 'test_solution'
+        if task_output['state'] == 'Finished' &&
+                    \ task_output['answer'] != task_output['expected_answer']
+            let task_output['state'] = 'Wrong Answer'
         endif
-    else
-        echo 'unrecognized task name: '.task_name
+    elseif a:task_name == 'submit_solution'
+        if task_output['state'] == 'Finished'
+            let task_output['state'] = 'Accepted'
+        endif
     endif
+    call s:ShowRunResultInPreview(task_output)
 endfunction
 
 function! s:HandleProblemListS() abort
@@ -1238,15 +1299,13 @@ function! s:ListSubmissions(slug, refresh) abort
 
     let b:leetcode_problem_slug = a:slug
 
-    let expr = printf('leetcode.get_submissions("%s")', a:slug)
-    let submissions = py3eval(expr)
+    let submissions = leetcode#Api('GetSubmissions', a:slug)
     let b:leetcode_submissions = submissions
     if type(submissions) != v:t_list
         return
     endif
 
-    let expr = printf('leetcode.get_problem("%s")', a:slug)
-    let problem = py3eval(expr)
+    let problem = leetcode#Api('GetProblem', a:slug)
     if type(problem) != v:t_dict
         return
     endif
@@ -1296,8 +1355,7 @@ function! s:HandleSubmissionsCR() abort
     let submission_nr = line_nr - b:leetcode_submission_start
     let submission_id = b:leetcode_submissions[submission_nr]['id']
 
-    let expr = printf('leetcode.get_submission(%s)', submission_id)
-    let submission = py3eval(expr)
+    let submission = leetcode#Api('GetSubmission', submission_id)
     if type(submission) != v:t_dict
         return
     endif

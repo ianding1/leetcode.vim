@@ -1,5 +1,7 @@
 """:LeetCodeTest and :LeetCodeSubmit, including the async worker thread."""
 
+import json
+
 import pytest
 
 RESULT = r'^leetcode:///result$'
@@ -40,7 +42,9 @@ def test_run_with_default_testcase(scenario, lc):
     assert '### Actual Answer\n    [0,1]' in result
     if not lc.live:
         sent = lc.server.requests_to('interpret_solution')[0]
-        assert '"lang": "cpp"' in sent['body'] and 'unordered_map' in sent['body']
+        body = json.loads(sent['body'])
+        assert body['lang'] == 'cpp' and 'unordered_map' in body['typed_code']
+        assert body['data_input'] == '[2,7,11,15]\n9' and body['question_id'] == '1'
         assert sent['headers'].get('x-csrftoken') == 'e2e-csrf'
 
 

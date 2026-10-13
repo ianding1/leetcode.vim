@@ -16,6 +16,10 @@ leetcode-sign-in`.
 
 ## Installation
 
+**Without Python (new):** set `let g:leetcode_backend = 'vim'` and make sure
+`curl` is installed. Steps 1–3 below are then not needed. This backend is new,
+so please report problems; the Python one remains the default for now.
+
 1. Vim with `+python3` feature is **required**. Neovim needs the **pynvim**
 package (for the Python in `g:python3_host_prog`, or `python3`), and the
 packages below go to that same Python:
@@ -87,6 +91,11 @@ Where the session cookie comes from: `'paste'` asks for it (see above);
 Values: `'paste'`, `'chrome'`, `'firefox'`, `'env'`
 
 Default value is `'paste'`.
+
+### `g:leetcode_backend`
+
+`'python'` (default) talks to LeetCode through Python (`requests`,
+`beautifulsoup4`); `'vim'` uses Vim script and `curl`, with no Python at all.
 
 ### `g:leetcode_base_url`
 

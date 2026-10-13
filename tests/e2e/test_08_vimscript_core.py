@@ -148,7 +148,9 @@ EXPECTED = [
 def html_lines(scenario, tmp_path, html, python_too=False):
     path = tmp_path / 'desc.html'
     path.write_text(html, 'utf-8')
-    s = scenario().signed_in({'LEETCODE_SESSION': 'x'})
+    s = scenario()
+    if python_too:
+        s.step('runtime autoload/leetcode.vim')
     s.capture('vim', 'leetcode#html#ToLines(join(readfile("{}"), "\\n"))'.format(path))
     if python_too:
         s.capture('py', "py3eval('leetcode._break_paragraph_lines(leetcode.BeautifulSoup("
@@ -165,6 +167,7 @@ def test_html_description(scenario, tmp_path):
     assert lines == EXPECTED, r.vars['vim']
 
 
+@pytest.mark.python_only
 def test_html_matches_python_on_plain_markup(scenario, lc, tmp_path):
     """Without sup/li/img (where the Vim script version is deliberately
     better), both produce the same lines for the description fixture."""

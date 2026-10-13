@@ -41,7 +41,7 @@ def host(lc):
 def test_paste_cookie_header(paste, lc):
     s = paste(HEADER)
     s.step('LeetCodeSignIn')
-    s.capture('logged_in', "py3eval('bool(leetcode.is_login())')")
+    s.capture('logged_in', 'leetcode#Api("IsLogin") ? 1 : 0')
     r = s.run()
     r.assert_ok()
     assert r.vars['logged_in'], r.describe()
@@ -57,7 +57,7 @@ def test_paste_cookie_header(paste, lc):
 def test_paste_bare_session_value(paste):
     s = paste(SESSION)
     s.step('LeetCodeSignIn')
-    s.capture('logged_in', "py3eval('bool(leetcode.is_login())')")
+    s.capture('logged_in', 'leetcode#Api("IsLogin") ? 1 : 0')
     r = s.run()
     r.assert_ok()
     assert r.vars['logged_in'], r.describe()
@@ -67,7 +67,7 @@ def test_paste_bare_session_value(paste):
 def test_paste_rejected_cookie(paste):
     s = paste('LEETCODE_SESSION=wrong; csrftoken=x')
     s.step('LeetCodeSignIn')
-    s.capture('logged_in', "py3eval('bool(leetcode.is_login())')")
+    s.capture('logged_in', 'leetcode#Api("IsLogin") ? 1 : 0')
     r = s.run()
     r.assert_ok()
     assert not r.vars['logged_in']
@@ -122,7 +122,7 @@ def test_sign_out_forgets_cookie(paste):
     s = paste(HEADER)
     s.step('LeetCodeSignIn')
     s.step('LeetCodeSignOut')
-    s.capture('logged_in', "py3eval('bool(leetcode.is_login())')")
+    s.capture('logged_in', 'leetcode#Api("IsLogin") ? 1 : 0')
     r = s.run()
     r.assert_ok()
     assert not r.vars['logged_in']
@@ -138,10 +138,11 @@ def test_list_prompts_when_not_signed_in(paste):
     assert 'Two Sum' in r.text(r'^leetcode:///problems/all$'), r.describe()
 
 
+@pytest.mark.python_only
 def test_signin_reads_browser_cookie(scenario, lc):
     s = scenario().browser_has(lc.cookies)
     s.step('LeetCodeSignIn')
-    s.capture('logged_in', "py3eval('bool(leetcode.is_login())')")
+    s.capture('logged_in', 'leetcode#Api("IsLogin") ? 1 : 0')
     r = s.run()
     r.assert_ok()
     assert r.vars['logged_in'], r.describe()
@@ -159,7 +160,7 @@ def test_signin_from_environment(scenario, lc, vim_env):
                LEETCODE_CSRFTOKEN=lc.cookies.get('csrftoken', ''))
     s = scenario(env=env).let('leetcode_browser', 'env')
     s.step('LeetCodeSignIn')
-    s.capture('logged_in', "py3eval('bool(leetcode.is_login())')")
+    s.capture('logged_in', 'leetcode#Api("IsLogin") ? 1 : 0')
     r = s.run()
     r.assert_ok()
     assert r.vars['logged_in'], r.describe()
@@ -174,12 +175,13 @@ def test_signin_from_environment_unset(scenario):
     assert '$LEETCODE_SESSION is not set' in r.output, r.describe()
 
 
+@pytest.mark.python_only
 def test_signin_with_expired_cookie(scenario, lc):
     if not lc.live:
         lc.server.override('progress', {'status': 403, 'text': 'Forbidden'})
     s = scenario().browser_has({'LEETCODE_SESSION': 'expired-or-bogus'})
     s.step('LeetCodeSignIn')
-    s.capture('logged_in', "py3eval('bool(leetcode.is_login())')")
+    s.capture('logged_in', 'leetcode#Api("IsLogin") ? 1 : 0')
     r = s.run()
     r.assert_ok()
     assert 'relogin' in r.output, r.describe()

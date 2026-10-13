@@ -3,8 +3,9 @@
 import pytest
 
 
+@pytest.mark.python_only
 def test_loads_with_dependencies_installed(scenario):
-    s = scenario().plugin_imports_itself()
+    s = scenario()
     s.step('runtime autoload/leetcode.vim')
     s.capture('inited', "py3eval('leetcode.inited')")
     s.capture('commands', "[exists(':LeetCodeList'), exists(':LeetCodeTest'), "
@@ -16,9 +17,10 @@ def test_loads_with_dependencies_installed(scenario):
     assert r.vars['commands'] == [2, 2, 2, 2, 2]
 
 
+@pytest.mark.python_only
 def test_missing_dependencies_are_reported(scenario, bare_vim_env):
     """#81: without requests/bs4, say so and how to fix it; don't crash later."""
-    s = scenario(env=bare_vim_env).plugin_imports_itself()
+    s = scenario(env=bare_vim_env)
     s.step('runtime autoload/leetcode.vim')
     s.capture('inited', "py3eval('leetcode.inited')")
     s.capture('py', "py3eval('\"%d.%d\" % sys.version_info[:2]')")
@@ -34,9 +36,9 @@ def test_missing_dependencies_are_reported(scenario, bare_vim_env):
 
 
 def test_china_uses_leetcode_cn(scenario):
-    s = scenario().plugin_imports_itself().let('leetcode_china', 1).let('leetcode_base_url', '')
+    s = scenario().let('leetcode_china', 1).let('leetcode_base_url', '')
     s.step('runtime autoload/leetcode.vim')
-    s.capture('base', "py3eval('leetcode.LC_BASE')")
+    s.capture('base', 'leetcode#BaseUrl()')
     r = s.run()
     r.assert_ok()
     assert r.vars['base'] == 'https://leetcode.cn'
@@ -45,9 +47,9 @@ def test_china_uses_leetcode_cn(scenario):
 def test_base_url_option(scenario, lc):
     """g:leetcode_base_url points the plugin at another site (here: the fake
     one), with no help from the test harness."""
-    s = scenario().plugin_imports_itself().let('leetcode_base_url', lc.base_url + '/')
+    s = scenario().let('leetcode_base_url', lc.base_url + '/')
     s.step('runtime autoload/leetcode.vim')
-    s.capture('base', "py3eval('leetcode.LC_BASE')")
+    s.capture('base', 'leetcode#BaseUrl()')
     s.type_ahead('LEETCODE_SESSION=e2e-session\\<CR>')
     s.step('LeetCodeList')
     r = s.run()

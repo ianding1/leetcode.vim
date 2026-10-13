@@ -32,6 +32,9 @@ def pytest_addoption(parser):
                 help='site to proxy to in live mode')
     g.addoption('--lc-record', default=None,
                 help='live mode: save every response as a fixture in this directory')
+    g.addoption('--lc-backend', choices=['all', 'python', 'vim'],
+                default=os.environ.get('LEETCODE_E2E_BACKEND', 'all'),
+                help='plugin backend(s) to test: Python or Vim script')
     g.addoption('--lc-editor', choices=['all', 'vim', 'nvim'],
                 default=os.environ.get('LEETCODE_E2E_EDITOR', 'all'),
                 help='editor(s) to run the plugin in; "all" runs each installed one')
@@ -43,6 +46,8 @@ def pytest_configure(config):
     config.addinivalue_line('markers', 'replay_only: needs fixture data; skipped in live mode')
     config.addinivalue_line('markers', 'live_only: only meaningful against the real site')
     config.addinivalue_line('markers', 'submits: creates a real submission in live mode')
+    config.addinivalue_line('markers', 'python_only: tests Python-backend internals')
+    config.addinivalue_line('markers', 'vim_only: tests the Vim script backend')
 
 
 def pytest_collection_modifyitems(config, items):
@@ -128,7 +133,10 @@ class EditorSetup:
     def env(self, home, with_deps=True):
         env = {k: v for k, v in os.environ.items() if not k.startswith('PYTHON')}
         env.update(HOME=str(home), PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1',
-                   TERM='dumb')
+                   TERM='dumb',
+                   # Without a terminal, Vim takes its size from these whenever it
+                   # rechecks (e.g. after system()); keep it at the scenario's size.
+                   COLUMNS='200', LINES='60')
         for xdg in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_CACHE_HOME'):
             env.pop(xdg, None)
         # The plugin must reach the local fake server directly.
@@ -166,11 +174,24 @@ def _editor_setup(name):
     return setup
 
 
+BACKENDS = ('python', 'vim')
+
+
 def pytest_generate_tests(metafunc):
     if 'editor' in metafunc.fixturenames:
         choice = metafunc.config.getoption('--lc-editor')
         editors = EDITORS if choice == 'all' else (choice,)
         metafunc.parametrize('editor', editors, indirect=True)
+    if 'backend' in metafunc.fixturenames:
+        choice = metafunc.config.getoption('--lc-backend')
+        backends = BACKENDS if choice == 'all' else (choice,)
+        params = list(backends)
+        for only in ('python', 'vim'):
+            if metafunc.definition.get_closest_marker(only + '_only'):
+                params = [b for b in backends if b == only] or [
+                    pytest.param(only, marks=pytest.mark.skip(
+                        reason='tests the {} backend only'.format(only)))]
+        metafunc.parametrize('backend', params)
 
 
 @pytest.fixture
@@ -232,13 +253,14 @@ def lc(request):
 
 
 @pytest.fixture
-def scenario(tmp_path, lc, editor, vim_env):
+def scenario(tmp_path, lc, editor, backend, vim_env):
     """Factory for an editor scenario wired to the target under test."""
     counter = [0]
 
     def make(env=None):
         counter[0] += 1
         return Scenario(tmp_path / '{}{}'.format(editor.name, counter[0]), lc.base_url,
-                        env or vim_env, editor=editor.name, host_python=editor.host_python)
+                        env or vim_env, editor=editor.name, host_python=editor.host_python,
+                        backend=backend)
 
     return make

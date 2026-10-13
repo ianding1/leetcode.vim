@@ -38,6 +38,7 @@ def test_company_time_period_key(scenario, lc):
     assert 'Time period: one-year' in r.text(r'company/google$'), r.describe()
 
 
+@pytest.mark.python_only
 def test_async_task_is_not_done_when_started(scenario, lc):
     """The status timer must not see the previous task's `task_done` flag."""
     s = with_solution(scenario, lc)
@@ -55,7 +56,7 @@ def test_run_with_unexpected_judge_state(scenario, lc):
     """An unknown judge state used to make the worker poll forever."""
     lc.server.override('check', [{'status': 200, 'json': {'state': 'FAILURE'}}])
     s = run_test(with_solution(scenario, lc))
-    s.wait_for('empty(timer_info())', 20000)
+    s.wait_for('!leetcode#Busy()', 20000)
     r = s.run()
     r.assert_ok()
     assert 'FAILURE' in r.output, r.describe()
@@ -64,7 +65,7 @@ def test_run_with_unexpected_judge_state(scenario, lc):
 def test_run_when_result_cannot_be_fetched(scenario, lc):
     lc.server.override('check', [{'status': 500, 'text': 'oops'}])
     s = run_test(with_solution(scenario, lc))
-    s.wait_for('empty(timer_info())', 20000)
+    s.wait_for('!leetcode#Busy()', 20000)
     r = s.run()
     r.assert_ok()
     assert 'cannot get the execution result' in r.output, r.describe()
@@ -76,7 +77,7 @@ def test_run_rejected_by_judge(scenario, lc):
     lc.server.override('interpret_solution', {'status': 200, 'json': {
         'error': 'You have attempted to run code too soon.'}})
     s = run_test(with_solution(scenario, lc))
-    s.wait_for('empty(timer_info())', 20000)
+    s.wait_for('!leetcode#Busy()', 20000)
     r = s.run()
     r.assert_ok()
     assert 'too soon' in r.output, r.describe()

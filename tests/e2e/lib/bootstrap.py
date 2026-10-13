@@ -1,12 +1,9 @@
-# Runs inside Vim (via :py3file) before the plugin is loaded.
-#
-# It points the plugin at the test server and, depending on the scenario,
-# installs stand-ins for browser_cookie3/keyring or injects a signed-in
-# session directly. Vim globals g:e2e_config (path to a JSON file) and
-# g:e2e_vars (result dict) are provided by the scenario script.
+# Runs inside Vim (via :py3file) before the plugin is loaded, for scenarios
+# that test reading cookies from a browser: it installs stand-ins for
+# browser_cookie3 and keyring. Vim globals g:e2e_config (path to a JSON
+# file) and g:e2e_vars (result dict) are provided by the scenario script.
 
 import json
-import os
 import sys
 import types
 
@@ -16,30 +13,8 @@ import vim
 def _bootstrap():
     with open(vim.eval('g:e2e_config'), encoding='utf-8') as f:
         cfg = json.load(f)
-
     if cfg.get('browser_cookies') is not None:
         _install_cookie_stubs(cfg)
-
-    if not cfg.get('preimport', True):
-        # Let the plugin import leetcode.py itself, exactly as it would for a
-        # user. The base URL then comes from g:leetcode_china.
-        return
-
-    # The plugin only sets LEETCODE_BASE_URL and appends autoload/ to
-    # sys.path before `import leetcode`. Doing the same here first means its
-    # own `import` reuses this module, which talks to the URL under test.
-    os.environ['LEETCODE_BASE_URL'] = cfg['base_url']
-    if cfg['autoload_dir'] not in sys.path:
-        sys.path.append(cfg['autoload_dir'])
-    import leetcode  # raises here if dependencies are broken
-    # Bind it in Vim's Python globals, where the plugin's own import puts it.
-    globals()['leetcode'] = leetcode
-
-    if cfg.get('session_cookies'):
-        import requests
-        leetcode.session = requests.Session()
-        for name, value in cfg['session_cookies'].items():
-            leetcode.session.cookies.set(name, value)
 
 
 def _install_cookie_stubs(cfg):

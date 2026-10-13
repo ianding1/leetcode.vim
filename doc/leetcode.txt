@@ -84,6 +84,17 @@ g:leetcode_base_url The LeetCode site to use, e.g. "https://leetcode.cn".
 
                     Default: ''
 
+                                                      *g:leetcode_backend*
+g:leetcode_backend  How the plugin talks to LeetCode:
+                    "python"   through autoload/leetcode.py. Needs Vim with
+                               +python3 (Neovim: pynvim) and the requests and
+                               beautifulsoup4 packages.
+                    "vim"      through Vim script and curl, no Python needed.
+                               New; it does not support reading cookies
+                               from a browser ("chrome", "firefox").
+
+                    Default: "python"
+
                                                       *g:leetcode_browser*
 g:leetcode_browser  Where the LeetCode session cookie comes from:
                     "paste"    ask for it, see |leetcode-sign-in|.

@@ -66,17 +66,19 @@ class VimResult:
 class Scenario:
     """Builds a Vim script step by step, then runs it."""
 
-    def __init__(self, workdir, base_url, env, timeout=60, editor='vim', host_python=None):
+    def __init__(self, workdir, base_url, env, timeout=60, editor='vim', host_python=None,
+                 backend='python'):
         self.workdir = Path(workdir)
         self.editor = editor
         self.host_python = host_python
+        self.backend = backend
+        self.base_url = base_url
+        self.saved_cookies = None
         self.env = env
         self.timeout = timeout
         self.config = {
             'base_url': base_url,
             'autoload_dir': str(REPO_ROOT / 'autoload'),
-            'preimport': True,
-            'session_cookies': None,
             'browser_cookies': None,
         }
         self.options = {
@@ -84,14 +86,15 @@ class Scenario:
             'leetcode_browser': 'paste',
             'leetcode_base_url': base_url,
             'leetcode_cookie_file': str(self.workdir / 'cookies.json'),
+            'leetcode_backend': backend,
         }
         self.lines = []
 
     # ---- configuration ---------------------------------------------------
 
     def signed_in(self, cookies):
-        """Start with a session that already carries these cookies."""
-        self.config['session_cookies'] = dict(cookies)
+        """Start with these cookies saved, as if pasted at an earlier sign-in."""
+        self.saved_cookies = dict(cookies)
         return self
 
     def browser_has(self, cookies, browser='chrome'):
@@ -102,11 +105,6 @@ class Scenario:
 
     def let(self, name, value):
         self.options[name] = value
-        return self
-
-    def plugin_imports_itself(self):
-        """Skip the harness pre-import; load leetcode.py the way users do."""
-        self.config['preimport'] = False
         return self
 
     # ---- steps -----------------------------------------------------------
@@ -155,6 +153,10 @@ class Scenario:
         out_path = self.workdir / (name + '.result.json')
         script_path = self.workdir / (name + '.vim')
         config_path.write_text(json.dumps(self.config), 'utf-8')
+        if self.saved_cookies is not None:
+            host = self.base_url.split('://', 1)[1].split('/')[0]
+            Path(self.options['leetcode_cookie_file']).write_text(
+                json.dumps({host: self.saved_cookies}), 'utf-8')
         if out_path.exists():
             out_path.unlink()
 
@@ -169,8 +171,9 @@ class Scenario:
             script.append('let g:python3_host_prog = {}'.format(_vim_str(self.host_python)))
         for k, v in self.options.items():
             script.append('let g:{} = {}'.format(k, _vim_str(v) if isinstance(v, str) else v))
+        if self.config['browser_cookies'] is not None:
+            script.append('py3file {}'.format(LIB_DIR / 'bootstrap.py'))
         script += [
-            'py3file {}'.format(LIB_DIR / 'bootstrap.py'),
             'set runtimepath^={}'.format(REPO_ROOT),
             'runtime plugin/leetcode.vim',
         ]

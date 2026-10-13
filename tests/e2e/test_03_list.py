@@ -80,7 +80,8 @@ def test_list_survives_missing_topics(scenario, lc, page):
 def test_list_topics_are_present(scenario, lc):
     """Topics come from scraping /problemset/all/ HTML."""
     s = scenario().signed_in(lc.cookies)
-    s.capture('tc', "py3eval('leetcode.get_topics_and_companies()')")
+    s.step('call leetcode#SignIn(0)')
+    s.capture('tc', 'leetcode#Api("GetTopicsAndCompanies")')
     r = s.run()
     r.assert_ok()
     tc = r.vars['tc']
