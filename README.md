@@ -35,11 +35,19 @@ for Neovim:
 ```sh
 pip3 install pynvim --user
 ```
-2. Install **keyring** and **browser-cookie3**:
+2. Install **requests** and **beautifulsoup4** for the Python that Vim uses.
+This is not always the `python3` on your `PATH`: check with
+`:py3 import sys; print(sys.version)`, then use the matching `pythonX.Y`:
+```sh
+python3 -m pip install --user requests beautifulsoup4
+```
+If they are missing, the plugin says so and prints the command to run.
+3. To read the session cookie from your browser, also install **keyring** and
+**browser-cookie3** (not needed with `g:leetcode_browser = 'env'`):
 ```sh
 pip3 install keyring browser-cookie3 --user
 ```
-3. Install the plugin:
+4. Install the plugin:
 ```vim
 Plug 'ianding1/leetcode.vim'
 ```
@@ -67,7 +75,7 @@ nnoremap <leader>li :LeetCodeSignIn<cr>
 
 ### `g:leetcode_china`
 
-When non-zero, use LeetCode China accounts instead.
+When non-zero, use LeetCode China (leetcode.cn) accounts instead.
 
 Default value is `0`.
 
@@ -82,9 +90,12 @@ Default value is `'cpp'`.
 
 ### `g:leetcode_browser`
 
-Set to the browser that stores the LeetCode session cookie.
+Set to the browser that stores the LeetCode session cookie, or to `'env'` to
+read the cookies from the environment instead: copy the `LEETCODE_SESSION` and
+`csrftoken` cookies from a signed-in browser into `$LEETCODE_SESSION` and
+`$LEETCODE_CSRFTOKEN`.
 
-Values: `'disabled'`, `'chrome'`, `'firefox'`
+Values: `'disabled'`, `'chrome'`, `'firefox'`, `'env'`
 
 Default value is `'disabled'`.
 

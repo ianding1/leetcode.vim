@@ -34,6 +34,10 @@ ROUTES = [
     ('GET', r'^/submissions/detail/(?P<id>[^/]+)/?$', 'submission_page'),
 ]
 
+# Routes that answer 403 in replay mode unless a session cookie is sent, so
+# sign-in bugs that drop the cookie are caught.
+REQUIRES_LOGIN = {'progress'}
+
 # Headers that must not be copied between the plugin and the upstream.
 HOP_HEADERS = {'host', 'connection', 'content-length', 'transfer-encoding',
                'content-encoding', 'keep-alive', 'accept-encoding'}
@@ -145,6 +149,9 @@ class FakeLeetCode:
             status, headers, payload, ok = self._forward(h, body)
             if ok and self.record_dir and route:
                 self._record(route, key, status, headers, payload)
+        elif (route in REQUIRES_LOGIN and not self._has_override(route, key)
+              and 'LEETCODE_SESSION=' not in record['headers'].get('cookie', '')):
+            status, headers, payload = 403, {'Content-Type': 'text/plain'}, b'not signed in'
         else:
             status, headers, payload = self._replay(route, key)
 

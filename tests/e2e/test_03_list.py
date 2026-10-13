@@ -62,12 +62,14 @@ def test_list_filters_by_difficulty(scenario, lc):
     assert 'Add Two Numbers' in text and 'Two Sum ' not in text
 
 
-@pytest.mark.xfail(strict=True, reason='#78: if topics/companies cannot be fetched, '
-                                       'get_topics_and_companies() returns [] and '
-                                       'ListProblems fails with E684/E716')
-def test_list_survives_missing_topics(scenario, lc):
-    if not lc.live:
-        lc.server.override('problemset_page', {'status': 403, 'text': 'Forbidden'})
+@pytest.mark.replay_only
+@pytest.mark.parametrize('page', [
+    {'status': 403, 'text': 'Forbidden'},
+    {'status': 200, 'text': '<a class="sm-topic" href="/tag/x/">no spans</a>'},
+], ids=['http-error', 'unexpected-html'])
+def test_list_survives_missing_topics(scenario, lc, page):
+    """#78: used to fail with E684 in ListProblems."""
+    lc.server.override('problemset_page', page)
     s = scenario().signed_in(lc.cookies)
     s.step('LeetCodeList')
     r = s.run()

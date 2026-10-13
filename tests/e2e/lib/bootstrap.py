@@ -25,13 +25,12 @@ def _bootstrap():
         # user. The base URL then comes from g:leetcode_china.
         return
 
-    # The plugin only sets LEETCODE_BASE_URL and appends these paths before
-    # `import leetcode`. Doing the same here first means its own `import`
-    # reuses this module, which talks to the URL under test.
+    # The plugin only sets LEETCODE_BASE_URL and appends autoload/ to
+    # sys.path before `import leetcode`. Doing the same here first means its
+    # own `import` reuses this module, which talks to the URL under test.
     os.environ['LEETCODE_BASE_URL'] = cfg['base_url']
-    for p in (cfg['autoload_dir'], os.path.join(cfg['autoload_dir'], 'thirdparty')):
-        if p not in sys.path:
-            sys.path.append(p)
+    if cfg['autoload_dir'] not in sys.path:
+        sys.path.append(cfg['autoload_dir'])
     import leetcode  # raises here if dependencies are broken
     # Bind it in Vim's Python globals, where the plugin's own import puts it.
     globals()['leetcode'] = leetcode

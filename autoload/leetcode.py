@@ -10,8 +10,10 @@ try:
     from bs4 import BeautifulSoup
     import requests
     inited = 1
-except ImportError:
+    import_error = ''
+except ImportError as e:
     inited = 0
+    import_error = str(e)
 
 try:
     import vim
@@ -45,6 +47,14 @@ LC_PROGRESS_ALL = LC_BASE + '/api/progress/all/'
 
 EMPTY_FREQUENCIES = [0, 0, 0, 0, 0, 0, 0, 0]
 
+# Requests without a browser-like User-Agent have been reported to get 403s
+# from LeetCode (PRs #77, #83).
+USER_AGENT = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+              '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
+
+# Cookies needed to act as the signed-in user.
+SESSION_COOKIES = ('LEETCODE_SESSION', 'csrftoken')
+
 session = None
 task_running = False
 task_done = False
@@ -70,6 +80,7 @@ def _make_headers():
     assert is_login()
     headers = {'Origin': LC_BASE,
                'Referer': LC_BASE,
+               'User-Agent': USER_AGENT,
                'X-Requested-With': 'XMLHttpRequest',
                'X-CSRFToken': session.cookies.get('csrftoken', '')}
     return headers
@@ -157,7 +168,38 @@ def get_progress():
     return data
 
 
+def _start_session(cookies):
+    global session
+    session = requests.Session()
+    for cookie in cookies:
+        session.cookies.set_cookie(cookie)
+    return get_progress() is not None
+
+
+def _cookies_from_env():
+    """Build session cookies from $LEETCODE_SESSION and $LEETCODE_CSRFTOKEN."""
+    cookies = []
+    for name, var in (('LEETCODE_SESSION', 'LEETCODE_SESSION'),
+                      ('csrftoken', 'LEETCODE_CSRFTOKEN')):
+        value = os.environ.get(var)
+        if value:
+            cookies.append(requests.cookies.create_cookie(name, value))
+    return cookies
+
+
 def load_session_cookie(browser):
+    if browser == 'env':
+        cookies = _cookies_from_env()
+        if not any(c.name == 'LEETCODE_SESSION' for c in cookies):
+            _echoerr('$LEETCODE_SESSION is not set. Copy the LEETCODE_SESSION (and '
+                     'csrftoken) cookie from your browser into $LEETCODE_SESSION '
+                     '(and $LEETCODE_CSRFTOKEN).')
+            return False
+        if not _start_session(cookies):
+            _echoerr('cannot get progress. Please update $LEETCODE_SESSION.')
+            return False
+        return True
+
     if browser_cookie3 is None:
         _echoerr('browser_cookie3 not installed: pip3 install browser_cookie3 --user')
         return False
@@ -165,27 +207,25 @@ def load_session_cookie(browser):
         _echoerr('keyring not installed: pip3 install keyring --user')
         return False
 
-    session_cookie_raw = keyring.get_password('leetcode.vim', 'SESSION_COOKIE')
-    if session_cookie_raw is None:
-        cookies = getattr(browser_cookie3, browser)(domain_name=LC_BASE.split('/')[-1])
-        for cookie in cookies:
-            if cookie.name == 'LEETCODE_SESSION':
-                session_cookie = cookie
-                session_cookie_raw = pickle.dumps(cookie, protocol=0).decode('utf-8')
-                break
-        else:
+    cookies = None
+    cached = keyring.get_password('leetcode.vim', 'SESSION_COOKIE')
+    if cached is not None:
+        cookies = pickle.loads(cached.encode('utf-8'))
+        if not isinstance(cookies, list):  # cached by an older version
+            cookies = [cookies]
+        if any(c.is_expired() for c in cookies):
+            cookies = None
+
+    if cookies is None:
+        jar = getattr(browser_cookie3, browser)(domain_name=LC_BASE.split('/')[-1])
+        cookies = [c for c in jar if c.name in SESSION_COOKIES]
+        if not any(c.name == 'LEETCODE_SESSION' for c in cookies):
             _echoerr('Leetcode session cookie not found. Please login in browser.')
             return False
-        keyring.set_password('leetcode.vim', 'SESSION_COOKIE', session_cookie_raw)
-    else:
-        session_cookie = pickle.loads(session_cookie_raw.encode('utf-8'))
+        keyring.set_password('leetcode.vim', 'SESSION_COOKIE',
+                             pickle.dumps(cookies, protocol=0).decode('utf-8'))
 
-    global session
-    session = requests.Session()
-    session.cookies.set_cookie(session_cookie)
-
-    progress = get_progress()
-    if progress is None:
+    if not _start_session(cookies):
         _echoerr('cannot get progress. Please relogin in your browser.')
         keyring.delete_password('leetcode.vim', 'SESSION_COOKIE')
         return False
@@ -551,7 +591,7 @@ def get_submission(sid):
         if my_runtime >= int(runtime):
             break
 
-    submission['runtime_percentile'] = '{:.1f}%'.format(accum)
+    submission['runtime_percentile'] = round(accum, 1)
     return submission
 
 
@@ -576,15 +616,19 @@ def get_topics_and_companies():
 
     if res.status_code != 200:
         _echoerr('cannot get topics')
-        return []
+        return {'topics': [], 'companies': []}
 
     soup = BeautifulSoup(res.text, features='html.parser')
 
-    topic_elements = soup.find_all(class_='sm-topic')
-    topics = [_process_topic_element(topic) for topic in topic_elements]
+    try:
+        topic_elements = soup.find_all(class_='sm-topic')
+        topics = [_process_topic_element(topic) for topic in topic_elements]
 
-    company_elements = soup.find_all(class_='sm-company')
-    companies = [_process_company_element(company) for company in company_elements]
+        company_elements = soup.find_all(class_='sm-company')
+        companies = [_process_company_element(company) for company in company_elements]
+    except (AttributeError, IndexError, TypeError):
+        _echoerr('cannot parse topics')
+        return {'topics': [], 'companies': []}
 
     return {
         'topics': topics,

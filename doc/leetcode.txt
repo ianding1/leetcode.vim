@@ -66,9 +66,21 @@ g:leetcode_password Deprecated in favor of keyring. Set it to the password to
                     Default: ''
 
                                                         *g:leetcode_china*
-g:leetcode_china    Set it to 1 to login to a LeetCode China account.
+g:leetcode_china    Set it to 1 to login to a LeetCode China (leetcode.cn)
+                    account.
 
                     Default: 0
+
+                                                      *g:leetcode_browser*
+g:leetcode_browser  Where to find the LeetCode session cookie. "chrome" and
+                    "firefox" read it from the browser (needs the
+                    browser-cookie3 and keyring packages). "env" reads
+                    $LEETCODE_SESSION and $LEETCODE_CSRFTOKEN, which you copy
+                    from the LEETCODE_SESSION and csrftoken cookies of a
+                    signed-in browser.
+
+                    Default: "disabled"
+                    Values: "disabled", "chrome", "firefox", "env"
 
                                               *g:leetcode_solution_filetype*
 g:leetcode_solution_filetype

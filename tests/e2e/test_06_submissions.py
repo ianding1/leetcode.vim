@@ -36,9 +36,6 @@ def test_open_submission(scenario, lc):
 
 
 @pytest.mark.replay_only
-@pytest.mark.xfail(strict=True, reason="FormatResult tests `if string(percentile)`; for a "
-                                       "string like '100.0%' that is \"'100.0%'\", which "
-                                       "Vim treats as 0, so the rank is never shown")
 def test_open_submission_shows_runtime_rank(scenario, lc):
     s = scenario().signed_in(lc.cookies)
     s.step('LeetCodeList')
@@ -49,4 +46,4 @@ def test_open_submission_shows_runtime_rank(scenario, lc):
     r = s.run()
     r.assert_ok()
     # 4 ms is the fastest bucket in the fixture's runtime distribution.
-    assert 'Faster than 100.0%' in r.text(r'^1\.two_sum\.123456\.cpp$')
+    assert 'Faster than 100.0% submissions' in r.text(r'^1\.two_sum\.123456\.cpp$')

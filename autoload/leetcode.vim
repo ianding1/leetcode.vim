@@ -7,19 +7,16 @@ let s:current_dir = expand("<sfile>:p:h")
 
 python3 <<EOF
 import os
+import sys
 import vim
 
 plugin_dir = vim.eval('s:current_dir')
-thirdparty_dir = os.path.join(plugin_dir, 'thirdparty')
 
 if plugin_dir not in sys.path:
   sys.path.append(plugin_dir)
 
-if thirdparty_dir not in sys.path:
-  sys.path.append(thirdparty_dir)
-
 if int(vim.eval('g:leetcode_china')):
-    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode-cn.com'
+    os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.cn'
 else:
     os.environ['LEETCODE_BASE_URL'] = 'https://leetcode.com'
 
@@ -27,6 +24,19 @@ import leetcode
 EOF
 
 let s:inited = py3eval('leetcode.inited')
+
+function! s:ReportMissingDependencies() abort
+    let py_version = py3eval('"%d.%d" % sys.version_info[:2]')
+    echohl ErrorMsg
+    echomsg printf('leetcode.vim: %s. Install the dependencies for the Python %s '
+                \ . 'that Vim uses: python%s -m pip install --user requests beautifulsoup4',
+                \ py3eval('leetcode.import_error'), py_version, py_version)
+    echohl None
+endfunction
+
+if !s:inited
+    call s:ReportMissingDependencies()
+endif
 
 if g:leetcode_debug
     python3 leetcode.enable_logging()
@@ -46,10 +56,18 @@ function! s:LoadSessionCookie() abort
 endfunction
 
 function! leetcode#SignIn(ask) abort
+    if !s:inited
+        call s:ReportMissingDependencies()
+        return v:false
+    endif
     return s:LoadSessionCookie()
 endfunction
 
 function! s:CheckSignIn() abort
+    if !s:inited
+        call s:ReportMissingDependencies()
+        return v:false
+    endif
     if !py3eval('leetcode.is_login()')
         return leetcode#SignIn(0)
     endif
@@ -978,7 +996,7 @@ function! s:FormatResult(result_) abort
                 \ '## Runtime',
                 \ '  - ' . result['runtime'],
                 \ '']
-    if string(result['runtime_percentile'])
+    if !empty(result['runtime_percentile'])
         let message = printf('  - Faster than %s%% submissions',
                     \ result['runtime_percentile'])
         call extend(output, [

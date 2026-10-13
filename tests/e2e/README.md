@@ -59,16 +59,10 @@ which endpoints still work, even when a UI command fails on an earlier call.
 
 ## Known failures
 
-Tests for confirmed bugs are marked `xfail(strict=True)` with the reason.
-They show up as `XFAIL` while the bug exists. Once the bug is fixed they
-`XPASS` and fail the run, so the marker gets removed.
-
-| Test | Bug |
-| --- | --- |
-| `test_loads_with_only_vendored_dependencies` | #81: bundled urllib3 1.25 doesn't import on Python ≥ 3.12 |
-| `test_missing_dependencies_are_reported_on_load` | import failure is silent until a later `NameError` |
-| `test_list_survives_missing_topics` | #78: topic scraping fails → `E684` in `ListProblems` |
-| `test_open_submission_shows_runtime_rank` | `if string(percentile)` is false for string percentiles |
+When a test pins down a confirmed bug that isn't fixed yet, mark it
+`xfail(strict=True)` and give the bug as the reason. It shows as `XFAIL`
+while the bug exists, then `XPASS` (failing the run) once it is fixed, so the
+marker gets removed. There are none at the moment.
 
 ## Writing a test
 
