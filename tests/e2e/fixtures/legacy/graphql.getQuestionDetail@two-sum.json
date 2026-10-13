@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "json": {
+    "data": {
+      "question": {
+        "questionId": "1",
+        "questionFrontendId": "1",
+        "title": "Two Sum",
+        "content": "<p>Given an array of integers <code>nums</code>&nbsp;and an integer <code>target</code>, return <em>indices of the two numbers such that they add up to <code>target</code></em>.</p>\n<p><strong>Example 1:</strong></p>\n<pre>Input: nums = [2,7,11,15], target = 9\nOutput: [0,1]</pre>",
+        "translatedContent": null,
+        "stats": "{\"totalAccepted\": \"4K\", \"totalSubmission\": \"8K\", \"totalAcceptedRaw\": 4000, \"totalSubmissionRaw\": 8000, \"acRate\": \"50.0%\"}",
+        "difficulty": "Easy",
+        "codeDefinition": "[{\"value\": \"cpp\", \"text\": \"C++\", \"defaultCode\": \"class Solution {\\r\\npublic:\\r\\n    vector<int> twoSum(vector<int>& nums, int target) {\\r\\n        \\r\\n    }\\r\\n};\"}, {\"value\": \"python3\", \"text\": \"Python3\", \"defaultCode\": \"class Solution:\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\\n        \"}]",
+        "sampleTestCase": "[2,7,11,15]\n9",
+        "enableRunCode": true
+      }
+    }
+  }
+}

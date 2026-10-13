@@ -1,0 +1,4 @@
+{
+  "status": 200,
+  "text": "<!DOCTYPE html>\n<html><body><div id=\"app\">\n<div class=\"topic-list\">\n  <a class=\"sm-topic\" href=\"/tag/array/\"><span class=\"text-gray\">Array</span><span class=\"badge\">2</span></a>\n  <a class=\"sm-topic\" href=\"/tag/hash-table/\"><span class=\"text-gray\">Hash Table</span><span class=\"badge\">1</span></a>\n</div>\n<div class=\"company-list\">\n  <a class=\"sm-company\" href=\"/company/google/\"><span class=\"text-gray\">Google</span><span class=\"badge\">2</span></a>\n</div>\n</div></body></html>\n"
+}

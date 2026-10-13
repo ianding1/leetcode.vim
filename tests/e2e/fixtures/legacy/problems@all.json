@@ -1,0 +1,99 @@
+{
+  "status": 200,
+  "json": {
+    "category_slug": "all",
+    "num_total": 4,
+    "stat_status_pairs": [
+      {
+        "stat": {
+          "question_id": 1,
+          "frontend_question_id": 1,
+          "question__title": "Two Sum",
+          "question__title_slug": "two-sum",
+          "question__hide": false,
+          "total_acs": 4000,
+          "total_submitted": 8000
+        },
+        "status": "ac",
+        "difficulty": {
+          "level": 1
+        },
+        "paid_only": false,
+        "is_favor": false,
+        "frequency": 5.0
+      },
+      {
+        "stat": {
+          "question_id": 2,
+          "frontend_question_id": 2,
+          "question__title": "Add Two Numbers",
+          "question__title_slug": "add-two-numbers",
+          "question__hide": false,
+          "total_acs": 1000,
+          "total_submitted": 3000
+        },
+        "status": "notac",
+        "difficulty": {
+          "level": 2
+        },
+        "paid_only": false,
+        "is_favor": false,
+        "frequency": 2.5
+      },
+      {
+        "stat": {
+          "question_id": 4,
+          "frontend_question_id": 4,
+          "question__title": "Median of Two Sorted Arrays",
+          "question__title_slug": "median-of-two-sorted-arrays",
+          "question__hide": false,
+          "total_acs": 300,
+          "total_submitted": 1000
+        },
+        "status": null,
+        "difficulty": {
+          "level": 3
+        },
+        "paid_only": false,
+        "is_favor": false,
+        "frequency": 1.0
+      },
+      {
+        "stat": {
+          "question_id": 156,
+          "frontend_question_id": 156,
+          "question__title": "Binary Tree Upside Down",
+          "question__title_slug": "binary-tree-upside-down",
+          "question__hide": false,
+          "total_acs": 50,
+          "total_submitted": 100
+        },
+        "status": null,
+        "difficulty": {
+          "level": 2
+        },
+        "paid_only": true,
+        "is_favor": false,
+        "frequency": 0.0
+      },
+      {
+        "stat": {
+          "question_id": 999,
+          "frontend_question_id": 999,
+          "question__title": "Hidden Problem",
+          "question__title_slug": "hidden-problem",
+          "question__hide": true,
+          "total_acs": 1,
+          "total_submitted": 2
+        },
+        "status": null,
+        "difficulty": {
+          "level": 1
+        },
+        "paid_only": false,
+        "is_favor": false,
+        "frequency": 0.0
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "status": 200,
+  "json": {
+    "has_next": false,
+    "submissions_dump": [
+      {
+        "id": 123456,
+        "lang": "cpp",
+        "time": "1 hour ago",
+        "status_display": "Accepted",
+        "runtime": "4 ms",
+        "url": "/submissions/detail/123456/",
+        "is_pending": "Not Pending"
+      },
+      {
+        "id": 123400,
+        "lang": "python3",
+        "time": "2 hours ago",
+        "status_display": "Wrong Answer",
+        "runtime": "N/A",
+        "url": "/submissions/detail/123400/",
+        "is_pending": "Not Pending"
+      }
+    ]
+  }
+}

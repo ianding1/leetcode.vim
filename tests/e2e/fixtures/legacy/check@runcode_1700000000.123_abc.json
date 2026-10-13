@@ -1,0 +1,34 @@
+[
+  {
+    "status": 200,
+    "json": {
+      "state": "PENDING"
+    }
+  },
+  {
+    "status": 200,
+    "json": {
+      "state": "STARTED"
+    }
+  },
+  {
+    "status": 200,
+    "json": {
+      "state": "SUCCESS",
+      "status_code": 10,
+      "status_runtime": "0 ms",
+      "code_answer": [
+        "[0,1]"
+      ],
+      "expected_code_answer": [
+        "[0,1]"
+      ],
+      "code_output": [],
+      "correct_answer": true,
+      "total_correct": null,
+      "total_testcases": null,
+      "run_success": true,
+      "lang": "cpp"
+    }
+  }
+]

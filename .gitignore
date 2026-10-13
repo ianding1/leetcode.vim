@@ -4,3 +4,7 @@ __pycache__/
 *$py.class
 *.log
 tags
+
+# e2e test cache (Python deps for Vim)
+.e2e-cache/
+tests/e2e/fixtures/recorded/

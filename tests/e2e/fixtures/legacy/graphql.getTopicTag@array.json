@@ -1,0 +1,36 @@
+{
+  "status": 200,
+  "json": {
+    "data": {
+      "topicTag": {
+        "name": "Array",
+        "translatedName": null,
+        "questions": [
+          {
+            "status": "ac",
+            "questionId": "1",
+            "questionFrontendId": "1",
+            "title": "Two Sum",
+            "titleSlug": "two-sum",
+            "translatedTitle": null,
+            "difficulty": "Easy",
+            "isPaidOnly": false,
+            "stats": "{\"totalAcceptedRaw\": 10, \"totalSubmissionRaw\": 20}"
+          },
+          {
+            "status": null,
+            "questionId": "4",
+            "questionFrontendId": "4",
+            "title": "Median of Two Sorted Arrays",
+            "titleSlug": "median-of-two-sorted-arrays",
+            "translatedTitle": null,
+            "difficulty": "Hard",
+            "isPaidOnly": false,
+            "stats": "{\"totalAcceptedRaw\": 10, \"totalSubmissionRaw\": 20}"
+          }
+        ],
+        "frequencies": "{\"1\": 5.0, \"4\": 1.0}"
+      }
+    }
+  }
+}

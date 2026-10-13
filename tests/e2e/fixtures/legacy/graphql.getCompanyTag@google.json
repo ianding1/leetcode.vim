@@ -1,0 +1,38 @@
+{
+  "status": 200,
+  "json": {
+    "data": {
+      "companyTag": {
+        "name": "Google",
+        "translatedName": null,
+        "questions": [
+          {
+            "status": "ac",
+            "questionId": "1",
+            "questionFrontendId": "1",
+            "title": "Two Sum",
+            "titleSlug": "two-sum",
+            "translatedTitle": null,
+            "difficulty": "Easy",
+            "isPaidOnly": false,
+            "stats": "{\"totalAcceptedRaw\": 10, \"totalSubmissionRaw\": 20}",
+            "frequencyTimePeriod": 1
+          },
+          {
+            "status": "notac",
+            "questionId": "2",
+            "questionFrontendId": "2",
+            "title": "Add Two Numbers",
+            "titleSlug": "add-two-numbers",
+            "translatedTitle": null,
+            "difficulty": "Medium",
+            "isPaidOnly": false,
+            "stats": "{\"totalAcceptedRaw\": 10, \"totalSubmissionRaw\": 20}",
+            "frequencyTimePeriod": 1
+          }
+        ],
+        "frequencies": "{\"1\": [0, 0, 0, 0, 9, 8, 7, 6], \"2\": [0, 0, 0, 0, 3, 2, 1, 1]}"
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "status": 200,
+    "json": {
+      "state": "PENDING"
+    }
+  },
+  {
+    "status": 200,
+    "json": {
+      "state": "SUCCESS",
+      "judge_type": "large",
+      "status_code": 10,
+      "status_runtime": "4 ms",
+      "runtime_percentile": 95.5,
+      "total_correct": 57,
+      "total_testcases": 57,
+      "code_output": "",
+      "expected_output": "",
+      "std_output": "",
+      "last_testcase": "",
+      "run_success": true,
+      "lang": "cpp"
+    }
+  }
+]
