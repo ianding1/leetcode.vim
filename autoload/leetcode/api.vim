@@ -423,7 +423,7 @@ function! leetcode#api#GetSubmission(sid) abort
     let dist = reverse(copy(json_decode(dist_str).distribution))
     " The second "runtime" key holds the runtime in milliseconds.
     let first = matchend(s, "runtime: '[^']*'")
-    let my_runtime = first < 0 ? 0 : str2nr(s:Group1(s[first:], "runtime: '\\([^']*\\)'", '0'))
+    let my_runtime = first < 0 ? 0 : str2nr(s:Group1(strpart(s, first), "runtime: '\\([^']*\\)'", '0'))
     let accum = 0.0
     for [runtime, frequency] in dist
         let accum += frequency

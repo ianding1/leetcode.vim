@@ -1,9 +1,10 @@
 " vim: sts=4 sw=4 expandtab
-if exists("g:leetcode_list_buffer_exists")
+scriptencoding utf-8
+if exists('g:leetcode_list_buffer_exists')
     echo 'buffer exists'
     finish
 endif
-let s:current_dir = expand("<sfile>:p:h")
+let s:current_dir = expand('<sfile>:p:h')
 
 if !empty(get(g:, 'leetcode_base_url', ''))
     let s:base_url = substitute(g:leetcode_base_url, '/\+$', '', '')
@@ -353,7 +354,7 @@ function! s:PrintProblemList() abort
     let b:leetcode_problem_end_line = line('$')
 endfunction
 
-function! s:PrintDifficultyTags()
+function! s:PrintDifficultyTags() abort
     let tags = {'All': 0,  'Easy': 0, 'Medium': 0, 'Hard': 0}
     for problem in b:leetcode_problems
         let tags['All'] += 1
@@ -366,7 +367,7 @@ function! s:PrintDifficultyTags()
                 \ printf('Hard:%d', tags['Hard'])]
 endfunction
 
-function! s:PrintStatusTags()
+function! s:PrintStatusTags() abort
     let tags = {'All': 0, 'Todo': 0, 'Solved': 0, 'Attempted': 0}
     for problem in b:leetcode_problems
         let tags['All'] += 1
@@ -579,7 +580,7 @@ function! s:ProblemSlugFromFileName() abort
     if len(parts) == 1
         " Old style, e.g. two-sum
         return s:FileNameToSlug(parts[0])
-    elseif len(parts) == 2 && parts[0] =~ '\v^[0-9]+$'
+    elseif len(parts) == 2 && parts[0] =~# '\v^[0-9]+$'
         " New style, e.g. 1.two-sum
         return s:FileNameToSlug(parts[1])
     elseif len(parts) == 2
@@ -611,7 +612,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < get(b:, 'leetcode_topic_end_line', 0)
         let topic_slug = expand('<cWORD>')
         let topic_slug = s:TagName(topic_slug)
-        if topic_slug != ''
+        if topic_slug !=# ''
             call s:ListProblemsOfTopic(topic_slug, 'redraw')
         endif
         return
@@ -621,7 +622,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < get(b:, 'leetcode_company_end_line', 0)
         let company_slug = expand('<cWORD>')
         let company_slug = s:TagName(company_slug)
-        if company_slug != ''
+        if company_slug !=# ''
             call s:ListProblemsOfCompany(company_slug, 'redraw')
         endif
         return
@@ -631,7 +632,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_difficulty_end_line
         let difficulty_slug = expand('<cWORD>')
         let difficulty_slug = s:TagName(difficulty_slug)
-        if difficulty_slug != ''
+        if difficulty_slug !=# ''
             if b:leetcode_difficulty != difficulty_slug
                 let b:leetcode_difficulty = difficulty_slug
                 call s:RedrawProblemList()
@@ -643,7 +644,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_status_end_line
         let status_slug = expand('<cWORD>')
         let status_slug = s:TagName(status_slug)
-        if status_slug != ''
+        if status_slug !=# ''
             let new_state = s:ParseState(status_slug)
             if b:leetcode_state != new_state
                 let b:leetcode_state = new_state
@@ -672,31 +673,31 @@ function! s:HandleProblemListCR() abort
     endif
 endfunction
 
-function! s:ParseState(status)
-    if a:status == 'Todo'
+function! s:ParseState(status) abort
+    if a:status ==# 'Todo'
         return ' '
-    elseif a:status == 'Solved'
+    elseif a:status ==# 'Solved'
         return 'X'
-    elseif a:status == 'Attempted'
+    elseif a:status ==# 'Attempted'
         return '?'
     else
         return 'All'
     endif
 endfunction
 
-function! s:StateToName(state)
-    if a:state == ' '
+function! s:StateToName(state) abort
+    if a:state ==# ' '
         return 'Todo'
-    elseif a:state == 'X'
+    elseif a:state ==# 'X'
         return 'Solved'
-    elseif a:state == '?'
+    elseif a:state ==# '?'
         return 'Attempted'
     else
         return 'All'
     endif
 endfunction
 
-function! s:RedrawProblemList()
+function! s:RedrawProblemList() abort
     if b:leetcode_buffer_type ==# 'all'
         call leetcode#ListProblems('redraw')
     elseif b:leetcode_buffer_type ==# 'topic'
@@ -706,11 +707,11 @@ function! s:RedrawProblemList()
     endif
 endfunction
 
-function! s:TagName(tag)
+function! s:TagName(tag) abort
     return substitute(a:tag, ':\d*$', '', 'g')
 endfunction
 
-function! s:GetProblem(id)
+function! s:GetProblem(id) abort
     for problem in b:leetcode_downloaded_problems
         if problem['fid'] == a:id
             return problem
@@ -719,7 +720,7 @@ function! s:GetProblem(id)
     return {}
 endfunction
 
-function! s:ProblemIdFromNr(nr)
+function! s:ProblemIdFromNr(nr) abort
     let content = getline(a:nr)
     let items = split(content, '|')
     if len(items) < 2
@@ -923,7 +924,7 @@ function! s:GuessFileType() abort
     " lines. If failed, try guessing it from the extension name.
     for line in getline(1, 10)
         let filetype = matchstr(line, '\[filetype:[[:alnum:]]\+\]')
-        if filetype != ''
+        if filetype !=# ''
             return filetype[10:-2]
         endif
     endfor
@@ -942,7 +943,7 @@ function! s:GuessFileType() abort
         return guessed_filetype
     endif
 
-    if ext == 'py'
+    if ext ==# 'py'
         let python_version = input('Which Python [2/3]: ', '3')
         redraw
         if python_version ==# '2'
@@ -1016,7 +1017,10 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     let s:leetcode_code = a:code
     let s:leetcode_filetype = a:filetype
 
-    autocmd BufUnload <buffer> call s:RunTest()
+    augroup leetcode_test_input
+        autocmd! * <buffer>
+        autocmd BufUnload <buffer> call s:RunTest()
+    augroup END
 endfunction
 
 let s:comment_pattern = '\v(^#.*)|(^\s*$)'
@@ -1034,7 +1038,7 @@ function! s:RunTest() abort
     let test_input = filter(copy(raw_test_input), 'v:val !~# s:comment_pattern')
     let test_input = join(test_input, "\n")
 
-    if test_input == ''
+    if test_input ==# ''
         echo 'Abort testing because the test input is empty'
         return
     endif
@@ -1224,20 +1228,20 @@ endfunction
 " Show the result of a test run or submission, from either backend.
 function! s:HandleTaskResult(task_name, output, error) abort
     echo 'Done'
-    if a:error != ''
+    if a:error !=# ''
         echom 'error: ' . a:error
     endif
     let task_output = a:output
     if type(task_output) != v:t_dict
         return
     endif
-    if a:task_name == 'test_solution'
-        if task_output['state'] == 'Finished' &&
+    if a:task_name ==# 'test_solution'
+        if task_output['state'] ==# 'Finished' &&
                     \ task_output['answer'] != task_output['expected_answer']
             let task_output['state'] = 'Wrong Answer'
         endif
-    elseif a:task_name == 'submit_solution'
-        if task_output['state'] == 'Finished'
+    elseif a:task_name ==# 'submit_solution'
+        if task_output['state'] ==# 'Finished'
             let task_output['state'] = 'Accepted'
         endif
     endif
@@ -1442,7 +1446,7 @@ function! s:FormatIntoColumns(words) abort
     return lines
 endfunction
 
-function! s:UpdateSubmitState(result)
+function! s:UpdateSubmitState(result) abort
     let state = '?'
     if a:result['state'] ==# 'Accepted'
         let state = 'X'

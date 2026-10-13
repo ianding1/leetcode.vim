@@ -1,0 +1,56 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  e2e:
+    name: e2e (${{ matrix.editor }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        editor: [vim, nvim]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs pytest and, through PYTHONPATH, provides the packages for the
+      # editors' Python. Ubuntu 24.04's Vim embeds Python 3.12, so match it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Vim
+        if: matrix.editor == 'vim'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y vim-nox
+          vim --version | grep -q '+python3'
+
+      - name: Install Neovim
+        if: matrix.editor == 'nvim'
+        run: |
+          curl -sSL -o nvim.tar.gz \
+            https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-linux-x86_64.tar.gz
+          tar xzf nvim.tar.gz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Install test dependencies
+        run: python -m pip install -r tests/e2e/requirements.txt
+
+      - name: Run tests (both backends, replay mode)
+        run: python -m pytest --lc-editor ${{ matrix.editor }}
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install vim-vint flake8
+      - name: vint
+        run: vint autoload plugin tests/e2e/lib/harness.vim
+      - name: flake8
+        run: flake8 autoload/leetcode.py tests

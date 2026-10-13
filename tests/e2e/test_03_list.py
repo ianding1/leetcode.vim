@@ -25,8 +25,8 @@ def test_list_content_matches_api(scenario, lc):
     r = s.run()
     r.assert_ok()
     lines = r.buffer(LIST)
-    rows = [l for l in lines if re.match(r'^\|.\| \d+ ', l)]
-    titles = [l.split('|')[3].strip() for l in rows]
+    rows = [line for line in lines if re.match(r'^\|.\| \d+ ', line)]
+    titles = [line.split('|')[3].strip() for line in rows]
     assert titles == ['Two Sum', 'Add Two Numbers', 'Median of Two Sorted Arrays',
                       'Binary Tree Upside Down [P]']   # hidden problem is skipped
     assert rows[0].startswith('|X|') and rows[1].startswith('|?|')
@@ -122,5 +122,5 @@ def test_sort_by_title_descending(scenario, lc):
     r.assert_ok()
     lines = r.buffer(LIST)
     assert '  Column:  Title' in lines and '  Order:   From high to low' in lines, r.describe()
-    titles = [l.split('|')[3].strip() for l in lines if re.match(r'^\|.\| \d+ ', l)]
+    titles = [line.split('|')[3].strip() for line in lines if re.match(r'^\|.\| \d+ ', line)]
     assert titles == sorted(titles, reverse=True), titles

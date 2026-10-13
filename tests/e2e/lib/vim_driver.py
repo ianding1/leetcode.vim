@@ -1,7 +1,6 @@
 """Run a scenario in a real, headless Vim or Neovim with the plugin loaded."""
 
 import json
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -35,8 +34,8 @@ class VimResult:
     @property
     def output(self):
         """Everything the steps echoed, plus :messages."""
-        echoed = [l for s in self.steps for l in s.get('output', '').split('\n')]
-        return '\n'.join(l for l in echoed + self.messages if l.strip())
+        echoed = [line for s in self.steps for line in s.get('output', '').split('\n')]
+        return '\n'.join(line for line in echoed + self.messages if line.strip())
 
     def buffer(self, pattern):
         """Lines of the first loaded buffer whose name matches `pattern`."""

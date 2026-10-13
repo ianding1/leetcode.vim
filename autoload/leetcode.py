@@ -71,6 +71,7 @@ task_err = ''
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
 
+
 def enable_logging():
     out_hdlr = logging.FileHandler('leetcode-vim.log')
     out_hdlr.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
@@ -697,7 +698,7 @@ def get_topics_and_companies():
 
 def get_problems_of_topic(topic_slug):
     request_body = {
-        'operationName':'getTopicTag',
+        'operationName': 'getTopicTag',
         'variables': {'slug': topic_slug},
         'query': '''query getTopicTag($slug: String!) {
   topicTag(slug: $slug) {
@@ -764,7 +765,7 @@ def get_problems_of_topic(topic_slug):
 
 def get_problems_of_company(company_slug):
     request_body = {
-        'operationName':'getCompanyTag',
+        'operationName': 'getCompanyTag',
         'variables': {'slug': company_slug},
         'query': '''query getCompanyTag($slug: String!) {
   companyTag(slug: $slug) {
@@ -887,7 +888,6 @@ def _unescape_with_Chinese(code):
     for ch in set(re.findall(r'\\u\w{4}', code)):
         code = code.replace(ch, ch.encode('utf-8').decode('unicode_escape'))
     return code.splitlines()
-
 
 
 task_thread = Thread(target=_thread_main, daemon=True)

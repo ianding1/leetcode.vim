@@ -163,7 +163,7 @@ def html_lines(scenario, tmp_path, html, python_too=False):
 
 def test_html_description(scenario, tmp_path):
     r = html_lines(scenario, tmp_path, DESCRIPTION)
-    lines = [l.rstrip() for l in r.vars['vim']]
+    lines = [line.rstrip() for line in r.vars['vim']]
     assert lines == EXPECTED, r.vars['vim']
 
 
@@ -174,4 +174,5 @@ def test_html_matches_python_on_plain_markup(scenario, lc, tmp_path):
     fixture = lc.server._lookup('graphql.getQuestionDetail', 'two-sum')[1]
     html = fixture['json']['data']['question']['content']
     r = html_lines(scenario, tmp_path, html, python_too=True)
-    assert [l.rstrip() for l in r.vars['vim']] == [l.rstrip() for l in r.vars['py']], r.vars
+    vim_lines = [line.rstrip() for line in r.vars['vim']]
+    assert vim_lines == [line.rstrip() for line in r.vars['py']], r.vars

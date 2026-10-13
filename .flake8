@@ -1,0 +1,5 @@
+[flake8]
+max-line-length = 100
+per-file-ignores =
+    # Realistic LeetCode HTML, kept on one line as the site sends it.
+    tests/e2e/test_08_vimscript_core.py: E501

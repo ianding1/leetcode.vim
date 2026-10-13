@@ -79,7 +79,8 @@ def test_submit(scenario, lc):
 def test_submit_compile_error(scenario, lc):
     lc.server.override('check', [{'status': 200, 'json': {
         'state': 'SUCCESS', 'judge_type': 'large', 'status_code': 20, 'status_runtime': 'N/A',
-        'compile_error': 'Line 1: error: expected ;', 'full_compile_error': 'Line 1: error: expected ;'}}])
+        'compile_error': 'Line 1: error: expected ;',
+        'full_compile_error': 'Line 1: error: expected ;'}}])
     s = with_solution(scenario, lc)
     s.step('LeetCodeSubmit')
     s.wait_for_buffer(RESULT)

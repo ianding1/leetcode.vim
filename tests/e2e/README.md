@@ -22,9 +22,11 @@ pip install -r tests/e2e/requirements.txt   # pytest, for the runner's python3
 pytest                                      # replay mode, offline
 ```
 
-Every test runs once per editor (`[vim]`, `[nvim]`). Pick one with
+Every test runs once per backend and editor (`[python-vim]`, `[vim-nvim]`,
+...). Pick with `--lc-backend python|vim` (or `$LEETCODE_E2E_BACKEND`) and
 `--lc-editor vim|nvim` (or `$LEETCODE_E2E_EDITOR`); an editor that isn't
-installed is skipped.
+installed is skipped. Tests marked `python_only` or `vim_only` exercise one
+backend's internals.
 
 Requirements:
 
@@ -77,7 +79,7 @@ marker gets removed. There are none at the moment.
 
 ```python
 def test_something(scenario, lc):
-    s = scenario().signed_in(lc.cookies)   # or .browser_has(lc.cookies) to sign in for real
+    s = scenario().signed_in(lc.cookies)   # saved cookie, as after an earlier sign-in
     s.step('LeetCodeList')                 # any Ex command; exceptions are recorded
     s.goto(r'| Two Sum ')                  # move the cursor to a line
     s.press(r'\<CR>')                      # normal-mode keys, buffer mappings apply
@@ -87,6 +89,15 @@ def test_something(scenario, lc):
     r.assert_ok()                          # no step raised
     assert 'Accepted' in r.text(r'^leetcode:///result$')
 ```
+
+Other ways to sign in: `s.type_ahead(r'LEETCODE_SESSION=...\<CR>')` answers
+the sign-in prompt (any prompt needs its keys queued like this, or headless
+Vim exits and Neovim hangs), and `s.browser_has(lc.cookies)` fakes the browser
+cookie store for `g:leetcode_browser = 'chrome'`. `lc.server.valid_sessions`
+limits which sessions the fake server accepts.
+
+To call the API directly, use `leetcode#Api('GetProblem', 'two-sum')` after
+`call leetcode#SignIn(0)`; it goes to whichever backend is selected.
 
 In replay mode, `lc.server.override(route, response)` replaces a fixture for
 one test (for example a 403, or a different judge result), and

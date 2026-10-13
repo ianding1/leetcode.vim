@@ -33,7 +33,7 @@ def test_company_time_period_key(scenario, lc):
     s.press(r't2\<CR>')            # `t`, then "2 - 1 year"
     r = s.run()
     r.assert_ok()
-    assert not any('E81' in l or 'E117' in l or 'E120' in l for l in r.output.split('\n')), \
+    assert not any(code in r.output for code in ('E81', 'E117', 'E120')), \
         r.describe()
     assert 'Time period: one-year' in r.text(r'company/google$'), r.describe()
 

@@ -53,6 +53,6 @@ let s:compare_func_map = {
             \ 'frequency': function('s:CompareByFrequency'),
             \ }
 
-function! leetcode#sort#SortProblems(problems, sort_by_column)
+function! leetcode#sort#SortProblems(problems, sort_by_column) abort
     return sort(copy(a:problems), s:compare_func_map[a:sort_by_column])
 endfunction
