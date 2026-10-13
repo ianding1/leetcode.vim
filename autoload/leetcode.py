@@ -70,6 +70,8 @@ def _make_headers():
     assert is_login()
     headers = {'Origin': LC_BASE,
                'Referer': LC_BASE,
+               'User-Agent': ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+                               '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'),
                'X-Requested-With': 'XMLHttpRequest',
                'X-CSRFToken': session.cookies.get('csrftoken', '')}
     return headers
@@ -778,3 +780,32 @@ def _unescape_with_Chinese(code):
 
 task_thread = Thread(target=_thread_main, daemon=True)
 task_thread.start()
+
+def load_session_cookie_with_path(cookie_path):
+    """Load session cookie from a custom cookie file path."""
+    # Use Chromium browser class with custom cookie file
+    cj = browser_cookie3.chromium(cookie_file=cookie_path, domain_name='leetcode.com')
+    
+    # Find the LEETCODE_SESSION cookie
+    session_cookie = None
+    for cookie in cj:
+        if cookie.name == 'LEETCODE_SESSION':
+            session_cookie = cookie
+            break
+    
+    if session_cookie is None:
+        _echoerr('Leetcode session cookie not found. Please login in browser.')
+        return False
+    
+    # Set up the session with the custom cookie
+    global session
+    session = requests.Session()
+    session.cookies.set_cookie(session_cookie)
+
+    # Verify the session works
+    progress = get_progress()
+    if progress is None:
+        _echoerr('cannot get progress. Please relogin in your browser.')
+        return False
+
+    return True
