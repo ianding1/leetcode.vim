@@ -129,6 +129,17 @@ def _status_to_name(status):
     return 'Unknown State'
 
 
+def _format_percentile(p):
+    """'95.5' for 95.5; '' when unknown. Formatted here because Neovim turns
+    a whole float like 100.0 into the Number 100 on its way to Vim script."""
+    if p is None or p == '':
+        return ''
+    try:
+        return '{:.1f}'.format(float(p))
+    except (TypeError, ValueError):
+        return str(p)
+
+
 def _break_code_lines(s):
     return s.replace('\r\n', '\n').replace('\xa0', ' ').split('\n')
 
@@ -427,14 +438,14 @@ def _check_result(submission_id, is_submit):
         result['answer'] = _split(r.get('code_output', ''))
         result['expected_answer'] = _split(r.get('expected_output', ''))
         result['stdout'] = _split(r.get('std_output', ''))
-        result['runtime_percentile'] = r.get('runtime_percentile', '')
+        result['runtime_percentile'] = _format_percentile(r.get('runtime_percentile'))
     else:
         # Test states cannot distinguish accepted answers from wrong answers.
         if result['state'] == 'Accepted':
             result['state'] = 'Finished'
         result['stdout'] = _split(r.get('code_output', []))
         result['expected_answer'] = []
-        result['runtime_percentile'] = r.get('runtime_percentile', '')
+        result['runtime_percentile'] = _format_percentile(r.get('runtime_percentile'))
         result['expected_answer'] = r.get('expected_code_answer', [])
     return result
 
@@ -628,7 +639,7 @@ def get_submission(sid):
         if my_runtime >= int(runtime):
             break
 
-    submission['runtime_percentile'] = round(accum, 1)
+    submission['runtime_percentile'] = _format_percentile(accum) if dist else ''
     return submission
 
 

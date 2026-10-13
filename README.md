@@ -30,8 +30,9 @@ for his brilliant idea!
 
 ## Installation
 
-1. Vim with `+python3` feature is **required**. Install the **pynvim** package
-for Neovim:
+1. Vim with `+python3` feature is **required**. Neovim needs the **pynvim**
+package (for the Python in `g:python3_host_prog`, or `python3`), and the
+packages below go to that same Python:
 ```sh
 pip3 install pynvim --user
 ```

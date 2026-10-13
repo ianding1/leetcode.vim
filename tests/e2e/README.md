@@ -1,7 +1,7 @@
 # End-to-end tests
 
-These tests run the plugin in a real, headless Vim and drive it the way a user
-would: `:LeetCodeList`, `<CR>` on a problem, `:LeetCodeTest` then `:wq` on the
+These tests run the plugin in a real, headless Vim and Neovim and drive it the
+way a user would: `:LeetCodeList`, `<CR>` on a problem, `:LeetCodeTest` then `:wq` on the
 test input, `:LeetCodeSubmit`, `s` for submissions. Each scenario's final
 state (every buffer's text, echoed output, `:messages`, errors) is checked
 from pytest.
@@ -22,11 +22,20 @@ pip install -r tests/e2e/requirements.txt   # pytest, for the runner's python3
 pytest                                      # replay mode, offline
 ```
 
-Requirements: `vim` with `+python3`, and a `pythonX.Y` binary matching the
-Python Vim embeds. On first run the plugin's own dependencies
-(`vim-requirements.txt`) are installed for that Python into `.e2e-cache/`
-and passed to Vim through `PYTHONPATH`. Your own Vim setup is not used
-(`-u NONE`, a temporary `$HOME`).
+Every test runs once per editor (`[vim]`, `[nvim]`). Pick one with
+`--lc-editor vim|nvim` (or `$LEETCODE_E2E_EDITOR`); an editor that isn't
+installed is skipped.
+
+Requirements:
+
+- Vim: `+python3`, and a `pythonX.Y` binary matching the Python Vim embeds.
+- Neovim: `python3` on PATH (or `$LEETCODE_E2E_NVIM_PYTHON`). The Python host
+  runs from a virtualenv of it without site-packages, with `pynvim` added.
+
+On first run the plugin's dependencies (`vim-requirements.txt`) are installed
+for each editor's Python into `.e2e-cache/` and passed in through
+`PYTHONPATH`. Your own editor setup is not used (`-u NONE`, a temporary
+`$HOME`).
 
 ### Replay mode (default)
 

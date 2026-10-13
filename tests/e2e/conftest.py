@@ -32,6 +32,9 @@ def pytest_addoption(parser):
                 help='site to proxy to in live mode')
     g.addoption('--lc-record', default=None,
                 help='live mode: save every response as a fixture in this directory')
+    g.addoption('--lc-editor', choices=['all', 'vim', 'nvim'],
+                default=os.environ.get('LEETCODE_E2E_EDITOR', 'all'),
+                help='editor(s) to run the plugin in; "all" runs each installed one')
     g.addoption('--lc-allow-submit', action='store_true',
                 help='live mode: allow tests that create real submissions on your account')
 
@@ -55,13 +58,29 @@ def pytest_collection_modifyitems(config, items):
                                                     'pass --lc-allow-submit'))
 
 
-# ---- Vim and its Python ------------------------------------------------------
+# ---- Editors and their Python -----------------------------------------------
+#
+# Vim embeds a specific libpython, often not the `python3` on PATH, so the
+# plugin's dependencies are installed for exactly that version. Neovim runs
+# Python in a separate host process (pynvim) using `python3` from PATH, or
+# $LEETCODE_E2E_NVIM_PYTHON. Either way the packages go into a cache
+# directory handed over through PYTHONPATH, never into your environment.
+
+EDITORS = ('vim', 'nvim')
+NVIM_HOST_REQUIREMENTS = b'pynvim>=0.5\n'
+
+
+def _python_version(python):
+    out = subprocess.run([python, '-c', 'import sys; print("%d.%d" % sys.version_info[:2])'],
+                         capture_output=True, text=True, check=True)
+    return out.stdout.strip()
+
 
 def _vim_python_version():
-    if not shutil.which('vim'):
-        pytest.exit('vim is not installed', returncode=4)
     probe = CACHE_DIR / 'vim-python-version'
     CACHE_DIR.mkdir(exist_ok=True)
+    if probe.exists():
+        probe.unlink()
     subprocess.run(['vim', '-N', '-u', 'NONE', '-i', 'NONE', '-es',
                     '-c', 'py3 import sys; open(r"{}", "w").write("%d.%d" % sys.version_info[:2])'
                     .format(probe),
@@ -71,52 +90,104 @@ def _vim_python_version():
     return probe.read_text().strip()
 
 
-@pytest.fixture(scope='session')
-def vim_python_deps():
-    """Install the plugin's Python dependencies for the Python Vim embeds.
-
-    Vim links a specific libpython, which is often not the `python3` on PATH,
-    so `pip install --user` for the latter doesn't help it. Install into a
-    cache directory and hand it to Vim through PYTHONPATH.
-    """
-    version = _vim_python_version()
-    reqs = VIM_REQUIREMENTS.read_bytes()
-    target = CACHE_DIR / 'pydeps-py{}'.format(version)
+def _pip_install(python, name, requirements):
+    """Install `requirements` (bytes) for `python` into a cached directory."""
+    target = CACHE_DIR / '{}-py{}'.format(name, _python_version(python))
     stamp = target / '.requirements-sha1'
-    digest = hashlib.sha1(reqs).hexdigest()
+    digest = hashlib.sha1(requirements).hexdigest()
     if not (stamp.exists() and stamp.read_text() == digest):
-        python = shutil.which('python' + version)
-        if not python:
-            pytest.exit('Vim embeds Python {0}, but python{0} is not on PATH to install '
-                        'its dependencies'.format(version), returncode=4)
         shutil.rmtree(target, ignore_errors=True)
+        target.mkdir(parents=True)
+        reqs_file = target / '.requirements.txt'
+        reqs_file.write_bytes(requirements)
         subprocess.run([python, '-m', 'pip', 'install', '--quiet', '--disable-pip-version-check',
-                        '--target', str(target), '-r', str(VIM_REQUIREMENTS)], check=True)
+                        '--target', str(target), '-r', str(reqs_file)], check=True)
         stamp.write_text(digest)
     return target
 
 
-def _base_env(home):
-    env = {k: v for k, v in os.environ.items() if not k.startswith('PYTHON')}
-    env.update(HOME=str(home), PYTHONDONTWRITEBYTECODE='1', TERM='dumb')
-    # The plugin must reach the local fake server directly.
-    env['NO_PROXY'] = env['no_proxy'] = ','.join(
-        filter(None, [os.environ.get('NO_PROXY', ''), '127.0.0.1', 'localhost']))
-    return env
+def _isolated_python(python):
+    """A venv of `python` without its site-packages, so that only what we put
+    on PYTHONPATH is importable (and "dependencies missing" can be tested)."""
+    venv = CACHE_DIR / 'venv-py{}'.format(_python_version(python))
+    exe = venv / 'bin' / 'python'
+    if not exe.exists():
+        subprocess.run([python, '-m', 'venv', '--without-pip', str(venv)], check=True)
+    return str(exe)
+
+
+class EditorSetup:
+    """How to start one editor, and the Python paths it needs."""
+
+    def __init__(self, name, host_python=None, host_path=None, deps_path=None):
+        self.name = name
+        self.host_python = host_python  # nvim only: g:python3_host_prog
+        self.host_path = host_path      # nvim only: pynvim
+        self.deps_path = deps_path      # requests, bs4
+
+    def env(self, home, with_deps=True):
+        env = {k: v for k, v in os.environ.items() if not k.startswith('PYTHON')}
+        env.update(HOME=str(home), PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1',
+                   TERM='dumb')
+        for xdg in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_CACHE_HOME'):
+            env.pop(xdg, None)
+        # The plugin must reach the local fake server directly.
+        env['NO_PROXY'] = env['no_proxy'] = ','.join(
+            filter(None, [os.environ.get('NO_PROXY', ''), '127.0.0.1', 'localhost']))
+        paths = [self.host_path] + ([self.deps_path] if with_deps else [])
+        paths = [str(p) for p in paths if p]
+        if paths:
+            env['PYTHONPATH'] = os.pathsep.join(paths)
+        return env
+
+
+_setups = {}
+
+
+def _editor_setup(name):
+    if name in _setups:
+        return _setups[name]
+    if not shutil.which(name):
+        pytest.skip('{} is not installed'.format(name))
+    deps = VIM_REQUIREMENTS.read_bytes()
+    if name == 'vim':
+        version = _vim_python_version()
+        python = shutil.which('python' + version)
+        if not python:
+            pytest.exit('Vim embeds Python {0}, but python{0} is not on PATH to install '
+                        'its dependencies'.format(version), returncode=4)
+        setup = EditorSetup('vim', deps_path=_pip_install(python, 'pydeps', deps))
+    else:
+        python = os.environ.get('LEETCODE_E2E_NVIM_PYTHON') or shutil.which('python3')
+        setup = EditorSetup('nvim', host_python=_isolated_python(python),
+                            host_path=_pip_install(python, 'nvim-host', NVIM_HOST_REQUIREMENTS),
+                            deps_path=_pip_install(python, 'pydeps', deps))
+    _setups[name] = setup
+    return setup
+
+
+def pytest_generate_tests(metafunc):
+    if 'editor' in metafunc.fixturenames:
+        choice = metafunc.config.getoption('--lc-editor')
+        editors = EDITORS if choice == 'all' else (choice,)
+        metafunc.parametrize('editor', editors, indirect=True)
 
 
 @pytest.fixture
-def vim_env(tmp_path, vim_python_deps):
-    """Environment for Vim: plugin dependencies installed, no user config."""
-    env = _base_env(tmp_path / 'home')
-    env['PYTHONPATH'] = str(vim_python_deps)
-    return env
+def editor(request):
+    return _editor_setup(request.param)
 
 
 @pytest.fixture
-def bare_vim_env(tmp_path):
-    """Environment for Vim with nothing installed beyond what the plugin ships."""
-    return _base_env(tmp_path / 'home')
+def vim_env(tmp_path, editor):
+    """Environment for the editor: plugin dependencies installed, no user config."""
+    return editor.env(tmp_path / 'home')
+
+
+@pytest.fixture
+def bare_vim_env(tmp_path, editor):
+    """Environment without the plugin's Python dependencies."""
+    return editor.env(tmp_path / 'home', with_deps=False)
 
 
 # ---- LeetCode (fake or real) -------------------------------------------------
@@ -161,12 +232,13 @@ def lc(request):
 
 
 @pytest.fixture
-def scenario(tmp_path, lc, vim_env):
-    """Factory for a Vim scenario wired to the target under test."""
+def scenario(tmp_path, lc, editor, vim_env):
+    """Factory for an editor scenario wired to the target under test."""
     counter = [0]
 
     def make(env=None):
         counter[0] += 1
-        return Scenario(tmp_path / 'vim{}'.format(counter[0]), lc.base_url, env or vim_env)
+        return Scenario(tmp_path / '{}{}'.format(editor.name, counter[0]), lc.base_url,
+                        env or vim_env, editor=editor.name, host_python=editor.host_python)
 
     return make

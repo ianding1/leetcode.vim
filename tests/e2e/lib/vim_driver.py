@@ -1,4 +1,4 @@
-"""Run a scenario in a real, headless Vim with the plugin loaded."""
+"""Run a scenario in a real, headless Vim or Neovim with the plugin loaded."""
 
 import json
 import os
@@ -66,8 +66,10 @@ class VimResult:
 class Scenario:
     """Builds a Vim script step by step, then runs it."""
 
-    def __init__(self, workdir, base_url, env, timeout=60):
+    def __init__(self, workdir, base_url, env, timeout=60, editor='vim', host_python=None):
         self.workdir = Path(workdir)
+        self.editor = editor
+        self.host_python = host_python
         self.env = env
         self.timeout = timeout
         self.config = {
@@ -153,6 +155,8 @@ class Scenario:
             'let g:e2e_config = {}'.format(_vim_str(str(config_path))),
             'source {}'.format(LIB_DIR / 'harness.vim'),
         ]
+        if self.editor == 'nvim':
+            script.append('let g:python3_host_prog = {}'.format(_vim_str(self.host_python)))
         for k, v in self.options.items():
             script.append('let g:{} = {}'.format(k, _vim_str(v) if isinstance(v, str) else v))
         script += [
@@ -164,19 +168,24 @@ class Scenario:
         script.append('call E2EFinish()')
         script_path.write_text('\n'.join(script) + '\n', 'utf-8')
 
-        cmd = ['vim', '-N', '-u', 'NONE', '-i', 'NONE', '-n', '--not-a-term',
-               '-S', str(script_path)]
+        if self.editor == 'nvim':
+            cmd = ['nvim', '--headless', '-u', 'NONE', '-i', 'NONE', '-n',
+                   '-S', str(script_path)]
+        else:
+            cmd = ['vim', '-N', '-u', 'NONE', '-i', 'NONE', '-n', '--not-a-term',
+                   '-S', str(script_path)]
         try:
             proc = subprocess.run(cmd, cwd=str(self.workdir), env=self.env,
                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                   stderr=subprocess.PIPE, timeout=self.timeout)
             returncode = proc.returncode
         except subprocess.TimeoutExpired:
-            raise AssertionError('Vim did not finish within {}s; script: {}'
-                                 .format(self.timeout, script_path))
+            raise AssertionError('{} did not finish within {}s; script: {}'
+                                 .format(self.editor, self.timeout, script_path))
 
         if not out_path.exists():
-            raise AssertionError('Vim exited ({}) without writing a result; script: {}'
-                                 .format(returncode, script_path))
+            raise AssertionError('{} exited ({}) without writing a result; script: {}\n{}'
+                                 .format(self.editor, returncode, script_path,
+                                         proc.stderr.decode('utf-8', 'replace')[-2000:]))
         data = json.loads(out_path.read_text('utf-8'))
         return VimResult(data, script_path, returncode)
