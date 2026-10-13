@@ -349,7 +349,7 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
         let b:leetcode_buffer_type = 'company'
         let b:leetcode_buffer_company = a:company_slug
         let b:leetcode_time_period = 'six-months'
-        nnoremap <buffer> t :call s:ChooseTimePeriod()<cr>
+        nnoremap <silent> <buffer> t :call <SID>ChooseTimePeriod()<cr>
 
         let expr = printf('leetcode.get_problems_of_company("%s")',
                     \ a:company_slug)
@@ -677,10 +677,17 @@ let s:file_type_to_ext = {
             \ 'scala': 'scala',
             \ 'kotlin': 'kt',
             \ 'rust': 'rs',
+            \ 'typescript': 'ts',
+            \ 'php': 'php',
+            \ 'dart': 'dart',
+            \ 'elixir': 'ex',
+            \ 'erlang': 'erl',
+            \ 'racket': 'rkt',
             \ }
 
 function! s:SolutionFileExt(filetype) abort
-    return s:file_type_to_ext[a:filetype]
+    " Unknown languages keep their LeetCode name as the extension.
+    return get(s:file_type_to_ext, a:filetype, a:filetype)
 endfunction
 
 function! leetcode#ResetSolution(with_latest_submission) abort
@@ -728,7 +735,13 @@ function! leetcode#ResetSolution(with_latest_submission) abort
 
     let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['fid'], problem_slug)
     if buflisted(problem_desc_file_name)
-        execute bufnr(problem_desc_file_name) . 'buffer'
+        " Keep the solution in this window; show the description above it
+        " only if it isn't visible already.
+        let desc_bufnr = bufnr(problem_desc_file_name)
+        if bufwinnr(desc_bufnr) == -1
+            execute 'leftabove sbuffer ' . desc_bufnr
+            execute 'wincmd j'
+        endif
         return
     endif
 
@@ -758,40 +771,39 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     execute 'wincmd j'
 endfunction
 
+" Languages whose description is a /* ... */ block.
+let s:block_comment_filetypes = ['java', 'c', 'javascript', 'cpp', 'csharp',
+            \ 'swift', 'scala', 'kotlin', 'rust', 'typescript', 'php', 'dart']
+
+" Languages whose description is a run of line comments with this prefix.
+let s:line_comment_prefixes = {'python': '#', 'python3': '#', 'ruby': '#',
+            \ 'elixir': '#', 'golang': '//', 'erlang': '%', 'racket': ';'}
+
 function! s:CommentStart(filetype, title) abort
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
-                \ 'kotlin', 'rust'], a:filetype) >= 0
+    if index(s:block_comment_filetypes, a:filetype) >= 0
         return '/* ' . a:title
-    elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
-        return '# ' . a:title
-    elseif index(['golang'], a:filetype) >= 0
-        return '// ' . a:title
+    elseif has_key(s:line_comment_prefixes, a:filetype)
+        return s:line_comment_prefixes[a:filetype] . ' ' . a:title
     else
         return a:title
     endif
 endfunction
 
 function! s:CommentLine(filetype, line) abort
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
-                \ 'kotlin', 'rust'], a:filetype) >= 0
+    if index(s:block_comment_filetypes, a:filetype) >= 0
         return ' * ' . a:line
-    elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
-        return '# '.a:line
-    elseif index(['golang'], a:filetype) >= 0
-        return '// '.a:line
+    elseif has_key(s:line_comment_prefixes, a:filetype)
+        return s:line_comment_prefixes[a:filetype] . ' ' . a:line
     else
         return a:line
     endif
 endfunction
 
 function! s:CommentEnd(filetype) abort
-    if index(['java', 'c', 'javascript', 'cpp', 'csharp', 'swift', 'scala',
-                \ 'kotlin', 'rust'], a:filetype) >= 0
+    if index(s:block_comment_filetypes, a:filetype) >= 0
         return ' * [End of Description] */'
-    elseif index(['python', 'python3', 'ruby'], a:filetype) >= 0
-        return '# [End of Description]:'
-    elseif index(['golang'], a:filetype) >= 0
-        return '// [End of Description]'
+    elseif has_key(s:line_comment_prefixes, a:filetype)
+        return s:line_comment_prefixes[a:filetype] . ' [End of Description]'
     else
         return ''
     endif
@@ -849,6 +861,9 @@ function! leetcode#TestSolution() abort
         let problem = b:leetcode_problem
     else
         let problem = py3eval(printf('leetcode.get_problem("%s")', slug))
+        if type(problem) != v:t_dict
+            return
+        endif
         let b:leetcode_problem = problem
     endif
 

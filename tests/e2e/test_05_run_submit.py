@@ -84,3 +84,24 @@ def test_submit_compile_error(scenario, lc):
     result = r.text(RESULT)
     assert '## State\n  - Compile Error' in result
     assert 'expected ;' in result
+
+
+@pytest.mark.replay_only
+def test_submit_result_without_judge_type(scenario, lc):
+    """#60: submissions were told apart from test runs by `judge_type ==
+    'large'` in the result. Without it a submission was shown as a test run
+    ("Finished", no expected output)."""
+    lc.server.override('check', [{'status': 200, 'json': {
+        'state': 'SUCCESS', 'status_code': 11, 'status_runtime': 'N/A',
+        'total_correct': 3, 'total_testcases': 57, 'code_output': '[1,0]',
+        'expected_output': '[0,1]', 'std_output': '', 'last_testcase': '[3,2,4]\n6'}}])
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeSubmit')
+    s.wait_for_buffer(RESULT)
+    r = s.run()
+    r.assert_ok()
+    result = r.text(RESULT)
+    assert '## State\n  - Wrong Answer' in result, result
+    assert '- Passed: 3' in result and '- Total:  57' in result
+    assert '### Expected Answer\n    [0,1]' in result
+    assert '### Input\n    [3,2,4]\n    6' in result

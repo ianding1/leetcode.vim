@@ -10,7 +10,7 @@
         "translatedContent": null,
         "stats": "{\"totalAccepted\": \"4K\", \"totalSubmission\": \"8K\", \"totalAcceptedRaw\": 4000, \"totalSubmissionRaw\": 8000, \"acRate\": \"50.0%\"}",
         "difficulty": "Easy",
-        "codeDefinition": "[{\"value\": \"cpp\", \"text\": \"C++\", \"defaultCode\": \"class Solution {\\r\\npublic:\\r\\n    vector<int> twoSum(vector<int>& nums, int target) {\\r\\n        \\r\\n    }\\r\\n};\"}, {\"value\": \"python3\", \"text\": \"Python3\", \"defaultCode\": \"class Solution:\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\\n        \"}]",
+        "codeDefinition": "[{\"value\": \"cpp\", \"text\": \"C++\", \"defaultCode\": \"class Solution {\\r\\npublic:\\r\\n    vector<int> twoSum(vector<int>& nums, int target) {\\r\\n        \\r\\n    }\\r\\n};\"}, {\"value\": \"python3\", \"text\": \"Python3\", \"defaultCode\": \"class Solution:\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\\n        \"}, {\"value\": \"typescript\", \"text\": \"TypeScript\", \"defaultCode\": \"function twoSum(nums: number[], target: number): number[] {\\n\\n};\"}]",
         "sampleTestCase": "[2,7,11,15]\n9",
         "enableRunCode": true
       }

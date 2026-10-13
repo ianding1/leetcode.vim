@@ -52,6 +52,9 @@ EMPTY_FREQUENCIES = [0, 0, 0, 0, 0, 0, 0, 0]
 USER_AGENT = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
               '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
 
+# Give up waiting for the judge after this many seconds.
+CHECK_TIMEOUT = 120
+
 # Cookies needed to act as the signed-in user.
 SESSION_COOKIES = ('LEETCODE_SESSION', 'csrftoken')
 
@@ -344,13 +347,38 @@ def get_problem(slug):
     return problem
 
 
-def _check_result(submission_id):
+def _response_error(res, default):
+    """The judge's own error message if the response carries one."""
+    if 'too fast' in res.text:
+        return 'you are sending the request too fast'
+    try:
+        data = res.json()
+    except ValueError:
+        return default
+    if isinstance(data, dict) and data.get('error'):
+        return str(data['error'])
+    return default
+
+
+def _json_field(res, key):
+    """res.json()[key] for a successful JSON response, else None."""
+    if res.status_code != 200:
+        return None
+    try:
+        data = res.json()
+    except ValueError:
+        return None
+    return data.get(key) if isinstance(data, dict) else None
+
+
+def _check_result(submission_id, is_submit):
     global task_progress
+    prog_stage = 'Uploading '
+    prog_bar = '.'
     if _in_task():
-        prog_stage = 'Uploading '
-        prog_bar = '.'
         task_progress = prog_stage + prog_bar
 
+    deadline = time.time() + CHECK_TIMEOUT
     while True:
         headers = _make_headers()
         url = LC_CHECK.format(submission=submission_id)
@@ -364,16 +392,23 @@ def _check_result(submission_id):
             prog_bar += '.'
 
         r = res.json()
-        if r['state'] == 'SUCCESS':
+        state = r.get('state')
+        if state == 'SUCCESS':
             prog_stage = 'Done      '
             break
-        elif r['state'] == 'PENDING':
+        elif state == 'PENDING':
             prog_stage = 'Pending   '
-        elif r['state'] == 'STARTED':
+        elif state == 'STARTED':
             prog_stage = 'Running   '
+        else:
+            _echoerr('unexpected judge state: {}'.format(state))
+            return None
         if _in_task():
             task_progress = prog_stage + prog_bar
 
+        if time.time() > deadline:
+            _echoerr('gave up waiting for the judge after {}s'.format(CHECK_TIMEOUT))
+            return None
         time.sleep(1)
 
     result = {
@@ -386,9 +421,9 @@ def _check_result(submission_id):
         'error': _split([v for k, v in r.items() if 'error' in k and v])
     }
 
-    # the keys differs between the result of testing the code and submitting it
-    # for submission judge_type is 'large', and for testing judge_type does not exist
-    if r.get('judge_type') == 'large':
+    # The keys differ between the result of testing the code and submitting it.
+    # The caller knows which one it asked for; don't guess from the response.
+    if is_submit:
         result['answer'] = _split(r.get('code_output', ''))
         result['expected_answer'] = _split(r.get('expected_output', ''))
         result['stdout'] = _split(r.get('std_output', ''))
@@ -420,14 +455,14 @@ def test_solution(problem_id, title, slug, filetype, code, test_input):
     log.info('test solution request: url="%s" headers="%s" body="%s"', url, headers, body)
     res = session.post(url, json=body, headers=headers)
     log.info('test solution response: status="%s" body="%s"', res.status_code, res.text)
-    if res.status_code != 200:
-        if 'too fast' in res.text:
-            _echoerr('you are sending the request too fast')
-        else:
-            _echoerr('cannot test the solution for ' + slug)
+    interpret_id = _json_field(res, 'interpret_id')
+    if not interpret_id:
+        _echoerr(_response_error(res, 'cannot test the solution for ' + slug))
         return None
 
-    result = _check_result(res.json()['interpret_id'])
+    result = _check_result(interpret_id, is_submit=False)
+    if result is None:
+        return None
     result['testcase'] = test_input.split('\n')
     result['title'] = title
     return result
@@ -444,7 +479,7 @@ def test_solution_async(problem_id, title, slug, filetype, code, test_input):
 
     task_name = 'test_solution'
     task_input = [problem_id, title, slug, filetype, code, test_input]
-    task_trigger.release()
+    _start_task()
     return True
 
 
@@ -470,14 +505,14 @@ def submit_solution(slug, filetype, code=None):
     log.info('submit solution request: url="%s" headers="%s" body="%s"', url, headers, body)
     res = session.post(url, json=body, headers=headers)
     log.info('submit solution response: status="%s" body="%s"', res.status_code, res.text)
-    if res.status_code != 200:
-        if 'too fast' in res.text:
-            _echoerr('you are sending the request too fast')
-        else:
-            _echoerr('cannot submit the solution for ' + slug)
+    submission_id = _json_field(res, 'submission_id')
+    if not submission_id:
+        _echoerr(_response_error(res, 'cannot submit the solution for ' + slug))
         return None
 
-    result = _check_result(res.json()['submission_id'])
+    result = _check_result(submission_id, is_submit=True)
+    if result is None:
+        return None
     result['title'] = problem['title']
     return result
 
@@ -494,7 +529,7 @@ def submit_solution_async(slug, filetype, code=None):
 
     task_name = 'submit_solution'
     task_input = [slug, filetype, code]
-    task_trigger.release()
+    _start_task()
     return True
 
 
@@ -563,6 +598,8 @@ def get_submission(sid):
     }
 
     problem = get_problem(submission['slug'])
+    if problem is None:
+        return None
     submission['title'] = problem['title']
 
     # the punctuations and newlines in the code are escaped like '\\u0010' ('\\' => real backslash)
@@ -776,6 +813,17 @@ fragment questionFields on QuestionNode {
     return {
         'company_name': company_tag['name'],
         'problems': [process_problem(p) for p in company_tag['questions']]}
+
+
+def _start_task():
+    global task_running, task_done, task_output, task_err
+    # Reset the status here, not in the worker: Vim polls task_done right
+    # after this returns, possibly before the worker thread has woken up.
+    task_running = True
+    task_done = False
+    task_output = None
+    task_err = ''
+    task_trigger.release()
 
 
 def _thread_main():

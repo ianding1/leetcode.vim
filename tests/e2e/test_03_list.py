@@ -110,3 +110,16 @@ def test_open_company(scenario, lc):
     text = r.text(r'company/google$')
     assert text and '# LeetCode [company:google]' in text, r.describe()
     assert 'Add Two Numbers' in text
+
+
+@pytest.mark.replay_only
+def test_sort_by_title_descending(scenario, lc):
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    s.press(r'S3\<CR>2\<CR>')      # sort by "3 - Title", "2 - From high to low"
+    r = s.run()
+    r.assert_ok()
+    lines = r.buffer(LIST)
+    assert '  Column:  Title' in lines and '  Order:   From high to low' in lines, r.describe()
+    titles = [l.split('|')[3].strip() for l in lines if re.match(r'^\|.\| \d+ ', l)]
+    assert titles == sorted(titles, reverse=True), titles

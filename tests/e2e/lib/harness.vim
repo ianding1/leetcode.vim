@@ -7,12 +7,18 @@ let g:e2e_vars = {}
 " Run one Ex command and record whether it raised.
 function! E2EStep(cmd) abort
     let rec = {'cmd': a:cmd, 'error': '', 'output': ''}
+    let output = ''
+    " :redir also captures :echo output, which :messages does not keep.
+    " (Not execute(): prompts such as inputlist() return 0 inside it.)
+    redir => output
     try
-        " execute() also captures :echo output, which :messages does not keep.
-        let rec.output = execute(a:cmd)
+        execute a:cmd
     catch
         let rec.error = v:exception . ' @ ' . v:throwpoint
+    finally
+        redir END
     endtry
+    let rec.output = output
     call add(g:e2e_steps, rec)
 endfunction
 

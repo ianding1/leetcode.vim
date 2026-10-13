@@ -58,3 +58,34 @@ def test_reset_solution(scenario, lc):
     r.assert_ok()
     solution = r.text(r'^1\.two_sum\.cpp$')
     assert 'garbage' not in solution and 'class Solution' in solution, r.describe()
+
+
+def test_reset_keeps_solution_window(scenario, lc):
+    """:LeetCodeReset on an open problem must not swap the solution window
+    for the description buffer."""
+    s = open_two_sum(scenario, lc)
+    s.step('call setline(1, "garbage")')
+    s.capture('before', "bufname('%')")
+    s.step('LeetCodeReset')
+    s.capture('after', "bufname('%')")
+    s.capture('windows', "map(range(1, winnr('$')), 'bufname(winbufnr(v:val))')")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['before'] == '1.two_sum.cpp', r.describe()
+    assert r.vars['after'] == '1.two_sum.cpp', r.vars
+    assert '1.two_sum.cpp' in r.vars['windows'] and \
+        any(w.startswith('[DESCRIPTION]') for w in r.vars['windows']), r.vars
+    assert 'garbage' not in r.text(r'^1\.two_sum\.cpp$')
+
+
+def test_reset_restores_hidden_description(scenario, lc):
+    s = open_two_sum(scenario, lc)
+    s.step('wincmd k')
+    s.step('close')                 # hide the description window
+    s.step('LeetCodeReset')
+    s.capture('current', "bufname('%')")
+    s.capture('windows', "map(range(1, winnr('$')), 'bufname(winbufnr(v:val))')")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['current'] == '1.two_sum.cpp', r.vars
+    assert any(w.startswith('[DESCRIPTION]') for w in r.vars['windows']), r.vars
