@@ -70,6 +70,8 @@ def _make_headers():
     assert is_login()
     headers = {'Origin': LC_BASE,
                'Referer': LC_BASE,
+               'User-Agent': ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+                               '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'),
                'X-Requested-With': 'XMLHttpRequest',
                'X-CSRFToken': session.cookies.get('csrftoken', '')}
     return headers
