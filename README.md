@@ -128,6 +128,11 @@ Default value is `all`
 
 ## Updates
 
+- 2026/10: Revival release (see [CHANGELOG.md](CHANGELOG.md)):
+  + Sign in by pasting the browser cookie; no browser-cookie3/keyring needed
+  + Optional Python-free backend (`g:leetcode_backend = 'vim'`, needs curl)
+  + Works on Python 3.12+; clear message when Python packages are missing
+  + Neovim tested alongside Vim; many crash fixes; end-to-end tests and CI
 - 2019/12/20: Fix the login issue caused by reCAPTCHA.
 - 2019/08/01: Support custom test input
 - 2019/07/28: Support showing frequencies and sorting by columns
