@@ -50,8 +50,7 @@ does that.
 ### Live mode
 
 ```sh
-export LEETCODE_SESSION='...'     # cookies from a browser signed in to leetcode.com
-export LEETCODE_CSRFTOKEN='...'
+export LEETCODE_SESSION='...'     # the cookie of a browser signed in to leetcode.com
 pytest --lc-mode=live                                  # read-only checks
 pytest --lc-mode=live --lc-allow-submit                # also submits Two Sum
 pytest --lc-mode=live --lc-record=tests/e2e/fixtures/recorded

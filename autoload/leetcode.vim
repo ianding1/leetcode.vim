@@ -97,10 +97,10 @@ function! s:StartSession(cookies) abort
 endfunction
 
 function! s:EnvSignIn() abort
-    let cookies = {'LEETCODE_SESSION': $LEETCODE_SESSION, 'csrftoken': $LEETCODE_CSRFTOKEN}
+    let cookies = {'LEETCODE_SESSION': $LEETCODE_SESSION}
     if empty(cookies.LEETCODE_SESSION)
-        echomsg '$LEETCODE_SESSION is not set. Copy the LEETCODE_SESSION (and csrftoken) '
-                    \ . 'cookie from your browser into $LEETCODE_SESSION (and $LEETCODE_CSRFTOKEN).'
+        echomsg '$LEETCODE_SESSION is not set. Copy the LEETCODE_SESSION cookie from your '
+                    \ . 'browser into it.'
         return v:false
     endif
     if !s:StartSession(cookies)
@@ -130,7 +130,7 @@ function! s:PasteSignIn(ask) abort
                 \ . '(see :help leetcode-sign-in): ', s:host))
     redraw
     let cookies = leetcode#auth#ParseCookie(text)
-    if empty(cookies)
+    if empty(trim(text))
         echo 'Sign-in cancelled.'
         return v:false
     endif

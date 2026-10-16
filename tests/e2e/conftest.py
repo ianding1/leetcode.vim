@@ -223,11 +223,9 @@ def lc(request):
     else:
         session = os.environ.get('LEETCODE_SESSION')
         if not session:
-            pytest.skip('live mode needs LEETCODE_SESSION (and ideally LEETCODE_CSRFTOKEN) '
-                        'copied from a signed-in browser')
+            pytest.skip('live mode needs LEETCODE_SESSION copied from a signed-in browser')
+        # The plugin gets the CSRF token itself.
         cookies = {'LEETCODE_SESSION': session}
-        if os.environ.get('LEETCODE_CSRFTOKEN'):
-            cookies['csrftoken'] = os.environ['LEETCODE_CSRFTOKEN']
         server = FakeLeetCode([], upstream=opt('--lc-upstream'), record_dir=opt('--lc-record'))
     server.start()
     yield LeetCodeTarget(mode, server, cookies, opt('--lc-allow-submit'))

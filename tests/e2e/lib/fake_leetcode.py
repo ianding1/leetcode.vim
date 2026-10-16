@@ -26,6 +26,7 @@ ROUTES = [
     ('GET', r'^/api/problems/(?P<category>[^/]+)/?$', 'problems'),
     ('GET', r'^/api/progress/all/?$', 'progress'),
     ('POST', r'^/graphql/?$', 'graphql'),
+    ('GET', r'^/graphql/?$', 'csrf_page'),
     ('POST', r'^/problems/(?P<slug>[^/]+)/interpret_solution/?$', 'interpret_solution'),
     ('POST', r'^/problems/(?P<slug>[^/]+)/submit/?$', 'submit'),
     ('GET', r'^/submissions/detail/(?P<id>[^/]+)/check/?$', 'check'),
@@ -35,6 +36,11 @@ ROUTES = [
 # Routes that answer 403 in replay mode unless a session cookie is sent, so
 # sign-in bugs that drop the cookie are caught.
 REQUIRES_LOGIN = {'progress'}
+
+# Like LeetCode, replay mode answers 499 to these without a current CSRF
+# token (the csrftoken cookie, repeated in X-CSRFToken). GET /graphql/
+# hands one out.
+REQUIRES_CSRF = {'interpret_solution', 'submit'}
 
 # Headers that must not be copied between the plugin and the upstream.
 HOP_HEADERS = {'host', 'connection', 'content-length', 'transfer-encoding',
@@ -76,6 +82,10 @@ class FakeLeetCode:
         self.requests = []
         # When set, only these LEETCODE_SESSION values count as signed in.
         self.valid_sessions = None
+        # The CSRF tokens GET /graphql/ hands out, in turn (the last one
+        # repeats), and those still accepted.
+        self.csrf_tokens = ['e2e-csrf']
+        self.valid_csrf_tokens = {'e2e-csrf'}
         self._overrides = {}
         self._sequences = {}
         self._lock = threading.Lock()
@@ -153,6 +163,13 @@ class FakeLeetCode:
         elif (route in REQUIRES_LOGIN and not self._has_override(route, key)
               and not self._signed_in(record['headers'].get('cookie', ''))):
             status, headers, payload = 403, {'Content-Type': 'text/plain'}, b'not signed in'
+        elif route == 'csrf_page' and not self._has_override(route, key):
+            status, headers, payload = 200, {
+                'Content-Type': 'application/json',
+                'Set-Cookie': 'csrftoken={}; Max-Age=31449600; Path=/; SameSite=Lax'.format(
+                    self._next_csrf_token())}, b'{}'
+        elif route in REQUIRES_CSRF and not self._csrf_ok(record['headers']):
+            status, headers, payload = 499, {'Content-Type': 'text/plain'}, b''
         else:
             status, headers, payload = self._replay(route, key)
 
@@ -166,6 +183,16 @@ class FakeLeetCode:
         h.send_header('Content-Length', str(len(payload)))
         h.end_headers()
         h.wfile.write(payload)
+
+    def _next_csrf_token(self):
+        with self._lock:
+            return self.csrf_tokens.pop(0) if len(self.csrf_tokens) > 1 else self.csrf_tokens[0]
+
+    def _csrf_ok(self, headers):
+        cookies = dict(c.strip().split('=', 1)
+                       for c in headers.get('cookie', '').split(';') if '=' in c)
+        token = headers.get('x-csrftoken', '')
+        return token == cookies.get('csrftoken') and token in self.valid_csrf_tokens
 
     def _signed_in(self, cookie_header):
         cookies = dict(c.strip().split('=', 1) for c in cookie_header.split(';') if '=' in c)
@@ -228,6 +255,10 @@ class FakeLeetCode:
                 'fake leetcode proxy error: {}'.format(e).encode(), False
         out_headers = {k: v for k, v in res.headers.items()
                        if k.lower() not in HOP_HEADERS and k.lower() != 'set-cookie'}
+        # Account cookies stay out, but the plugin fetches its CSRF token.
+        token = res.cookies.get('csrftoken')
+        if token:
+            out_headers['Set-Cookie'] = 'csrftoken={}; Path=/'.format(token)
         return res.status_code, out_headers, res.content, True
 
     def _record(self, route, key, status, headers, payload):

@@ -62,12 +62,14 @@ LeetCode. By default it asks for that cookie the first time it needs it:
 1. Sign in to LeetCode in your browser.
 2. Open the developer tools (F12), then the Network tab, and reload the page.
 3. Click any request to leetcode.com and copy the value of its "Cookie"
-   request header. Copying only the LEETCODE_SESSION cookie also works, but
-   then LeetCode may reject running and submitting code.
+   request header, or just the value of the LEETCODE_SESSION cookie
+   (Application/Storage tab, Cookies).
 4. Paste it at the prompt. Nothing is shown while you paste.
 
-The plugin keeps only the LEETCODE_SESSION and csrftoken cookies, in a file
-that only you can read (see |g:leetcode_cookie_file|). When the session
+The plugin keeps only the LEETCODE_SESSION cookie, in a file that only you
+can read (see |g:leetcode_cookie_file|). The CSRF token LeetCode also wants
+for running and submitting code is not stored: the plugin gets one when it
+signs in, and a new one if LeetCode turns it down. When the session
 expires, it asks again. See |g:leetcode_browser| for other ways to provide
 the cookie.
 
@@ -153,7 +155,7 @@ g:leetcode_browser  Where the LeetCode session cookie comes from:
                                read it from the browser's cookie store
                                (needs the browser-cookie3 and keyring
                                Python packages).
-                    "env"      read $LEETCODE_SESSION and $LEETCODE_CSRFTOKEN.
+                    "env"      read $LEETCODE_SESSION.
 
                     Default: "paste"
 

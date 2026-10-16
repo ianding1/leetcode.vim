@@ -30,7 +30,6 @@ except ImportError:
 
 
 LC_BASE = os.environ['LEETCODE_BASE_URL']
-LC_CSRF = LC_BASE + '/ensure_csrf/'
 LC_LOGIN = LC_BASE + '/accounts/login/'
 LC_GRAPHQL = LC_BASE + '/graphql'
 LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}/'
@@ -56,6 +55,8 @@ CHECK_TIMEOUT = 120
 SESSION_COOKIES = ('LEETCODE_SESSION', 'csrftoken')
 
 session = None
+# See _refresh_csrf_token().
+csrf_token = ''
 task_running = False
 task_done = False
 task_trigger = Semaphore(0)
@@ -83,7 +84,7 @@ def _make_headers():
                'Referer': LC_BASE,
                'User-Agent': USER_AGENT,
                'X-Requested-With': 'XMLHttpRequest',
-               'X-CSRFToken': session.cookies.get('csrftoken', '')}
+               'X-CSRFToken': csrf_token}
     return headers
 
 
@@ -181,13 +182,50 @@ def get_progress():
 def _start_session(cookies):
     global session
     session = requests.Session()
+    # Only the session is kept; the CSRF token is fetched.
     for cookie in cookies:
-        session.cookies.set_cookie(cookie)
+        if cookie.name == 'LEETCODE_SESSION':
+            session.cookies.set_cookie(cookie)
     if get_progress() is None:
         # Don't leave rejected cookies behind as if signed in.
         session = None
         return False
+    _refresh_csrf_token()
     return True
+
+
+def _refresh_csrf_token():
+    """LeetCode refuses test runs and submissions without a current CSRF
+    token: a csrftoken cookie, repeated in the X-CSRFToken header (HTTP 499
+    when it is missing or stale). It isn't tied to the session, and LeetCode
+    hands one out with any page, so the plugin gets its own instead of asking
+    for it, and gets a new one when LeetCode turns it down."""
+    global csrf_token
+    try:
+        res = requests.get(LC_GRAPHQL, headers={'User-Agent': USER_AGENT}, timeout=30)
+        token = res.cookies.get('csrftoken')
+    except requests.RequestException:
+        token = None
+    if not token:
+        return False
+    for cookie in [c for c in session.cookies if c.name == 'csrftoken']:
+        session.cookies.clear(cookie.domain, cookie.path, cookie.name)
+    session.cookies.set('csrftoken', token)
+    csrf_token = token
+    return True
+
+
+def _post_to_judge(url, body, referer):
+    """POST a test run or submission, once more with a new CSRF token if
+    LeetCode turns the token down."""
+    for attempt in range(2):
+        headers = _make_headers()
+        headers['Referer'] = referer
+        log.info('judge request: url="%s" headers="%s" body="%s"', url, headers, body)
+        res = session.post(url, json=body, headers=headers)
+        log.info('judge response: status="%s" body="%s"', res.status_code, res.text)
+        if res.status_code != 499 or attempt or not _refresh_csrf_token():
+            return res
 
 
 def start_session_with_cookies(cookies):
@@ -198,23 +236,17 @@ def start_session_with_cookies(cookies):
 
 
 def _cookies_from_env():
-    """Build session cookies from $LEETCODE_SESSION and $LEETCODE_CSRFTOKEN."""
-    cookies = []
-    for name, var in (('LEETCODE_SESSION', 'LEETCODE_SESSION'),
-                      ('csrftoken', 'LEETCODE_CSRFTOKEN')):
-        value = os.environ.get(var)
-        if value:
-            cookies.append(requests.cookies.create_cookie(name, value))
-    return cookies
+    """The session cookie from $LEETCODE_SESSION."""
+    value = os.environ.get('LEETCODE_SESSION')
+    return [requests.cookies.create_cookie('LEETCODE_SESSION', value)] if value else []
 
 
 def load_session_cookie(browser):
     if browser == 'env':
         cookies = _cookies_from_env()
         if not any(c.name == 'LEETCODE_SESSION' for c in cookies):
-            _echoerr('$LEETCODE_SESSION is not set. Copy the LEETCODE_SESSION (and '
-                     'csrftoken) cookie from your browser into $LEETCODE_SESSION '
-                     '(and $LEETCODE_CSRFTOKEN).')
+            _echoerr('$LEETCODE_SESSION is not set. Copy the LEETCODE_SESSION cookie from '
+                     'your browser into it.')
             return False
         if not _start_session(cookies):
             _echoerr('cannot get progress. Please update $LEETCODE_SESSION.')
@@ -477,17 +509,12 @@ def test_solution(problem_id, title, slug, filetype, code, test_input):
 
     code = _remove_description(code)
 
-    headers = _make_headers()
-    headers['Referer'] = LC_PROBLEM.format(slug=slug)
     body = {'data_input': test_input,
             'lang': filetype,
             'question_id': str(problem_id),
             'test_mode': False,
             'typed_code': code}
-    url = LC_TEST.format(slug=slug)
-    log.info('test solution request: url="%s" headers="%s" body="%s"', url, headers, body)
-    res = session.post(url, json=body, headers=headers)
-    log.info('test solution response: status="%s" body="%s"', res.status_code, res.text)
+    res = _post_to_judge(LC_TEST.format(slug=slug), body, LC_PROBLEM.format(slug=slug))
     interpret_id = _json_field(res, 'interpret_id')
     if not interpret_id:
         _echoerr(_response_error(res, 'cannot test the solution for ' + slug))
@@ -526,18 +553,13 @@ def submit_solution(slug, filetype, code=None):
         code = '\n'.join(vim.current.buffer)
     code = _remove_description(code)
 
-    headers = _make_headers()
-    headers['Referer'] = LC_PROBLEM.format(slug=slug)
     body = {'data_input': problem['testcase'],
             'lang': filetype,
             'question_id': str(problem['id']),
             'test_mode': False,
             'typed_code': code,
             'judge_type': 'large'}
-    url = LC_SUBMIT.format(slug=slug)
-    log.info('submit solution request: url="%s" headers="%s" body="%s"', url, headers, body)
-    res = session.post(url, json=body, headers=headers)
-    log.info('submit solution response: status="%s" body="%s"', res.status_code, res.text)
+    res = _post_to_judge(LC_SUBMIT.format(slug=slug), body, LC_PROBLEM.format(slug=slug))
     submission_id = _json_field(res, 'submission_id')
     if not submission_id:
         _echoerr(_response_error(res, 'cannot submit the solution for ' + slug))

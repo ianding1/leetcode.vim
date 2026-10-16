@@ -6,8 +6,9 @@
 " by a CAPTCHA, so the plugin uses the session cookie of a signed-in browser.
 " The cookies are kept per site in a JSON file that only the user can read.
 
-" The cookies the plugin needs.
-let s:wanted = ['LEETCODE_SESSION', 'csrftoken']
+" The only cookie the plugin needs and keeps: the CSRF token LeetCode also
+" wants is fetched by the plugin itself (see s:RefreshCsrfToken() in api.vim).
+let s:wanted = ['LEETCODE_SESSION']
 
 " Accepts what people copy from the browser's developer tools:
 "   Cookie: a=b; LEETCODE_SESSION=...; csrftoken=...
@@ -64,7 +65,15 @@ endfunction
 " The saved cookies for `host` (e.g. 'leetcode.com'), or {}.
 function! leetcode#auth#Load(host) abort
     let cookies = get(s:ReadAll(), a:host, {})
-    return type(cookies) == v:t_dict ? cookies : {}
+    if type(cookies) != v:t_dict
+        return {}
+    endif
+    let kept = filter(copy(cookies), 'index(s:wanted, v:key) >= 0')
+    if kept != cookies
+        " Written by an earlier version, with a csrftoken: drop it.
+        call leetcode#auth#Save(a:host, kept)
+    endif
+    return kept
 endfunction
 
 " Save the cookies for `host`; {} forgets them.
@@ -77,7 +86,7 @@ function! leetcode#auth#Save(host, cookies) abort
         endif
         call remove(data, a:host)
     else
-        let data[a:host] = a:cookies
+        let data[a:host] = filter(copy(a:cookies), 'index(s:wanted, v:key) >= 0')
     endif
     let dir = fnamemodify(file, ':h')
     if !isdirectory(dir)

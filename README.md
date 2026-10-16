@@ -9,9 +9,10 @@ This Vim plugin is inspired by [skygragon/leetcode-cli][leetcode-cli].
 **Signing in:** LeetCode has no API tokens and its login page uses a CAPTCHA,
 so leetcode.vim signs in with the session cookie of a browser where you are
 signed in. The first time it needs one, it asks you to paste the `Cookie`
-header of any leetcode.com request (browser developer tools → Network). It
-keeps only the `LEETCODE_SESSION` and `csrftoken` cookies, in a file only you
-can read, and asks again when the session expires. See `:help
+header of any leetcode.com request (browser developer tools → Network), or
+just the `LEETCODE_SESSION` cookie. It keeps only that cookie, in a file only
+you can read, gets the CSRF token LeetCode also wants by itself, and asks
+again when the session expires. See `:help
 leetcode-sign-in`.
 
 ## Installation
@@ -105,7 +106,7 @@ Default value is `'~/leetcode'`.
 Where the session cookie comes from: `'paste'` asks for it (see above);
 `'chrome'` or `'firefox'` read it from the browser's cookie store (needs the
 `keyring` and `browser-cookie3` Python packages); `'env'` reads
-`$LEETCODE_SESSION` and `$LEETCODE_CSRFTOKEN`.
+`$LEETCODE_SESSION`.
 
 Values: `'paste'`, `'chrome'`, `'firefox'`, `'env'`
 

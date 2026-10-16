@@ -19,8 +19,8 @@ public:
 };'''
 
 
-def with_solution(scenario, lc):
-    s = scenario().signed_in(lc.cookies)
+def with_solution(scenario, lc, cookies=None):
+    s = scenario().signed_in(cookies or lc.cookies)
     s.step('edit 1.two_sum.cpp')
     s.step('call setline(1, {})'.format(repr(SOLUTION.split('\n')).replace("'", '"')))
     s.step('write')
@@ -221,3 +221,35 @@ def test_submit_error_says_why(scenario, lc):
     r = s.run()
     r.assert_ok()
     assert 'cannot submit the solution for two-sum (HTTP 403)' in r.output, r.describe()
+
+
+@pytest.mark.replay_only
+@pytest.mark.parametrize('command', ['test', 'submit'])
+def test_signed_in_with_the_session_only(scenario, lc, command):
+    """Users often paste only LEETCODE_SESSION. LeetCode then refused runs
+    and submissions (HTTP 499): the plugin now gets the CSRF token itself."""
+    s = with_solution(scenario, lc, {'LEETCODE_SESSION': 'e2e-session'})
+    if command == 'test':
+        s.step('LeetCodeTest')
+        s.step('wq')
+    else:
+        s.step('LeetCodeSubmit')
+    s.wait_for_buffer(RESULT)
+    r = s.run()
+    r.assert_ok()
+    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+
+
+@pytest.mark.replay_only
+def test_stale_csrf_token_is_renewed(scenario, lc):
+    """When LeetCode turns the token down (499), the plugin gets a new one and
+    tries once more."""
+    lc.server.csrf_tokens = ['stale', 'fresh']     # sign-in gets 'stale'
+    lc.server.valid_csrf_tokens = {'fresh'}
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeSubmit')
+    s.wait_for_buffer(RESULT)
+    r = s.run()
+    r.assert_ok()
+    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+    assert [q['status'] for q in lc.server.requests_to('submit')] == [499, 200]

@@ -5,13 +5,17 @@
 ### Signing in
 - New default `g:leetcode_browser = 'paste'`: the plugin asks for the `Cookie`
   header of a signed-in browser (hidden input), checks it with LeetCode, and
-  keeps `LEETCODE_SESSION` and `csrftoken` in a file only you can read
+  keeps `LEETCODE_SESSION` in a file only you can read
   (`g:leetcode_cookie_file`). It reuses the saved session and asks again when
   it expires. `:LeetCodeSignIn` replaces it, new `:LeetCodeSignOut` forgets it.
-- `g:leetcode_browser = 'env'` reads `$LEETCODE_SESSION` and
-  `$LEETCODE_CSRFTOKEN`.
-- Browser sign-in now also loads `csrftoken`, and drops expired cached
-  cookies. A rejected cookie no longer leaves the plugin looking signed in.
+- `g:leetcode_browser = 'env'` reads `$LEETCODE_SESSION`.
+- The CSRF token LeetCode wants for test runs and submissions is no longer
+  something to copy or store: the plugin gets one when it signs in, and a
+  new one when LeetCode turns it down (HTTP 499). Before, signing in with
+  only `LEETCODE_SESSION` worked but every run and submission failed with
+  499. Saved cookie files lose their `csrftoken`.
+- Browser sign-in drops expired cached cookies. A rejected cookie no longer
+  leaves the plugin looking signed in.
 
 ### Python-free backend
 - `g:leetcode_backend = 'vim'` talks to LeetCode with Vim script and `curl`;

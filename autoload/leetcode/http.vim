@@ -77,7 +77,10 @@ function! s:ParseHeaders(lines) abort
             let headers = {}
         elseif line =~# '^[^:]\+:'
             let name = tolower(matchstr(line, '^[^:]\+'))
-            let headers[name] = trim(matchstr(line, '^[^:]\+:\zs.*'))
+            let value = trim(matchstr(line, '^[^:]\+:\zs.*'))
+            " Several Set-Cookie headers are kept, one per line.
+            let headers[name] = name ==# 'set-cookie' && has_key(headers, name)
+                        \ ? headers[name] . "\n" . value : value
         endif
     endfor
     return headers

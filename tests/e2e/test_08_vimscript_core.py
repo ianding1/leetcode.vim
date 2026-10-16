@@ -66,7 +66,9 @@ def test_post_json(scenario, lc, send):
 def test_post_raw_body_is_sent_exactly(scenario, lc):
     body = 'line 1\nline "2" \\ end\n'
     res, r = request_async(scenario, {'url': lc.base_url + '/problems/two-sum/submit/',
-                                      'method': 'POST', 'body': body})
+                                      'method': 'POST', 'body': body,
+                                      'cookies': {'csrftoken': 'e2e-csrf'},
+                                      'headers': {'X-CSRFToken': 'e2e-csrf'}})
     assert res['status'] == 200, r.describe()
     assert lc.server.requests_to('submit')[0]['body'] == body
 

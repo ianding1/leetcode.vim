@@ -147,12 +147,29 @@ function! leetcode#api#IsLogin() abort
 endfunction
 
 function! leetcode#api#StartSessionWithCookies(cookies) abort
-    let s:cookies = filter(copy(a:cookies), '!empty(v:val)')
+    " Only the session is kept; the CSRF token is fetched (see below).
+    let s:cookies = filter({'LEETCODE_SESSION': get(a:cookies, 'LEETCODE_SESSION', '')},
+                \ '!empty(v:val)')
     if leetcode#api#GetProgress() is v:null
         let s:cookies = {}
         return v:false
     endif
+    call s:RefreshCsrfToken()
     return v:true
+endfunction
+
+" LeetCode refuses test runs and submissions without a current CSRF token:
+" a csrftoken cookie, repeated in the X-CSRFToken header (HTTP 499 when it
+" is missing or stale). It isn't tied to the session, and LeetCode hands
+" one out with any page, so the plugin gets its own instead of asking for
+" it, and gets a new one when LeetCode turns it down.
+function! s:RefreshCsrfToken() abort
+    let res = leetcode#http#Request(s:Request('GET', '/graphql/', '', v:null))
+    let token = matchstr(get(res.headers, 'set-cookie', ''), '\<csrftoken=\zs[^;[:space:]]\+')
+    if !empty(token)
+        let s:cookies.csrftoken = token
+    endif
+    return !empty(token)
 endfunction
 
 function! leetcode#api#SignOut() abort
@@ -467,11 +484,9 @@ function! leetcode#api#TestSolutionAsync(problem_id, title, slug, filetype, code
                 \ 'typed_code': s:RemoveDescription(a:code)}
     let Finish = {result -> extend(result, {'testcase': split(a:test_input, "\n", 1),
                 \ 'title': a:title})}
-    call leetcode#http#RequestAsync(
-                \ s:Request('POST', '/problems/' . a:slug . '/interpret_solution/',
-                \           s:ProblemUrl(a:slug), body),
-                \ function('s:OnStarted', [task, 'interpret_id', v:false, Finish,
-                \          'cannot test the solution for ' . a:slug]))
+    call s:StartJudge(task, '/problems/' . a:slug . '/interpret_solution/',
+                \ s:ProblemUrl(a:slug), body, 'interpret_id', v:false, Finish,
+                \ 'cannot test the solution for ' . a:slug, 0)
     return v:true
 endfunction
 
@@ -489,14 +504,25 @@ function! leetcode#api#SubmitSolutionAsync(slug, filetype, code, callback) abort
                 \ 'question_id': '' . problem.id, 'test_mode': v:false,
                 \ 'typed_code': s:RemoveDescription(a:code), 'judge_type': 'large'}
     let Finish = {result -> extend(result, {'title': problem.title})}
-    call leetcode#http#RequestAsync(
-                \ s:Request('POST', '/problems/' . a:slug . '/submit/', s:ProblemUrl(a:slug), body),
-                \ function('s:OnStarted', [task, 'submission_id', v:true, Finish,
-                \          'cannot submit the solution for ' . a:slug]))
+    call s:StartJudge(task, '/problems/' . a:slug . '/submit/', s:ProblemUrl(a:slug), body,
+                \ 'submission_id', v:true, Finish, 'cannot submit the solution for ' . a:slug, 0)
     return v:true
 endfunction
 
-function! s:OnStarted(task, id_key, is_submit, finish, error, res) abort
+function! s:StartJudge(task, path, referer, body, id_key, is_submit, finish, error, retried) abort
+    call leetcode#http#RequestAsync(s:Request('POST', a:path, a:referer, a:body),
+                \ function('s:OnStarted', [a:task, a:path, a:referer, a:body, a:id_key,
+                \          a:is_submit, a:finish, a:error, a:retried]))
+endfunction
+
+function! s:OnStarted(task, path, referer, body, id_key, is_submit, finish, error, retried,
+            \ res) abort
+    if a:res.status == 499 && !a:retried && s:RefreshCsrfToken()
+        " The CSRF token is missing or stale: try once more with a new one.
+        call s:StartJudge(a:task, a:path, a:referer, a:body, a:id_key, a:is_submit, a:finish,
+                    \ a:error, 1)
+        return
+    endif
     let data = s:JsonDict(a:res)
     let id = data is v:null ? '' : get(data, a:id_key, '')
     if empty(id)

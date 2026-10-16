@@ -46,12 +46,12 @@ def test_paste_cookie_header(paste, lc):
     r.assert_ok()
     assert r.vars['logged_in'], r.describe()
     assert 'Signed in.' in r.output
-    # Only the cookies the plugin needs are kept, in a file only the user can read.
-    assert saved_cookies(s) == {host(lc): {'LEETCODE_SESSION': SESSION, 'csrftoken': 'e2e-csrf'}}
+    # Only the session is kept, in a file only the user can read; the plugin
+    # gets the CSRF token itself.
+    assert saved_cookies(s) == {host(lc): {'LEETCODE_SESSION': SESSION}}
     mode = stat.S_IMODE(os.stat(s.options['leetcode_cookie_file']).st_mode)
     assert mode == 0o600, oct(mode)
-    sent = lc.server.requests_to('progress')[-1]['headers']
-    assert sent['x-csrftoken'] == 'e2e-csrf'
+    assert lc.server.requests_to('csrf_page'), 'the CSRF token should be fetched'
 
 
 def test_paste_bare_session_value(paste):
@@ -149,9 +149,7 @@ def test_signin_reads_browser_cookie(scenario, lc):
     assert 'Signed in.' in r.output, r.describe()
     progress = lc.server.requests_to('progress')
     assert progress, 'sign-in should verify the session'
-    # Both cookies are needed: csrftoken backs the X-CSRFToken header.
     assert 'LEETCODE_SESSION=' in progress[0]['headers'].get('cookie', '')
-    assert progress[0]['headers'].get('x-csrftoken') == lc.cookies.get('csrftoken'), r.describe()
     assert progress[0]['headers'].get('user-agent', '').startswith('Mozilla/5.0')
 
 
@@ -197,3 +195,13 @@ def test_api_accepts_plugin_requests(lc):
                        timeout=30)
     assert res.status_code == 200, (res.status_code, res.text[:300])
     assert 'solvedTotal' in res.json()
+
+
+@pytest.mark.replay_only
+def test_saved_csrf_token_is_dropped(scenario, lc):
+    """Cookie files from earlier versions kept the csrftoken: it is removed."""
+    s = scenario().signed_in({'LEETCODE_SESSION': SESSION, 'csrftoken': 'old'})
+    s.step('call leetcode#SignIn(0)')      # with the saved cookie, no prompt
+    r = s.run()
+    r.assert_ok()
+    assert saved_cookies(s) == {host(lc): {'LEETCODE_SESSION': SESSION}}, r.describe()
