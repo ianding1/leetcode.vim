@@ -50,9 +50,11 @@ Plug 'ianding1/leetcode.vim'
 
 ## Quick Start
 
-- `:LeetCodeList`: browse the problems. `<CR>` opens one, `f` filters by
-  title or number, `F` clears the filter, `S` sorts, `s` lists your
-  submissions. Topics and companies are folded above the table.
+- `:LeetCodeList`: browse the problems. `<CR>` opens one (the list makes way
+  for the description and the code, side by side; `:LeetCodeList` brings it
+  back), `f` filters by title or number, `F` clears the filter, `S` sorts,
+  `s` lists your submissions. Topics and companies are folded above the
+  table.
 - `:LeetCodeOpen 1` or `:LeetCodeOpen two-sum`: open a problem directly
   (`<Tab>` completes slugs). The description opens above the solution as a
   Markdown buffer, with examples as code blocks, hints folded away and

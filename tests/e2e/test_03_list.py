@@ -15,7 +15,7 @@ def test_list_shows_problems(scenario, lc):
     r.assert_ok()
     text = r.text(LIST)
     assert text is not None, r.describe()
-    assert '## Problem List' in text
+    assert '## Problems (' in text, text
     assert 'Two Sum' in text
 
 
@@ -59,7 +59,7 @@ def test_list_filters_by_difficulty(scenario, lc):
     r = s.run()
     r.assert_ok()
     text = r.text(LIST)
-    assert '## Difficulty [Medium]' in text, r.describe()
+    assert re.search(r'^  Difficulty .*\[Medium:2\]', text, re.M), r.describe()
     assert 'Add Two Numbers' in text and 'Two Sum ' not in text
 
 
@@ -124,7 +124,7 @@ def test_sort_by_title_descending(scenario, lc):
     r = s.run()
     r.assert_ok()
     lines = r.buffer(LIST)
-    assert any(line.startswith('## Problem List (4 shown, sorted by Title, from high to low)')
+    assert any(line.startswith('## Problems (4 shown · sorted by Title ↓)')
                for line in lines), r.describe()
     titles = [line.split('|')[3].strip() for line in lines if re.match(r'^\|.\| \d+ ', line)]
     assert titles == sorted(titles, reverse=True), titles
@@ -158,7 +158,7 @@ def test_enter_opens_a_section_and_it_stays_open(scenario, lc):
     s.capture('companies_closed', "foldclosed(search('^## Companies', 'nw')) != -1")
     r = s.run()
     r.assert_ok()
-    assert '## Difficulty [Medium]' in r.text(LIST), r.describe()
+    assert '[Medium:2]' in r.text(LIST), r.describe()
     assert r.vars['topics_open'] and r.vars['companies_closed'], r.describe()
 
 
@@ -192,3 +192,40 @@ def test_colors_follow_the_colorscheme(scenario, lc):
     r.assert_ok()
     assert r.vars['hard'] == '123', r.vars
     assert 'ctermfg=' in r.vars['easy_after'] or 'links to' in r.vars['easy_after'], r.vars
+
+
+@pytest.mark.replay_only
+def test_list_summary_and_filters(scenario, lc):
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    s.goto(r'\<Solved:')
+    s.press(r'\<CR>')                  # Status: Solved
+    s.goto(r'^  Difficulty')
+    s.press(r'^\<CR>')                 # on the label: nothing changes
+    r = s.run()
+    r.assert_ok()
+    text = r.text(LIST)
+    assert re.search(r'^  Solved 1 of 4  \S+  25%$', text, re.M), text
+    assert '  Easy 1/1 · Medium 0/2 · Hard 0/1' in text, text
+    assert re.search(r'^  Status .*\[Solved:1\]', text, re.M), text
+    assert re.search(r'^  Difficulty +\[All:', text, re.M), text
+    assert [line.split('|')[3].strip() for line in rows_of(text)] == ['Two Sum'], text
+
+
+def rows_of(text):
+    return [line for line in text.split('\n') if re.match(r'^\|.\| \d+ ', line)]
+
+
+@pytest.mark.replay_only
+def test_table_is_drawn_with_box_lines(scenario, lc):
+    """The text keeps | between cells; conceal draws them as box lines."""
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    s.step("let g:l = search('^|-|', 'nw')")
+    s.capture('rule', "map(range(1, 4), 'synconcealed(g:l, v:val)')")
+    s.capture('cursorline', '&cursorline')
+    r = s.run()
+    r.assert_ok()
+    marks = [c[1] for c in r.vars['rule']]
+    assert marks[0] == '' and marks[1:] == ['─', '┼', '─'], r.vars['rule']
+    assert r.vars['cursorline'], r.vars

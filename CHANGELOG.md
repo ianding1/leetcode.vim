@@ -44,6 +44,13 @@
 - The problem list starts with the problems: topics and companies are
   folds, closed by default, and the cursor is on the first problem. Keys,
   sort order and legend fit in three lines.
+- The list shows how many problems you solved (with a progress bar, per
+  difficulty), the filters on one line each with the current one marked,
+  and a table drawn with box lines (conceal), right-aligned acceptance,
+  smooth frequency bars and a cursor line.
+- Opening a problem hides the list and shows the description and the code
+  side by side, description on the left, as on the website. Opening a
+  similar question from the description replaces both.
 - `:LeetCodeOpen {number|slug}` opens a problem from anywhere, with
   completion; `f`/`F` filter the list by title or number.
 - Test runs say Accepted or Wrong Answer, and highlight the answer lines

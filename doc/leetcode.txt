@@ -7,9 +7,12 @@ This plugin makes it possible to solve LeetCode problems in Vim.
 COMMANDS                                                *leetcode-commands*
 
                                                         *:LeetCodeList*
-:LeetCodeList       List all the problems in a new window. The cursor starts
-                    on the first problem; topics and companies are folded
-                    above the table (see |leetcode-<CR>|).
+:LeetCodeList       List all the problems: how many you solved, the
+                    difficulty and status filters, topics and companies
+                    (folded), and the table, with the cursor on the first
+                    problem (see |leetcode-mappings|). Opening a problem
+                    hides the list and shows the description and the code
+                    side by side; :LeetCodeList brings the list back.
 
                                                         *:LeetCodeOpen*
 :LeetCodeOpen {problem}

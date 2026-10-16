@@ -1,5 +1,6 @@
 """Opening a problem: description window and solution template."""
 
+import json
 import re
 
 import pytest
@@ -88,7 +89,7 @@ def test_reset_keeps_solution_window(scenario, lc):
 
 def test_reset_restores_hidden_description(scenario, lc):
     s = open_two_sum(scenario, lc)
-    s.step('wincmd k')
+    s.step('wincmd h')
     s.step('close')                 # hide the description window
     s.step('LeetCodeReset')
     s.capture('current', "bufname('%')")
@@ -101,7 +102,7 @@ def test_reset_restores_hidden_description(scenario, lc):
 
 def test_description_is_markdown(scenario, lc):
     s = open_two_sum(scenario, lc)
-    s.step('wincmd k')
+    s.step('wincmd h')
     s.capture('ft', '&filetype')
     s.capture('wrap', '&wrap')
     s.capture('hints_closed', "foldclosed(search('^## Hints$', 'nw')) != -1")
@@ -117,7 +118,7 @@ def test_description_hints_and_similar_questions(scenario, lc):
                        lc.server._lookup('graphql.getQuestionDetail', 'two-sum')[1],
                        key='add-two-numbers')
     s = open_two_sum(scenario, lc)
-    s.step('wincmd k')
+    s.step('wincmd h')
     s.goto(r'^- \[Add Two Numbers\]')
     s.press(r'\<CR>')                  # opens the similar question
     r = s.run()
@@ -160,3 +161,35 @@ def test_existing_solution_is_opened_as_it_is(scenario, lc):
     assert r.vars['lines'] == ['// my work in progress'], r.vars
     assert not r.vars['modified'], r.vars
     assert any(w.startswith('[DESCRIPTION] 1.two-sum') for w in r.vars['windows']), r.vars
+
+
+def test_problem_opens_side_by_side_instead_of_the_list(scenario, lc):
+    s = open_two_sum(scenario, lc)
+    s.capture('windows', "map(range(1, winnr('$')), 'bufname(winbufnr(v:val))')")
+    s.capture('layout', 'winlayout()[0]')
+    s.capture('list_loaded', "bufloaded('leetcode:///problems/all')")
+    s.step('LeetCodeList')
+    s.capture('back', "bufname('%')")
+    r = s.run()
+    r.assert_ok()
+    assert [w.split('/')[-1] for w in r.vars['windows']] == [
+        '[DESCRIPTION] 1.two-sum', '1.two_sum.cpp'], r.vars['windows']
+    assert r.vars['layout'] == 'row', r.vars                # side by side
+    assert r.vars['list_loaded'], 'the list is kept, hidden'
+    assert r.vars['back'] == 'leetcode:///problems/all', r.vars
+
+
+@pytest.mark.replay_only
+def test_similar_question_replaces_the_current_one(scenario, lc):
+    detail = json.loads(json.dumps(lc.server._lookup('graphql.getQuestionDetail', 'two-sum')[1]))
+    detail['json']['data']['question'].update(questionFrontendId='2', title='Add Two Numbers')
+    lc.server.override('graphql.getQuestionDetail', detail, key='add-two-numbers')
+    s = open_two_sum(scenario, lc)
+    s.step('wincmd h')
+    s.goto(r'^- \[Add Two Numbers\]')
+    s.press(r'\<CR>')
+    s.capture('windows', "map(range(1, winnr('$')), 'bufname(winbufnr(v:val))')")
+    r = s.run()
+    r.assert_ok()
+    assert [w.split('/')[-1] for w in r.vars['windows']] == [
+        '[DESCRIPTION] 2.add-two-numbers', '2.add_two_numbers.cpp'], r.vars['windows']

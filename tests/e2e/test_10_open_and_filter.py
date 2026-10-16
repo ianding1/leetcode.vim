@@ -65,7 +65,7 @@ def test_filter_and_clear(scenario, lc):
     filtered = [line for line in r.vars['filtered'] if re.match(r'^\|.\| \d+ ', line)]
     assert [line.split('|')[3].strip() for line in filtered] == [
         'Two Sum', 'Add Two Numbers', 'Median of Two Sorted Arrays'], filtered
-    assert any('3 shown, filter "two"' in line for line in r.vars['filtered'])
+    assert any('3 shown · filter "two"' in line for line in r.vars['filtered'])
     assert '| Two Sum ' in r.vars['line'], r.vars['line']
     assert len(rows(r)) == 4, r.describe()
 

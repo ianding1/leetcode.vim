@@ -227,6 +227,17 @@ function! s:DefineHighlights() abort
     hi def link lcWarning lcFailure
     hi def link lcNA Comment
     hi def link lcMismatch DiffText
+    hi def link lcBorder NonText
+    hi def link lcBorderStart NonText
+    hi def link lcRule NonText
+    hi def link lcRuleDash NonText
+    hi def link lcRuleCross NonText
+    hi def link lcRuleEnd NonText
+    hi def link lcTableHead Title
+    hi def link lcBar Special
+    hi def link lcSelected Visual
+    hi def link lcLabel Statement
+    hi def link lcHelp Comment
     hi def link TestInputComment Comment
 endfunction
 
@@ -262,6 +273,7 @@ function! s:SetupProblemListBuffer() abort
     setlocal nospell
     setlocal bufhidden=hide
     setlocal nowrap
+    setlocal cursorline
     nnoremap <silent> <buffer> <return> :call <SID>HandleProblemListCR()<cr>
     nnoremap <silent> <buffer> s :call <SID>HandleProblemListS()<cr>
     nnoremap <silent> <buffer> r :call <SID>HandleProblemListR()<cr>
@@ -271,12 +283,37 @@ function! s:SetupProblemListBuffer() abort
 
     call s:SetupBasicSyntax()
 
-    syn match lcEasy /| Easy /hs=s+2
-    syn match lcMedium /| Medium /hs=s+2
-    syn match lcHard /| Hard /hs=s+2
-    execute 'syn match lcDone /^|\V' . s:status_marks['X'] . '\m|/hs=s+1,he=e-1'
-    execute 'syn match lcTodo /^|\V' . s:status_marks['?'] . '\m|/hs=s+1,he=e-1'
+    " The text keeps | between the cells (it is parsed back); they are drawn
+    " as box lines, and the one at the start of a row is hidden.
+    if s:fancy && has('conceal')
+        setlocal conceallevel=2 concealcursor=nc
+        syn match lcBorder /|/ conceal cchar=│
+        syn match lcBorderStart /^|/ conceal
+        " Defined last, so it wins over lcBorderStart at the start of the rule.
+        syn match lcRule /^|-|[-|]*$/ contains=lcRuleCross,lcRuleDash,lcRuleEnd,lcRuleStart
+        syn match lcRuleDash /-/ contained conceal cchar=─
+        syn match lcRuleCross /|/ contained conceal cchar=┼
+        syn match lcRuleEnd /|$/ contained conceal cchar=┤
+        syn match lcRuleStart /^|/ contained conceal
+    endif
+    syn match lcTableHead /^| | #.*$/ contains=lcBorder,lcBorderStart
+    syn match lcEasy /\%(| \)\@<=Easy\>/
+    syn match lcMedium /\%(| \)\@<=Medium\>/
+    syn match lcHard /\%(| \)\@<=Hard\>/
+    execute 'syn match lcDone /\%(^|\)\@<=\V' . s:status_marks['X'] . '/'
+    execute 'syn match lcTodo /\%(^|\)\@<=\V' . s:status_marks['?'] . '/'
     syn match lcPaidOnly /\[P\]/
+    execute 'syn match lcBar /[' . s:glyphs['full'] . join(s:glyphs['parts'], '') . ']\+/'
+    " The summary and the filters.
+    syn match lcEasy /\<Easy \d\+\/\d\+/
+    syn match lcMedium /\<Medium \d\+\/\d\+/
+    syn match lcHard /\<Hard \d\+\/\d\+/
+    execute 'syn match lcBar /^  Solved .*\zs[' . s:glyphs['full'] . join(s:glyphs['parts'], '')
+                \ . s:glyphs['empty'] . ']\+/'
+    syn match lcSelected /\[\a\+:\d\+\]/
+    syn match lcLabel /^  \%(Difficulty\|Status\)\>/
+    syn match lcHelp /^  <CR> open.*$/
+    syn match lcHelp /^  \S solved.*$/
 endfunction
 
 function! s:MaxWidthOfKey(list_of_dict, key, min_width) abort
@@ -287,10 +324,41 @@ function! s:MaxWidthOfKey(list_of_dict, key, min_width) abort
     return max_width
 endfunction
 
-function! s:ProgressBar(percentile, width) abort
-    let num_full_blocks = float2nr(ceil(a:percentile * a:width))
-    let result = repeat('#', num_full_blocks)
-    return printf('%-' . a:width . 'S', result)
+let s:fancy = &encoding ==# 'utf-8'
+let s:glyphs = s:fancy
+            \ ? {'dot': ' · ', 'asc': '↑', 'desc': '↓', 'full': '█', 'empty': '░',
+            \    'parts': ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉']}
+            \ : {'dot': ' | ', 'asc': '(low to high)', 'desc': '(high to low)', 'full': '#',
+            \    'empty': '.', 'parts': ['']}
+
+" A bar `width` cells wide, `fraction` (0 to 1) of it filled, in eighths of a
+" cell when the font allows.
+function! s:ProgressBar(fraction, width, ...) abort
+    let parts = s:glyphs['parts']
+    " Not max()/min(): Neovim's take no Floats.
+    let fraction = a:fraction < 0 ? 0.0 : a:fraction > 1 ? 1.0 : a:fraction
+    let eighths = float2nr(round(fraction * a:width * len(parts)))
+    let bar = repeat(s:glyphs['full'], eighths / len(parts)) . parts[eighths % len(parts)]
+    let fill = a:0 ? a:1 : ' '
+    return bar . repeat(fill, a:width - strchars(bar))
+endfunction
+
+" How many problems of the list are solved, overall and per difficulty.
+function! s:PrintSummary() abort
+    let total = {'All': 0, 'Easy': 0, 'Medium': 0, 'Hard': 0}
+    let solved = copy(total)
+    for problem in b:leetcode_downloaded_problems
+        for key in ['All', problem['level']]
+            let total[key] += 1
+            let solved[key] += problem['state'] ==# 'X'
+        endfor
+    endfor
+    let fraction = total['All'] ? 1.0 * solved['All'] / total['All'] : 0.0
+    call append('$', [printf('  Solved %d of %d  %s  %d%%', solved['All'], total['All'],
+                \ s:ProgressBar(fraction, 24, s:glyphs['empty']), float2nr(fraction * 100)),
+                \ '  ' . join(map(['Easy', 'Medium', 'Hard'],
+                \   'printf("%s %d/%d", v:val, solved[v:val], total[v:val])'), s:glyphs['dot']),
+                \ ''])
 endfunction
 
 function! s:Max(values) abort
@@ -342,17 +410,13 @@ function! s:PrintProblemList() abort
     let title_width = min([s:MaxWidthOfKey(sorted_problems, 'title', 1) + 4, 64])
     let max_frequency = s:Max(map(copy(sorted_problems), 'v:val["frequency"]'))
 
-    call append('$', printf('## Difficulty [%s]', b:leetcode_difficulty))
     let b:leetcode_difficulty_start_line = line('$')
-    let difficulty_line = s:FormatIntoColumns(s:PrintDifficultyTags())
-    call append('$', difficulty_line)
+    call append('$', '  Difficulty   ' . join(s:SelectedTag(s:PrintDifficultyTags(),
+                \ b:leetcode_difficulty), '  '))
     let b:leetcode_difficulty_end_line = line('$')
-    call append('$', '')
-
-    call append('$', printf('## Status [%s]', s:StateToName(b:leetcode_state)))
     let b:leetcode_status_start_line = line('$')
-    let status_line = s:FormatIntoColumns(s:PrintStatusTags())
-    call append('$', status_line)
+    call append('$', '  Status       ' . join(s:SelectedTag(s:PrintStatusTags(),
+                \ s:StateToName(b:leetcode_state)), '  '))
     let b:leetcode_status_end_line = line('$')
     call append('$', '')
 
@@ -362,27 +426,27 @@ function! s:PrintProblemList() abort
                 \ . ' && s:MatchesFilter(v:val)')
     let filter_text = get(b:, 'leetcode_filter', '')
     let sort_column_name = s:sort_column_to_name_map[b:leetcode_sort_column]
-    let sort_order_name = s:sort_order_to_name_map[b:leetcode_sort_order]
-    call append('$', [printf('## Problem List (%d shown%s, sorted by %s, %s)', len(shown),
-                \ empty(filter_text) ? '' : ', filter "' . filter_text . '"',
-                \ sort_column_name, tolower(sort_order_name)),
-                \ '  <CR> open   s submissions   S sort   f filter'
-                \ . (empty(filter_text) ? '' : '   F clear filter') . '   r refresh'
-                \ . (get(b:, 'leetcode_buffer_type', '') ==# 'company' ? '   t time period' : '')
-                \ . (get(b:, 'leetcode_buffer_type', '') ==# 'all' ? '   zo/zc topics & companies' : ''),
-                \ printf('  %s solved   %s attempted   [P] paid-only',
-                \   s:status_marks['X'], s:status_marks['?']),
+    let dot = s:glyphs['dot']
+    let keys = ['<CR> open', 'f filter'] + (empty(filter_text) ? [] : ['F clear filter'])
+                \ + ['S sort', 's submissions', 'r refresh']
+                \ + (get(b:, 'leetcode_buffer_type', '') ==# 'company' ? ['t time period'] : [])
+    call append('$', [printf('## Problems (%d shown%s%ssorted by %s %s)', len(shown),
+                \ empty(filter_text) ? '' : dot . 'filter "' . filter_text . '"', dot,
+                \ sort_column_name, s:glyphs[b:leetcode_sort_order]),
+                \ '  ' . join(keys, dot),
+                \ printf('  %s solved%s%s attempted%s[P] paid-only', s:status_marks['X'], dot,
+                \   s:status_marks['?'], dot),
                 \ ''])
 
     let format = '|%1S| %-' . id_width . 'S | %-' . title_width .
-                \ 'S | %-8S | %-10S | %-10S |'
-    let header = printf(format, ' ', '#', 'Title', 'Accepted', 'Difficulty',
-                \ 'Frequency')
-    let separator = printf(format, '-', repeat('-', id_width),
-                \ repeat('-', title_width), repeat('-', 8), repeat('-', 10),
-                \ repeat('-', 10))
+                \ 'S | %10S | %-10S | %-10S |'
+    let header = printf(format, ' ', '#', 'Title', 'Acceptance', 'Difficulty', 'Frequency')
+    " The rule is dashes between the bars, so the conceal (see the syntax) can
+    " draw it as one line.
+    let rule = '|-|' . join(map([id_width, title_width, 10, 10, 10],
+                \ 'repeat("-", v:val + 2)'), '|') . '|'
 
-    call append('$', [header, separator])
+    call append('$', [header, rule])
 
     let problem_lines = []
     for problem in shown
@@ -394,13 +458,18 @@ function! s:PrintProblemList() abort
         endif
         call add(problem_lines, printf(format, get(s:status_marks, problem['state'], ' '),
                     \ problem['fid'], title,
-                    \ printf('%7.1f%%', problem['ac_rate'] * 100),
+                    \ printf('%.1f%%', problem['ac_rate'] * 100),
                     \ problem['level'],
-                    \ s:ProgressBar(problem['frequency'] / max_frequency, 10)))
+                    \ s:ProgressBar(max_frequency > 0 ? 1.0 * problem['frequency'] / max_frequency : 0, 10)))
     endfor
     let b:leetcode_problem_start_line = line('$')
     call append('$', problem_lines)
     let b:leetcode_problem_end_line = line('$')
+endfunction
+
+" The tags, with the selected one in brackets.
+function! s:SelectedTag(tags, selected) abort
+    return map(copy(a:tags), 's:TagName(v:val) ==# a:selected ? "[" . v:val . "]" : v:val')
 endfunction
 
 function! s:PrintDifficultyTags() abort
@@ -463,6 +532,7 @@ function! s:ListProblemsOfTopic(topic_slug, refresh) abort
     setlocal modifiable
 
     call append('$', ['# LeetCode [topic:' . a:topic_slug . ']', ''])
+    call s:PrintSummary()
 
     call s:PrintProblemList()
 
@@ -534,6 +604,7 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
     call append('$', ['# LeetCode [company:' . a:company_slug . ']',
                 \ '  Frequency over: ' . b:leetcode_time_period,
                 \ ''])
+    call s:PrintSummary()
 
     call s:PrintProblemList()
 
@@ -583,6 +654,7 @@ function! leetcode#ListProblems(refresh) abort
     let companies = s:topics_and_companies['companies']
 
     call append('$', ['# LeetCode', ''])
+    call s:PrintSummary()
 
     let b:leetcode_topic_start_line = 0
     let b:leetcode_topic_end_line = 0
@@ -722,7 +794,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_difficulty_end_line
         let difficulty_slug = expand('<cWORD>')
         let difficulty_slug = s:TagName(difficulty_slug)
-        if difficulty_slug !=# ''
+        if index(['All', 'Easy', 'Medium', 'Hard'], difficulty_slug) >= 0
             if b:leetcode_difficulty != difficulty_slug
                 let b:leetcode_difficulty = difficulty_slug
                 call s:RedrawProblemList()
@@ -734,7 +806,7 @@ function! s:HandleProblemListCR() abort
                 \ line_nr < b:leetcode_status_end_line
         let status_slug = expand('<cWORD>')
         let status_slug = s:TagName(status_slug)
-        if status_slug !=# ''
+        if index(['All', 'Todo', 'Solved', 'Attempted'], status_slug) >= 0
             let new_state = s:ParseState(status_slug)
             if b:leetcode_state != new_state
                 let b:leetcode_state = new_state
@@ -763,7 +835,11 @@ function! s:OpenProblem(problem) abort
     endif
     let is_new = !filereadable(path)
     let name = fnameescape(fnamemodify(path, ':~:.'))
-    if empty(bufname('%')) && !&modified && line('$') == 1 && empty(getline(1))
+    " The list (kept hidden; :LeetCodeList shows it again) or an empty window
+    " makes way for the solution; the description opens on its left.
+    " So does a saved solution, when going from problem to problem.
+    if exists('b:leetcode_buffer_type') || exists('b:leetcode_slug') && !&modified
+                \ || empty(bufname('%')) && !&modified && line('$') == 1 && empty(getline(1))
         execute 'edit ' . name
     else
         execute 'rightbelow vnew ' . name
@@ -907,7 +983,7 @@ function! s:RedrawProblemList() abort
 endfunction
 
 function! s:TagName(tag) abort
-    return substitute(a:tag, ':\d*$', '', 'g')
+    return substitute(substitute(a:tag, '^\[\|\]$', '', 'g'), ':\d*$', '', 'g')
 endfunction
 
 function! s:GetProblem(id) abort
@@ -1050,26 +1126,41 @@ function! s:ShowDescription(problem) abort
     let problem = a:problem
     let solution_nr = bufnr('%')
     let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['fid'], problem['slug'])
+    " A description already on screen (of this or another problem) is replaced.
+    let desc_win = 0
+    for win in range(1, winnr('$'))
+        if bufname(winbufnr(win)) =~# '^\[DESCRIPTION\] '
+            let desc_win = win
+        endif
+    endfor
     if buflisted(problem_desc_file_name)
-        " Keep the solution in this window; show the description above it
-        " only if it isn't visible already.
         let desc_bufnr = bufnr(problem_desc_file_name)
         call setbufvar(desc_bufnr, 'leetcode_solution_bufnr', solution_nr)
         if bufwinnr(desc_bufnr) == -1
-            execute 'leftabove sbuffer ' . desc_bufnr
-            execute 'wincmd j'
+            if desc_win
+                execute desc_win . 'wincmd w'
+                execute desc_bufnr . 'buffer'
+            else
+                execute 'leftabove vertical sbuffer ' . desc_bufnr
+            endif
+            wincmd p
         endif
         return
     endif
 
+    " Side by side, as on the website: the description left, the code right.
     let lines = s:DescriptionLines(problem)
-    execute 'leftabove ' . min([len(lines), max([10, &lines / 2])]) . 'new '
-                \ . problem_desc_file_name
+    if desc_win
+        execute desc_win . 'wincmd w'
+        execute 'edit ' . fnameescape(problem_desc_file_name)
+    else
+        execute 'leftabove vertical new ' . fnameescape(problem_desc_file_name)
+    endif
     call setline(1, lines)
     call s:SetupDescriptionBuffer()
     let b:leetcode_solution_bufnr = solution_nr
 
-    execute 'wincmd j'
+    wincmd p
 endfunction
 
 function! s:Count(n) abort
@@ -1141,7 +1232,7 @@ function! s:HandleDescriptionCR() abort
     endif
     let slug = matchstr(getline('.'), '/problems/\zs[^/)]\+\ze/\=)')
     if !empty(slug)
-        wincmd j
+        wincmd p
         call leetcode#OpenProblem(slug)
     endif
 endfunction

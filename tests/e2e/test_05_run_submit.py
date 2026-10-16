@@ -188,7 +188,7 @@ def test_submit_from_a_window_of_the_problem(scenario, lc, window):
         s.step('LeetCodeTest')
     elif window == 'description':
         s.step('call leetcode#ResetSolution(0)')
-        s.step('wincmd k')
+        s.step('wincmd h')
     else:
         s.step('LeetCodeTest')
         s.step('wq')
