@@ -1,5 +1,7 @@
 """Opening a problem: description window and solution template."""
 
+import re
+
 import pytest
 
 LIST = r'^leetcode:///problems/all$'
@@ -22,8 +24,11 @@ def test_open_problem_from_list(scenario, lc):
     assert desc is not None, r.describe()
     assert desc.startswith('/* Two Sum')
     assert '[End of Description] */' in desc
-    assert 'Given an array of integers nums' in desc
-    assert '[Easy] [AC:50.0% 4K of 8K] [filetype:cpp]' in desc
+    assert 'array of integers nums' in desc
+    if lc.live:
+        assert re.search(r'\[Easy\] \[AC:[\d.]+% \S+ of \S+\] \[filetype:cpp\]', desc), desc
+    else:
+        assert '[Easy] [AC:50.0% 4K of 8K] [filetype:cpp]' in desc
     solution = r.text(r'^1\.two_sum\.cpp$')
     assert solution is not None, r.describe()
     assert 'class Solution' in solution and 'twoSum' in solution

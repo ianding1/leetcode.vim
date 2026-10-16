@@ -109,7 +109,11 @@ class EditorSetup:
         self.deps_path = deps_path      # requests, bs4
 
     def env(self, home, with_deps=True):
-        env = {k: v for k, v in os.environ.items() if not k.startswith('PYTHON')}
+        # The runner's own cookies stay out: tests that sign in from the
+        # environment set them explicitly.
+        env = {k: v for k, v in os.environ.items()
+               if not k.startswith('PYTHON')
+               and k not in ('LEETCODE_SESSION', 'LEETCODE_CSRFTOKEN')}
         env.update(HOME=str(home), PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1',
                    TERM='dumb',
                    # Without a terminal, Vim takes its size from these whenever it

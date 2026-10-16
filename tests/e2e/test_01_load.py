@@ -44,6 +44,7 @@ def test_china_uses_leetcode_cn(scenario):
     assert r.vars['base'] == 'https://leetcode.cn'
 
 
+@pytest.mark.replay_only  # signs in with the fake server's session
 def test_base_url_option(scenario, lc):
     """g:leetcode_base_url points the plugin at another site (here: the fake
     one), with no help from the test harness."""
