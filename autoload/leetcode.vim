@@ -294,36 +294,31 @@ function! s:PrintProblemList() abort
     let title_width = s:MaxWidthOfKey(sorted_problems, 'title', 1) + 4
     let max_frequency = s:Max(map(copy(sorted_problems), 'v:val["frequency"]'))
 
-    call append('$', [printf('## Difficulty [%s]', b:leetcode_difficulty), ''])
+    call append('$', printf('## Difficulty [%s]', b:leetcode_difficulty))
     let b:leetcode_difficulty_start_line = line('$')
     let difficulty_line = s:FormatIntoColumns(s:PrintDifficultyTags())
     call append('$', difficulty_line)
     let b:leetcode_difficulty_end_line = line('$')
     call append('$', '')
 
-    call append('$', [printf('## Status [%s]', s:StateToName(b:leetcode_state)), ''])
+    call append('$', printf('## Status [%s]', s:StateToName(b:leetcode_state)))
     let b:leetcode_status_start_line = line('$')
     let status_line = s:FormatIntoColumns(s:PrintStatusTags())
     call append('$', status_line)
     let b:leetcode_status_end_line = line('$')
     call append('$', '')
 
+    let shown = filter(copy(sorted_problems),
+                \ '(b:leetcode_difficulty ==# "All" || b:leetcode_difficulty ==# v:val.level)'
+                \ . ' && (b:leetcode_state ==# "All" || b:leetcode_state ==# v:val.state)')
     let sort_column_name = s:sort_column_to_name_map[b:leetcode_sort_column]
     let sort_order_name = s:sort_order_to_name_map[b:leetcode_sort_order]
-    call append('$', ['## Problem List',
-                \ '',
-                \ '### Sorted by',
-                \ '  Column:  ' . sort_column_name,
-                \ '  Order:   ' . sort_order_name,
-                \ '',
-                \ '### Keys',
-                \ '  <cr>  open the problem/go to the topic or company',
-                \ '  s     view the submissions',
-                \ '  r     refresh',
-                \ '  S     sort by column',
-                \ '',
-                \ '### Indicators',
-                \ '  [P]   paid-only problems',
+    call append('$', [printf('## Problem List (%d shown, sorted by %s, %s)', len(shown),
+                \ sort_column_name, tolower(sort_order_name)),
+                \ '  <CR> open   s submissions   S sort   r refresh'
+                \ . (get(b:, 'leetcode_buffer_type', '') ==# 'company' ? '   t time period' : '')
+                \ . (get(b:, 'leetcode_buffer_type', '') ==# 'all' ? '   zo/zc topics & companies' : ''),
+                \ '  [P] paid-only',
                 \ ''])
 
     let format = '|%1S| %-' . id_width . 'S | %-' . title_width .
@@ -337,11 +332,7 @@ function! s:PrintProblemList() abort
     call append('$', [header, separator])
 
     let problem_lines = []
-    for problem in sorted_problems
-        if b:leetcode_difficulty !=# 'All' && b:leetcode_difficulty !=# problem['level'] ||
-                    \ b:leetcode_state !=# 'All' && b:leetcode_state !=# problem['state']
-            continue
-        endif
+    for problem in shown
         let title = substitute(problem['title'], '`', "'", 'g')
         if problem['paid_only']
             let title .= ' [P]'
@@ -426,6 +417,8 @@ function! s:ListProblemsOfTopic(topic_slug, refresh) abort
 
     if exists('saved_view')
         call winrestview(saved_view)
+    else
+        call cursor(b:leetcode_problem_start_line, 1)
     endif
 endfunction
 
@@ -484,11 +477,7 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
     let b:leetcode_company_end_line = 0
 
     call append('$', ['# LeetCode [company:' . a:company_slug . ']',
-                \ '',
-                \ '## Frequency',
-                \ '  Time period: ' . b:leetcode_time_period,
-                \ '',
-                \ '  t     choose time period',
+                \ '  Frequency over: ' . b:leetcode_time_period,
                 \ ''])
 
     call s:PrintProblemList()
@@ -499,6 +488,8 @@ function! s:ListProblemsOfCompany(company_slug, refresh) abort
 
     if exists('saved_view')
         call winrestview(saved_view)
+    else
+        call cursor(b:leetcode_problem_start_line, 1)
     endif
 endfunction
 
@@ -516,6 +507,7 @@ function! leetcode#ListProblems(refresh) abort
         elseif a:refresh ==# 'norefresh'
             return
         endif
+        call s:RememberOpenSections()
         setlocal modifiable
         silent! normal! ggdG
     else
@@ -535,39 +527,72 @@ function! leetcode#ListProblems(refresh) abort
     let topics = s:topics_and_companies['topics']
     let companies = s:topics_and_companies['companies']
 
-    if g:leetcode_hide_topics == 0
-        " concatenate the topics into a string
+    call append('$', ['# LeetCode', ''])
+
+    let b:leetcode_topic_start_line = 0
+    let b:leetcode_topic_end_line = 0
+    if g:leetcode_hide_topics == 0 && !empty(topics)
         let topic_slugs = map(copy(topics), 'v:val["topic_slug"] . ":" . v:val["num_problems"]')
-        let topic_lines = s:FormatIntoColumns(topic_slugs)
-
-        call append('$', ['# LeetCode', '', '## Topics', ''])
-
+        call append('$', printf('## Topics (%d)', len(topics)))
         let b:leetcode_topic_start_line = line('$')
-        call append('$', topic_lines)
+        call append('$', s:FormatIntoColumns(topic_slugs))
         let b:leetcode_topic_end_line = line('$')
+        call append('$', '')
     endif
 
-    if g:leetcode_hide_companies == 0
+    let b:leetcode_company_start_line = 0
+    let b:leetcode_company_end_line = 0
+    if g:leetcode_hide_companies == 0 && !empty(companies)
         let company_slugs = map(copy(companies), 'v:val["company_slug"] . ":" . v:val["num_problems"]')
-        let company_lines = s:FormatIntoColumns(company_slugs)
-
-        call append('$', ['', '## Companies', ''])
-
+        call append('$', printf('## Companies (%d)', len(companies)))
         let b:leetcode_company_start_line = line('$')
-        call append('$', company_lines)
+        call append('$', s:FormatIntoColumns(company_slugs))
         let b:leetcode_company_end_line = line('$')
+        call append('$', '')
     endif
 
-    call append('$', '')
     call s:PrintProblemList()
 
     silent! normal! ggdd
+    call s:FoldSections()
     setlocal nomodifiable
     silent! only
 
     if exists('saved_view')
         call winrestview(saved_view)
+    else
+        call cursor(b:leetcode_problem_start_line, 1)
     endif
+endfunction
+
+" Topics and companies are long lists: keep each in a fold, closed until
+" opened, and remember which ones are open across redraws.
+function! s:FoldSections() abort
+    let open = get(b:, 'leetcode_open_sections', {})
+    setlocal foldmethod=manual foldtext=leetcode#ListFoldText() foldenable
+    normal! zE
+    for [name, last] in [['Topics', b:leetcode_topic_end_line - 1],
+                \ ['Companies', b:leetcode_company_end_line - 1]]
+        let first = search('^## ' . name . ' (', 'nw')
+        if first > 0 && last > first
+            execute first . ',' . last . 'fold'
+            if get(open, name, 0)
+                execute first . 'foldopen'
+            endif
+        endif
+    endfor
+endfunction
+
+function! s:RememberOpenSections() abort
+    let b:leetcode_open_sections = {}
+    for name in ['Topics', 'Companies']
+        let first = search('^## ' . name . ' (', 'nw')
+        let b:leetcode_open_sections[name] = first > 0 && foldclosed(first) == -1
+    endfor
+endfunction
+
+function! leetcode#ListFoldText() abort
+    return substitute(getline(v:foldstart), '^## ', '+ ', '') . '   <CR> to expand'
 endfunction
 
 function! s:FileNameToSlug(file_name) abort
@@ -608,6 +633,10 @@ function! s:ProblemSlugFromFileName() abort
 endfunction
 
 function! s:HandleProblemListCR() abort
+    if foldclosed('.') != -1
+        normal! zo
+        return
+    endif
     " Parse the problem number from the line
     let line_nr = line('.')
 

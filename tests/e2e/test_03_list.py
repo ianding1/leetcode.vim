@@ -92,6 +92,7 @@ def test_open_topic(scenario, lc):
     s = scenario().signed_in(lc.cookies)
     s.step('LeetCodeList')
     s.goto(r'\<array:')
+    s.press('zv')                  # as a / search would
     s.press(r'\<CR>')
     r = s.run()
     r.assert_ok()
@@ -105,6 +106,7 @@ def test_open_company(scenario, lc):
     s = scenario().signed_in(lc.cookies)
     s.step('LeetCodeList')
     s.goto(r'\<google:')
+    s.press('zv')                  # as a / search would
     s.press(r'\<CR>')
     r = s.run()
     r.assert_ok()
@@ -121,6 +123,39 @@ def test_sort_by_title_descending(scenario, lc):
     r = s.run()
     r.assert_ok()
     lines = r.buffer(LIST)
-    assert '  Column:  Title' in lines and '  Order:   From high to low' in lines, r.describe()
+    assert any(line.startswith('## Problem List (4 shown, sorted by Title, from high to low)')
+               for line in lines), r.describe()
     titles = [line.split('|')[3].strip() for line in lines if re.match(r'^\|.\| \d+ ', line)]
     assert titles == sorted(titles, reverse=True), titles
+
+
+@pytest.mark.replay_only
+def test_list_starts_at_the_problems(scenario, lc):
+    """Topics and companies are folded away; the cursor is on the first problem."""
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    s.capture('line', "getline('.')")
+    s.capture('topics_closed', "foldclosed(search('^## Topics (2)', 'nw')) != -1")
+    s.capture('companies_closed', "foldclosed(search('^## Companies (1)', 'nw')) != -1")
+    s.capture('fold_text', "foldtextresult(search('^## Topics', 'nw'))")
+    r = s.run()
+    r.assert_ok()
+    assert re.match(r'^\|.\| 1 +\| Two Sum ', r.vars['line']), r.vars['line']
+    assert r.vars['topics_closed'] and r.vars['companies_closed'], r.describe()
+    assert r.vars['fold_text'].startswith('+ Topics (2)'), r.vars['fold_text']
+
+
+@pytest.mark.replay_only
+def test_enter_opens_a_section_and_it_stays_open(scenario, lc):
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    s.goto(r'^## Topics')
+    s.press(r'\<CR>')                  # opens the fold, doesn't navigate
+    s.goto(r'\<Medium:')
+    s.press(r'\<CR>')                  # redraws the list with a filter
+    s.capture('topics_open', "foldclosed(search('^## Topics', 'nw')) == -1")
+    s.capture('companies_closed', "foldclosed(search('^## Companies', 'nw')) != -1")
+    r = s.run()
+    r.assert_ok()
+    assert '## Difficulty [Medium]' in r.text(LIST), r.describe()
+    assert r.vars['topics_open'] and r.vars['companies_closed'], r.describe()

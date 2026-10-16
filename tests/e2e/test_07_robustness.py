@@ -31,13 +31,14 @@ def test_company_time_period_key(scenario, lc):
     s = scenario().signed_in(lc.cookies)
     s.step('LeetCodeList')
     s.goto(r'\<google:')
+    s.press('zv')                  # as a / search would
     s.press(r'\<CR>')
     s.press(r't2\<CR>')            # `t`, then "2 - 1 year"
     r = s.run()
     r.assert_ok()
     assert not any(code in r.output for code in ('E81', 'E117', 'E120')), \
         r.describe()
-    assert 'Time period: one-year' in r.text(r'company/google$'), r.describe()
+    assert 'Frequency over: one-year' in r.text(r'company/google$'), r.describe()
 
 
 @pytest.mark.python_only
