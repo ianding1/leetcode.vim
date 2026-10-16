@@ -1135,9 +1135,14 @@ endfunction
 
 function! s:FormatSection(title, block, level) abort
     let result = []
-    if len(a:block) > 0
+    let block = copy(a:block)
+    " The judge often ends answers with an empty line.
+    while !empty(block) && block[-1] ==# ''
+        call remove(block, -1)
+    endwhile
+    if len(block) > 0
         call add(result, repeat('#', a:level) . ' ' . a:title)
-        for line in a:block
+        for line in block
             call add(result, '    ' . line)
         endfor
         call add(result, '')
@@ -1155,7 +1160,8 @@ endfunction
 
 function! s:FormatResult(result_) abort
     let result = a:result_
-    let output = ['# ' . result['title'],
+    let kind = get(result, 'kind', '')
+    let output = ['# ' . result['title'] . (empty(kind) ? '' : ' (' . kind . ')'),
                 \ '',
                 \ '## State',
                 \ '  - ' . result['state'],
@@ -1171,6 +1177,13 @@ function! s:FormatResult(result_) abort
                     \ message,
                     \ '',
                     \ ])
+    endif
+
+    if !empty(get(result, 'memory', ''))
+        call extend(output, ['## Memory', '  - ' . result['memory']
+                    \ . (empty(get(result, 'memory_percentile', '')) ? ''
+                    \     : printf(', less than %s%% of submissions', result['memory_percentile'])),
+                    \ ''])
     endif
 
     if result['total'] > 0
@@ -1241,8 +1254,26 @@ function! s:ShowRunResultInPreview(result) abort
     hi! link lcOK lcAccepted
     hi! link lcWarning lcFailure
 
+    hi! def link lcMismatch DiffText
+    let first = search('^### Actual Answer$', 'nw')
+    let expected = get(a:result, 'expected_answer', [])
+    if first > 0 && !empty(expected)
+        let lines = []
+        for i in range(len(a:result['answer']))
+            if get(expected, i, v:null) isnot# a:result['answer'][i]
+                call add(lines, first + 1 + i)
+            endif
+        endfor
+        if !empty(lines)
+            call matchaddpos('lcMismatch', lines)
+        endif
+    endif
+
     execute saved_winnr . 'wincmd w'
-    call s:UpdateSubmitState(a:result)
+    " Only a submission changes the problem's status, as on the website.
+    if get(a:result, 'kind', '') ==# 'submission'
+        call s:UpdateSubmitState(a:result)
+    endif
 endfunction
 
 function! s:CheckRunCodeTask(timer) abort
@@ -1268,11 +1299,18 @@ function! s:HandleTaskResult(task_name, output, error) abort
         return
     endif
     if a:task_name ==# 'test_solution'
-        if task_output['state'] ==# 'Finished' &&
-                    \ task_output['answer'] != task_output['expected_answer']
-            let task_output['state'] = 'Wrong Answer'
+        let task_output['kind'] = 'test run'
+        if task_output['state'] ==# 'Finished'
+            " The judge says whether the answers are right; older replies
+            " don't, so compare them then.
+            let correct = get(task_output, 'correct_answer', v:null)
+            if type(correct) != v:t_bool && type(correct) != v:t_number
+                let correct = task_output['answer'] == task_output['expected_answer']
+            endif
+            let task_output['state'] = correct ? 'Accepted' : 'Wrong Answer'
         endif
     elseif a:task_name ==# 'submit_solution'
+        let task_output['kind'] = 'submission'
         if task_output['state'] ==# 'Finished'
             let task_output['state'] = 'Accepted'
         endif

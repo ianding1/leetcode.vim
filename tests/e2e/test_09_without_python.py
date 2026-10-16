@@ -33,7 +33,7 @@ def test_full_workflow_without_python(scenario, lc, bare_vim_env):
     r.assert_ok()
 
     assert r.vars['python_used'] in (0, False), 'leetcode.py was imported'
-    assert '  - Finished' in r.vars['test_result'], r.vars['test_result']
+    assert '  - Accepted' in r.vars['test_result'], r.vars['test_result']
     assert '  - Accepted' in r.vars['submit_result'], r.vars['submit_result']
     assert '  - Faster than 95.5% submissions' in r.vars['submit_result']
     submission = r.text(r'^1\.two_sum\.123456\.cpp$')

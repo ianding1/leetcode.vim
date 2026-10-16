@@ -357,7 +357,7 @@ endfunction
 
 let s:submission_query = 'query submissionDetails($submissionId: Int!) {
             \ submissionDetails(submissionId: $submissionId) { runtimeDisplay runtimePercentile
-            \ code statusCode totalCorrect totalTestcases lastTestcase codeOutput expectedOutput
+            \ memoryDisplay memoryPercentile code statusCode totalCorrect totalTestcases lastTestcase codeOutput expectedOutput
             \ runtimeError compileError lang { name } question { questionId titleSlug } } }'
 
 function! leetcode#api#GetSubmission(sid) abort
@@ -386,6 +386,8 @@ function! leetcode#api#GetSubmission(sid) abort
                 \ 'error': empty(error) ? [] : s:Split(error),
                 \ 'stdout': [],
                 \ 'runtime_percentile': s:FormatPercentile(d.runtimePercentile),
+                \ 'memory': s:Str(get(d, 'memoryDisplay', '')),
+                \ 'memory_percentile': s:FormatPercentile(get(d, 'memoryPercentile', v:null)),
                 \ }
     let submission.code = split(s:Str(d.code), '\r\=\n', 1)
     if !empty(submission.code) && submission.code[-1] ==# ''
@@ -523,6 +525,8 @@ function! s:ParseResult(r, is_submit) abort
                 \ 'total': s:OrZero(get(a:r, 'total_testcases', 0)),
                 \ 'error': s:Split(errors),
                 \ 'runtime_percentile': s:FormatPercentile(get(a:r, 'runtime_percentile', '')),
+                \ 'memory': s:Str(get(a:r, 'status_memory', '')),
+                \ 'memory_percentile': s:FormatPercentile(get(a:r, 'memory_percentile', '')),
                 \ }
     if a:is_submit
         let result.answer = s:Split(get(a:r, 'code_output', ''))
@@ -535,6 +539,8 @@ function! s:ParseResult(r, is_submit) abort
         endif
         let result.stdout = s:Split(get(a:r, 'code_output', []))
         let result.expected_answer = get(a:r, 'expected_code_answer', [])
+        " The judge's verdict on the answers, when it gives one.
+        let result.correct_answer = get(a:r, 'correct_answer', v:null)
     endif
     return result
 endfunction

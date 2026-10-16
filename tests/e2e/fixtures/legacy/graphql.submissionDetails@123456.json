@@ -5,6 +5,8 @@
       "submissionDetails": {
         "runtimeDisplay": "4 ms",
         "runtimePercentile": 100.0,
+        "memoryDisplay": "10.1 MB",
+        "memoryPercentile": 60.2,
         "code": "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        // e2e: solution from submission 123456\n        return {0, 1};\n    }\n};\n",
         "statusCode": 10,
         "totalCorrect": 57,

@@ -12,6 +12,8 @@
       "judge_type": "large",
       "status_code": 10,
       "status_runtime": "4 ms",
+      "status_memory": "10.1 MB",
+      "memory_percentile": 60.2,
       "runtime_percentile": 95.5,
       "total_correct": 57,
       "total_testcases": 57,

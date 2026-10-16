@@ -38,7 +38,8 @@ def test_run_with_default_testcase(scenario, lc):
     assert r.vars['test_input'][0] == '# Test Input'
     result = r.text(RESULT)
     assert result is not None, r.describe()
-    assert '## State\n  - Finished' in result, result
+    assert result.startswith('# Two Sum (test run)'), result
+    assert '## State\n  - Accepted' in result, result
     assert '### Actual Answer\n    [0,1]' in result
     if not lc.live:
         sent = lc.server.requests_to('interpret_solution')[0]
@@ -73,6 +74,7 @@ def test_submit(scenario, lc):
     assert result is not None, r.describe()
     assert '## State\n  - Accepted' in result, result
     assert 'Faster than' in result
+    assert '## Memory\n  - ' in result and 'less than' in result, result
 
 
 @pytest.mark.replay_only
@@ -110,3 +112,54 @@ def test_submit_result_without_judge_type(scenario, lc):
     assert '- Passed: 3' in result and '- Total:  57' in result
     assert '### Expected Answer\n    [0,1]' in result
     assert '### Input\n    [3,2,4]\n    6' in result
+
+
+@pytest.mark.replay_only
+def test_run_trusts_the_judges_verdict(scenario, lc):
+    """A test run says Accepted or Wrong Answer, as the website does, using the
+    judge's correct_answer; the wrong line of the answer is highlighted."""
+    lc.server.override('check', [{'status': 200, 'json': {
+        'state': 'SUCCESS', 'status_code': 10, 'status_runtime': '0 ms',
+        'code_answer': ['[0,1]', '[0,2]'], 'expected_code_answer': ['[0,1]', '[1,2]'],
+        'code_output': [], 'correct_answer': False, 'total_correct': 1, 'total_testcases': 2}}])
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeTest')
+    s.step('wq')
+    s.wait_for_buffer(RESULT)
+    s.capture('matches', "map(getmatches(win_getid(bufwinnr('leetcode:///result'))), "
+                         "'[v:val.group, v:val.pos1[0]]')")
+    s.capture('wrong_line', "search('^### Actual Answer$', 'nw') + 2")
+    r = s.run()
+    r.assert_ok()
+    result = r.text(RESULT)
+    assert '## State\n  - Wrong Answer' in result, result
+    assert '- Passed: 1' in result and '- Total:  2' in result, result
+    # Only the second answer line differs.
+    lines = [line for group, line in r.vars['matches'] if group == 'lcMismatch']
+    assert len(lines) == 1, r.vars['matches']
+
+
+@pytest.mark.replay_only
+def test_run_does_not_mark_the_problem_solved(scenario, lc):
+    """Only submissions change a problem's status in the list. (A test run
+    used to turn a solved problem into an attempted one.)"""
+    lc.server.override('check', [{'status': 200, 'json': {
+        'state': 'SUCCESS', 'status_code': 10, 'status_runtime': '0 ms',
+        'code_answer': ['[1,0]'], 'expected_code_answer': ['[0,1]'],
+        'code_output': [], 'correct_answer': False}}])
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeList')
+    s.goto(r'| Two Sum ')
+    s.capture('before', "getline('.')[1]")
+    s.step('edit 1.two_sum.cpp')
+    s.step('LeetCodeTest')
+    s.step('wq')
+    s.wait_for_buffer(RESULT)
+    s.step('buffer leetcode:///problems/all')
+    s.goto(r'\<Easy:')
+    s.press(r'\<CR>')                  # redraws from the list's own data
+    s.goto(r'| Two Sum ')
+    s.capture('after', "getline('.')[1]")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['before'] == r.vars['after'] == 'X', r.describe()

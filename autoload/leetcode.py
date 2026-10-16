@@ -439,7 +439,9 @@ def _check_result(submission_id, is_submit):
         'testcase': _split(r.get('input', r.get('last_testcase', ''))),
         'passed': r.get('total_correct') or 0,
         'total': r.get('total_testcases') or 0,
-        'error': _split([v for k, v in r.items() if 'error' in k and v])
+        'error': _split([v for k, v in r.items() if 'error' in k and v]),
+        'memory': r.get('status_memory') or '',
+        'memory_percentile': _format_percentile(r.get('memory_percentile')),
     }
 
     # The keys differ between the result of testing the code and submitting it.
@@ -454,9 +456,10 @@ def _check_result(submission_id, is_submit):
         if result['state'] == 'Accepted':
             result['state'] = 'Finished'
         result['stdout'] = _split(r.get('code_output', []))
-        result['expected_answer'] = []
         result['runtime_percentile'] = _format_percentile(r.get('runtime_percentile'))
         result['expected_answer'] = r.get('expected_code_answer', [])
+        # The judge's verdict on the answers, when it gives one.
+        result['correct_answer'] = r.get('correct_answer')
     return result
 
 
@@ -586,6 +589,8 @@ def get_submission(sid):
   submissionDetails(submissionId: $submissionId) {
     runtimeDisplay
     runtimePercentile
+    memoryDisplay
+    memoryPercentile
     code
     statusCode
     totalCorrect
@@ -639,6 +644,8 @@ def get_submission(sid):
         'stdout': [],
         'code': (detail.get('code') or '').splitlines(),
         'runtime_percentile': _format_percentile(detail.get('runtimePercentile')),
+        'memory': text('memoryDisplay'),
+        'memory_percentile': _format_percentile(detail.get('memoryPercentile')),
     }
 
     problem = get_problem(submission['slug'])
