@@ -106,6 +106,11 @@ class Scenario:
         self.options[name] = value
         return self
 
+    def unlet(self, name):
+        """Leave g:<name> unset, so the plugin's default applies."""
+        self.options.pop(name, None)
+        return self
+
     # ---- steps -----------------------------------------------------------
 
     def step(self, cmd):

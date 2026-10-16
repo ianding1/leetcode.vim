@@ -15,8 +15,10 @@
 
 ### Python-free backend
 - `g:leetcode_backend = 'vim'` talks to LeetCode with Vim script and `curl`;
-  no Python needed. Works in Vim 8.2+ and Neovim. The Python backend stays
-  the default for now.
+  no Python needed. Works in Vim 8.2+ and Neovim. It is the new default;
+  `let g:leetcode_backend = 'python'` keeps the Python backend, which is also
+  still used when `g:leetcode_browser` is `'chrome'` or `'firefox'` (reading
+  a browser's cookie store needs Python).
 
 ### Python backend
 - The bundled copies of requests/urllib3 are gone: they no longer import on

@@ -16,9 +16,12 @@ endif
 let s:host = matchstr(s:base_url, '://\zs[^/]\+')
 
 " Which implementation of the LeetCode API to use:
+"   'vim'     autoload/leetcode/api.vim (needs curl, no Python); the default
 "   'python'  autoload/leetcode.py (needs +python3 with requests and bs4)
-"   'vim'     autoload/leetcode/api.vim (needs curl, no Python)
-let s:backend = get(g:, 'leetcode_backend', 'python')
+" Reading cookies from a browser's store needs Python, so a config that asks
+" for that keeps the Python backend unless it picks one.
+let s:backend = get(g:, 'leetcode_backend',
+            \ index(['chrome', 'firefox'], get(g:, 'leetcode_browser', '')) >= 0 ? 'python' : 'vim')
 
 if s:backend ==# 'vim'
     let s:inited = 1

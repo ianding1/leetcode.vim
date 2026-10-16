@@ -1,4 +1,4 @@
-"""g:leetcode_backend = 'vim': the whole workflow without Python packages."""
+"""g:leetcode_backend = 'vim' (the default): the whole workflow without Python packages."""
 
 import pytest
 
@@ -44,8 +44,30 @@ def test_full_workflow_without_python(scenario, lc, bare_vim_env):
 
 @pytest.mark.python_only
 def test_python_backend_needs_python(scenario, bare_vim_env):
-    """For contrast: the default backend reports the missing packages."""
+    """For contrast: the Python backend reports the missing packages."""
     s = scenario(env=bare_vim_env).let('leetcode_backend', 'python')
+    s.step('LeetCodeList')
+    r = s.run()
+    r.assert_ok()
+    assert 'No module named' in r.output, r.describe()
+
+
+@pytest.mark.vim_only
+def test_default_backend_needs_no_python(scenario, lc, bare_vim_env):
+    s = scenario(env=bare_vim_env).unlet('leetcode_backend').signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    s.capture('python_used', "has('python3') ? py3eval('\"leetcode\" in sys.modules') : 0")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['python_used'] in (0, False), 'leetcode.py was imported'
+    assert 'Two Sum' in r.text(r'^leetcode:///problems/all$'), r.describe()
+
+
+@pytest.mark.python_only
+def test_browser_cookie_store_keeps_python_backend(scenario, bare_vim_env):
+    """Configs that read cookies from Chrome or Firefox need Python: without
+    g:leetcode_backend they keep the Python backend instead of failing."""
+    s = scenario(env=bare_vim_env).unlet('leetcode_backend').let('leetcode_browser', 'chrome')
     s.step('LeetCodeList')
     r = s.run()
     r.assert_ok()

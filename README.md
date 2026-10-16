@@ -16,9 +16,12 @@ leetcode-sign-in`.
 
 ## Installation
 
-**Without Python (new):** set `let g:leetcode_backend = 'vim'` and make sure
-`curl` is installed. Steps 1–3 below are then not needed. This backend is new,
-so please report problems; the Python one remains the default for now.
+By default leetcode.vim needs only **curl** (Vim 8.2+ or Neovim, no Python).
+Install the plugin with your plugin manager and you are done.
+
+**With the Python backend** (`let g:leetcode_backend = 'python'`, the default
+before 2026/10, and still the one used when `g:leetcode_browser` is
+`'chrome'` or `'firefox'`):
 
 1. Vim with `+python3` feature is **required**. Neovim needs the **pynvim**
 package (for the Python in `g:python3_host_prog`, or `python3`), and the
@@ -94,8 +97,10 @@ Default value is `'paste'`.
 
 ### `g:leetcode_backend`
 
-`'python'` (default) talks to LeetCode through Python (`requests`,
-`beautifulsoup4`); `'vim'` uses Vim script and `curl`, with no Python at all.
+`'vim'` (default) talks to LeetCode with Vim script and `curl`, with no
+Python at all; `'python'` goes through Python (`requests`, `beautifulsoup4`).
+Reading cookies from a browser's store (`g:leetcode_browser` `'chrome'` or
+`'firefox'`) needs the Python backend, which is then the default.
 
 ### `g:leetcode_base_url`
 
@@ -130,7 +135,8 @@ Default value is `all`
 
 - 2026/10: Revival release (see [CHANGELOG.md](CHANGELOG.md)):
   + Sign in by pasting the browser cookie; no browser-cookie3/keyring needed
-  + Optional Python-free backend (`g:leetcode_backend = 'vim'`, needs curl)
+  + No Python needed: the default backend uses Vim script and curl
+    (`g:leetcode_backend = 'python'` keeps the old one)
   + Works on Python 3.12+; clear message when Python packages are missing
   + Neovim tested alongside Vim; many crash fixes; end-to-end tests and CI
 - 2019/12/20: Fix the login issue caused by reCAPTCHA.
