@@ -234,7 +234,9 @@ function! s:DefineHighlights() abort
     hi def link lcRuleCross NonText
     hi def link lcRuleEnd NonText
     hi def link lcTableHead Title
-    hi def link lcBar Special
+    hi def link lcBar Comment
+    hi def link lcProgress lcEasy
+    hi def link lcProgressRest NonText
     hi def link lcSelected Visual
     hi def link lcLabel Statement
     hi def link lcHelp Comment
@@ -303,13 +305,14 @@ function! s:SetupProblemListBuffer() abort
     execute 'syn match lcDone /\%(^|\)\@<=\V' . s:status_marks['X'] . '/'
     execute 'syn match lcTodo /\%(^|\)\@<=\V' . s:status_marks['?'] . '/'
     syn match lcPaidOnly /\[P\]/
-    execute 'syn match lcBar /[' . s:glyphs['full'] . join(s:glyphs['parts'], '') . ']\+/'
+    let blocks = '[' . s:glyphs['full'] . join(s:glyphs['parts'], '') . ']\+'
+    execute 'syn match lcBar /\%(| \)\@<=' . blocks . '/'
     " The summary and the filters.
     syn match lcEasy /\<Easy \d\+\/\d\+/
     syn match lcMedium /\<Medium \d\+\/\d\+/
     syn match lcHard /\<Hard \d\+\/\d\+/
-    execute 'syn match lcBar /^  Solved .*\zs[' . s:glyphs['full'] . join(s:glyphs['parts'], '')
-                \ . s:glyphs['empty'] . ']\+/'
+    execute 'syn match lcProgress /' . blocks . '\ze' . s:glyphs['empty'] . '*  \d\+%$/'
+    execute 'syn match lcProgressRest /' . s:glyphs['empty'] . '\+/'
     syn match lcSelected /\[\a\+:\d\+\]/
     syn match lcLabel /^  \%(Difficulty\|Status\)\>/
     syn match lcHelp /^  <CR> open.*$/
@@ -1213,7 +1216,7 @@ function! s:SetupDescriptionBuffer() abort
     setlocal nomodifiable nomodified nospell nonumber norelativenumber
     setlocal wrap linebreak conceallevel=2
     " Hints give the solution away: keep them folded until asked for.
-    setlocal foldmethod=manual foldenable
+    setlocal foldmethod=manual foldenable foldtext=leetcode#ListFoldText()
     normal! zE
     let first = search('^## Hints$', 'nw')
     if first > 0
