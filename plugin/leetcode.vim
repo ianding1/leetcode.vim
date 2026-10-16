@@ -16,6 +16,10 @@ if !exists('g:leetcode_solution_filetype')
     let g:leetcode_solution_filetype = 'cpp'
 endif
 
+if !exists('g:leetcode_solution_dir')
+    let g:leetcode_solution_dir = '~/leetcode'
+endif
+
 if !exists('g:leetcode_debug')
     let g:leetcode_debug = 0
 endif

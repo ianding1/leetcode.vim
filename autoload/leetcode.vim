@@ -755,18 +755,48 @@ function! s:OpenProblem(problem) abort
     if empty(a:problem)
         return
     endif
-    let file_name = printf('%s.%s.%s', a:problem['fid'], s:SlugToFileName(a:problem['slug']),
-                \ s:SolutionFileExt(g:leetcode_solution_filetype))
-    if buflisted(file_name)
-        execute bufnr(file_name) . 'buffer'
+    let path = s:SolutionPath(a:problem)
+    let nr = bufnr(path)
+    if nr > 0 && buflisted(nr)
+        execute nr . 'buffer'
         return
     endif
+    let is_new = !filereadable(path)
+    let name = fnameescape(fnamemodify(path, ':~:.'))
     if empty(bufname('%')) && !&modified && line('$') == 1 && empty(getline(1))
-        execute 'edit ' . fnameescape(file_name)
+        execute 'edit ' . name
     else
-        execute 'rightbelow vnew ' . fnameescape(file_name)
+        execute 'rightbelow vnew ' . name
+    endif
+    if !is_new
+        " Your file: open it as it is (:LeetCodeReset starts over).
+        if s:CheckSignIn() == v:false
+            return
+        endif
+        let b:leetcode_slug = a:problem['slug']
+        let problem = leetcode#Api('GetProblem', a:problem['slug'])
+        if type(problem) == v:t_dict
+            call s:ShowDescription(problem)
+        endif
+        return
     endif
     call leetcode#ResetSolution(1)
+    if exists('b:leetcode_slug')
+        " Saved right away, so there is nothing to lose and nothing to ask.
+        call mkdir(fnamemodify(path, ':h'), 'p')
+        silent write
+        echo 'Solution saved to ' . fnamemodify(path, ':~')
+    endif
+endfunction
+
+" Where the solution of `problem` lives: in g:leetcode_solution_dir
+" (default ~/leetcode), or the current directory when that is empty.
+function! s:SolutionPath(problem) abort
+    let dir = empty(g:leetcode_solution_dir) ? getcwd() : expand(g:leetcode_solution_dir)
+    " :p ends in a slash only when the directory exists.
+    let dir = substitute(fnamemodify(dir, ':p'), '[/\\]\=$', '/', '')
+    return dir . printf('%s.%s.%s', a:problem['fid'],
+                \ s:SlugToFileName(a:problem['slug']), s:SolutionFileExt(g:leetcode_solution_filetype))
 endfunction
 
 " All problems: those of an open problem list, or downloaded once.
@@ -1012,9 +1042,14 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     call append('$', code)
     silent! normal! ggdd
     let b:leetcode_slug = problem_slug
-    let solution_nr = bufnr('%')
+    call s:ShowDescription(problem)
+endfunction
 
-    let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['fid'], problem_slug)
+" Show the description of `problem` above the current (solution) window.
+function! s:ShowDescription(problem) abort
+    let problem = a:problem
+    let solution_nr = bufnr('%')
+    let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['fid'], problem['slug'])
     if buflisted(problem_desc_file_name)
         " Keep the solution in this window; show the description above it
         " only if it isn't visible already.
@@ -1687,6 +1722,8 @@ function! s:HandleSubmissionsCR() abort
     endif
 
     execute 'rightbelow vnew ' . file_name
+    " A past submission to read or start from, not a file to save.
+    setlocal buftype=nofile bufhidden=hide noswapfile
     set modifiable
 
     " Show the submission description as comments.

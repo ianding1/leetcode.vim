@@ -128,3 +128,35 @@ def test_description_hints_and_similar_questions(scenario, lc):
     assert re.search(r'^- \[Add Two Numbers\]\(\S+/problems/add-two-numbers/\) · Medium$',
                      desc, re.M), desc
     assert r.text(r'^2\.add_two_numbers\.cpp$') is not None, r.describe()
+
+
+def test_new_solution_is_saved_in_the_solution_dir(scenario, lc):
+    """A new solution is written to ~/leetcode at once: no "modified" flag,
+    no question of where to save it."""
+    s = scenario().signed_in(lc.cookies).unlet('leetcode_solution_dir')
+    s.step('LeetCodeOpen 1')
+    s.capture('path', "expand('%:p')")
+    s.capture('home', "expand('~')")
+    s.capture('modified', '&modified')
+    s.capture('on_disk', "readfile(expand('%:p'))")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['path'] == r.vars['home'] + '/leetcode/1.two_sum.cpp', r.vars
+    assert not r.vars['modified'], r.vars
+    assert any('twoSum' in line for line in r.vars['on_disk']), r.vars
+
+
+def test_existing_solution_is_opened_as_it_is(scenario, lc):
+    """Opening a problem used to replace the file's code with the template or
+    the last submission, so saving lost your work."""
+    s = scenario().signed_in(lc.cookies)
+    s.step('call writefile(["// my work in progress"], "1.two_sum.cpp")')
+    s.step('LeetCodeOpen 1')
+    s.capture('lines', "getline(1, '$')")
+    s.capture('modified', '&modified')
+    s.capture('windows', "map(range(1, winnr('$')), 'bufname(winbufnr(v:val))')")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['lines'] == ['// my work in progress'], r.vars
+    assert not r.vars['modified'], r.vars
+    assert any(w.startswith('[DESCRIPTION] 1.two-sum') for w in r.vars['windows']), r.vars

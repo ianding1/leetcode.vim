@@ -52,6 +52,11 @@
   code and emphasis kept, hints folded, and similar questions that `<CR>`
   opens (`:help leetcode-description`).
 - The Python backend no longer needs beautifulsoup4.
+- Solutions are saved in `g:leetcode_solution_dir` (default `~/leetcode`)
+  as soon as a problem is opened, instead of being left unsaved in whatever
+  directory Vim was in. Opening a problem whose file exists keeps the file
+  as it is: it used to replace your code with the template or your last
+  submission. Past submissions open as scratch buffers.
 - The test input window says how to run the test (`:wq`, or `:LeetCodeTest`
   again in it, which now runs it). `:LeetCodeTest` and `:LeetCodeSubmit`
   work from the description, test input and result windows too: they used

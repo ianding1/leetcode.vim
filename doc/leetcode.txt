@@ -173,6 +173,17 @@ g:leetcode_solution_filetype
                             "javascript", "ruby", "swift", "golang", "scala",
                             "kotlin", "rust"
 
+                                                  *g:leetcode_solution_dir*
+g:leetcode_solution_dir
+                    Where solution files are saved, e.g. 1.two_sum.cpp. A new
+                    solution (the template, or your latest submission in
+                    that language) is written there as soon as you open the
+                    problem; an existing file is opened as it is, so your
+                    work is never replaced (|:LeetCodeReset| starts over).
+                    An empty string means the current directory.
+
+                    Default: "~/leetcode"
+
                                                   *g:leetcode_hide_paid_only*
 g:leetcode_hide_paid_only
                     Hide the paid only problems on the list.

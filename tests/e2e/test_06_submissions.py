@@ -47,3 +47,18 @@ def test_open_submission_shows_runtime_rank(scenario, lc):
     r.assert_ok()
     # 4 ms is the fastest bucket in the fixture's runtime distribution.
     assert 'Faster than 100.0% submissions' in r.text(r'^1\.two_sum\.123456\.cpp$')
+
+
+@pytest.mark.replay_only
+def test_past_submission_is_a_scratch_buffer(scenario, lc):
+    """It's there to read or start from, so closing it doesn't ask to save."""
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    s.goto(r'| Two Sum ')
+    s.press('s')
+    s.goto(r'^| 123456 ')
+    s.press(r'\<CR>')
+    s.capture('buftype', '&buftype')
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['buftype'] == 'nofile', r.vars

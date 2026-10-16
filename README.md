@@ -92,6 +92,14 @@ Values: `'cpp'`, `'java'`, `'python'`, `'python3'`, `'csharp'`, `'javascript'`,
 
 Default value is `'cpp'`.
 
+### `g:leetcode_solution_dir`
+
+Where solution files are saved (e.g. `~/leetcode/1.two_sum.cpp`). Opening a
+problem writes its new solution file there right away; an existing file is
+opened as it is, never overwritten. `''` means the current directory.
+
+Default value is `'~/leetcode'`.
+
 ### `g:leetcode_browser`
 
 Where the session cookie comes from: `'paste'` asks for it (see above);
