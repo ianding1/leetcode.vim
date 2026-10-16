@@ -12,7 +12,24 @@
         "difficulty": "Easy",
         "codeDefinition": "[{\"value\": \"cpp\", \"text\": \"C++\", \"defaultCode\": \"class Solution {\\r\\npublic:\\r\\n    vector<int> twoSum(vector<int>& nums, int target) {\\r\\n        \\r\\n    }\\r\\n};\"}, {\"value\": \"python3\", \"text\": \"Python3\", \"defaultCode\": \"class Solution:\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\\n        \"}, {\"value\": \"typescript\", \"text\": \"TypeScript\", \"defaultCode\": \"function twoSum(nums: number[], target: number): number[] {\\n\\n};\"}]",
         "sampleTestCase": "[2,7,11,15]\n9",
-        "enableRunCode": true
+        "enableRunCode": true,
+        "likes": 70780,
+        "dislikes": 2643,
+        "topicTags": [
+          {
+            "name": "Array",
+            "translatedName": null
+          },
+          {
+            "name": "Hash Table",
+            "translatedName": null
+          }
+        ],
+        "hints": [
+          "A really brute force way would be to search for all possible pairs of numbers.",
+          "Try a <code>hash map</code> to look up the complement."
+        ],
+        "similarQuestions": "[{\"title\": \"Add Two Numbers\", \"titleSlug\": \"add-two-numbers\", \"difficulty\": \"Medium\", \"translatedTitle\": null}]"
       }
     }
   }

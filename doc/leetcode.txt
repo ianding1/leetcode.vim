@@ -37,6 +37,16 @@ COMMANDS                                                *leetcode-commands*
                     template.
 
 
+THE DESCRIPTION WINDOW                                  *leetcode-description*
+
+Opening a problem shows its description above the solution, as a Markdown
+buffer ('filetype' markdown, so Markdown plugins such as render-markdown.nvim
+apply): the title, difficulty, acceptance, likes and topics, a link to the
+problem, the description with its examples as code blocks, the hints (folded
+until you open them, as they give the solution away) and similar questions.
+<CR> on a similar question opens it; on the closed Hints fold, it opens the
+fold.
+
 SIGNING IN                                              *leetcode-sign-in*
 
 LeetCode has no API tokens, and its login page uses a CAPTCHA, so the plugin

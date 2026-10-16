@@ -1021,54 +1021,87 @@ function! leetcode#ResetSolution(with_latest_submission) abort
         return
     endif
 
-    let output = []
-    call add(output, s:CommentStart(filetype, problem['title']))
-    let meta_format = '[%s] [AC:%s %s of %s] [filetype:%s]'
-    let meta = printf(meta_format, problem['level'], problem['ac_rate'],
-                \ problem['total_accepted'], problem['total_submission'],
-                \ filetype)
-    call add(output, s:CommentLine(filetype, ''))
-    call add(output, s:CommentLine(filetype, meta))
-    call add(output, s:CommentLine(filetype, ''))
-    let width = 79 - strdisplaywidth(s:CommentLine(filetype, ''))
-    for line in problem['desc']
-        for part in s:WrapLine(line, width)
-            call add(output, s:CommentLine(filetype, part))
-        endfor
-    endfor
-    call add(output, s:CommentEnd(filetype))
-
-    execute 'leftabove '. len(output). 'new ' . problem_desc_file_name
-    call append('$', output)
-    silent! normal! ggdd
-
-    setlocal nomodifiable
-    setlocal buftype=nofile
-    setlocal nospell
+    let lines = s:DescriptionLines(problem)
+    execute 'leftabove ' . min([len(lines), max([10, &lines / 2])]) . 'new '
+                \ . problem_desc_file_name
+    call setline(1, lines)
+    call s:SetupDescriptionBuffer()
 
     execute 'wincmd j'
 endfunction
 
-" `line` wrapped at word boundaries to `width` cells. Lines are never joined,
-" so examples and list items keep their own lines; list items continue
-" indented under their text.
-function! s:WrapLine(line, width) abort
-    if strdisplaywidth(a:line) <= a:width
-        return [a:line]
+function! s:Count(n) abort
+    return a:n >= 1000000 ? printf('%.1fM', a:n / 1000000.0)
+                \ : a:n >= 1000 ? printf('%.1fK', a:n / 1000.0) : string(a:n)
+endfunction
+
+" The problem as a Markdown document: title, facts, description, then the
+" hints and similar questions.
+function! s:DescriptionLines(problem) abort
+    let p = a:problem
+    let base = leetcode#BaseUrl()
+    let dot = &encoding ==# 'utf-8' ? ' · ' : ' | '
+    let facts = ['**' . p['level'] . '**',
+                \ printf('%s accepted (%s of %s)', p['ac_rate'], p['total_accepted'],
+                \        p['total_submission'])]
+    if get(p, 'likes', 0) > 0
+        call add(facts, s:Count(p['likes']) . ' likes')
     endif
-    let indent = a:line =~# '^\s*- ' ? repeat(' ', strdisplaywidth(matchstr(a:line, '^\s*- '))) : ''
-    let lines = []
-    let current = ''
-    for word in split(a:line, ' ', 1)
-        let candidate = empty(current) ? word : current . ' ' . word
-        if !empty(current) && strdisplaywidth(candidate) > a:width
-            call add(lines, current)
-            let current = indent . word
-        else
-            let current = candidate
-        endif
-    endfor
-    return add(lines, current)
+    let lines = [printf('# %s. %s', p['fid'], p['title']), '', join(facts, dot)]
+    if !empty(get(p, 'topics', []))
+        call add(lines, 'Topics: ' . join(p['topics'], ', '))
+    endif
+    call extend(lines, ['', printf('%s/problems/%s/', base, p['slug']), ''])
+    call extend(lines, leetcode#html#ToMarkdown(p['content'], base))
+
+    let hints = get(p, 'hints', [])
+    if !empty(hints)
+        call extend(lines, ['', '## Hints', ''])
+        for i in range(len(hints))
+            let hint = filter(leetcode#html#ToMarkdown(hints[i], base), 'v:val !=# ""')
+            call add(lines, printf('%d. %s', i + 1, join(hint, ' ')))
+        endfor
+    endif
+
+    let similar = get(p, 'similar', [])
+    if !empty(similar)
+        call extend(lines, ['', '## Similar Questions', ''])
+        for q in similar
+            call add(lines, printf('- [%s](%s/problems/%s/)%s', q['title'], base, q['slug'],
+                        \ empty(q['level']) ? '' : dot . q['level']))
+        endfor
+    endif
+    return lines
+endfunction
+
+function! s:SetupDescriptionBuffer() abort
+    setlocal filetype=markdown
+    setlocal buftype=nofile bufhidden=hide noswapfile
+    setlocal nomodifiable nomodified nospell nonumber norelativenumber
+    setlocal wrap linebreak conceallevel=2
+    " Hints give the solution away: keep them folded until asked for.
+    setlocal foldmethod=manual foldenable
+    normal! zE
+    let first = search('^## Hints$', 'nw')
+    if first > 0
+        let last = search('^## Similar Questions$', 'nw')
+        execute first . ',' . (last > first ? last - 2 : line('$')) . 'fold'
+        execute first . 'foldclose'
+    endif
+    nnoremap <silent> <buffer> <CR> :call <SID>HandleDescriptionCR()<CR>
+endfunction
+
+" <CR> opens a similar question, or the fold under the cursor.
+function! s:HandleDescriptionCR() abort
+    if foldclosed('.') != -1
+        normal! zo
+        return
+    endif
+    let slug = matchstr(getline('.'), '/problems/\zs[^/)]\+\ze/\=)')
+    if !empty(slug)
+        wincmd j
+        call leetcode#OpenProblem(slug)
+    endif
 endfunction
 
 " Languages whose description is a /* ... */ block.

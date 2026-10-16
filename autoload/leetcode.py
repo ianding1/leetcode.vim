@@ -1,10 +1,8 @@
-import html as _html
 import json
 import logging
 import time
 import os
 import pickle
-import re
 from threading import Semaphore, Thread, current_thread
 
 try:
@@ -144,37 +142,13 @@ def _break_code_lines(s):
     return s.replace('\r\n', '\n').replace('\xa0', ' ').split('\n')
 
 
-_BLOCK_TAG = re.compile(r'</?(?:p|div|pre|ul|ol|h[1-6]|table|tr|blockquote)\b[^>]*>', re.I)
-
-
-def _html_to_lines(content):
-    """The description as lines: one empty line between blocks (paragraphs,
-    examples, lists), none inside an example or between list items. The same
-    as leetcode#html#ToLines() in autoload/leetcode/html.vim."""
-    s = re.sub(r'\r\n?', '\n', content)
-    s = re.sub(r'(?is)<(script|style)\b.*?</\1>', '', s)
-    s = re.sub(r'(?i)<br\s*/?>', '\n', s)
-    # 10<sup>4</sup> would otherwise read as 104.
-    s = re.sub(r'(?is)<sup>(.*?)</sup>', r'^\1', s)
-    s = re.sub(r'(?is)<sub>(.*?)</sub>', r'_\1', s)
-    s = re.sub(r'(?i)<li\b[^>]*>', '\n- ', s)
-    s = re.sub(r'(?i)</li>', '\n', s)
-    s = re.sub(r'(?i)<img\b[^>]*\balt="([^"]*)"[^>]*>', r'[image: \1]', s)
-    s = _BLOCK_TAG.sub('\n\x01\n', s)
-    s = re.sub(r'<[^>]*>', '', s)
-    s = _html.unescape(s).replace('\xa0', ' ')
-
-    result = []
-    gap = False
-    for line in s.split('\n'):
-        if line == '\x01':
-            gap = bool(result)
-        elif line.strip():
-            if gap:
-                result.append('')
-            result.append(line.rstrip())
-            gap = False
-    return result + [''] if result else result
+def _similar_questions(text):
+    try:
+        similar = json.loads(text or '[]')
+        return [{'title': p.get('translatedTitle') or p['title'], 'slug': p['titleSlug'],
+                 'level': p.get('difficulty', '')} for p in similar]
+    except (KeyError, TypeError, ValueError):
+        return []
 
 
 def _remove_description(code):
@@ -354,6 +328,14 @@ def get_problem(slug):
     sampleTestCase
     enableRunCode
     translatedContent
+    likes
+    dislikes
+    topicTags {
+      name
+      translatedName
+    }
+    hints
+    similarQuestions
   }
 }''',
             'variables': {'titleSlug': slug},
@@ -377,7 +359,12 @@ def get_problem(slug):
     problem['title'] = q['title']
     problem['slug'] = slug
     problem['level'] = q['difficulty']
-    problem['desc'] = _html_to_lines(content)
+    problem['content'] = content
+    problem['likes'] = q.get('likes') or 0
+    problem['dislikes'] = q.get('dislikes') or 0
+    problem['topics'] = [t.get('translatedName') or t['name'] for t in q.get('topicTags') or []]
+    problem['hints'] = q.get('hints') or []
+    problem['similar'] = _similar_questions(q.get('similarQuestions'))
     problem['templates'] = {}
     for t in json.loads(q['codeDefinition']):
         problem['templates'][t['value']] = _break_code_lines(t['defaultCode'])

@@ -51,7 +51,9 @@ def test_problem_detail(scenario, lc):
     value, r = call(scenario, lc, 'GetProblem', SLUG)
     assert isinstance(value, dict), r.describe()
     assert value['title'] == 'Two Sum'
-    assert value['desc'] and 'cpp' in value['templates']
+    assert value['content'].lstrip().startswith('<') and 'cpp' in value['templates']
+    assert value['topics'] and isinstance(value['hints'], list), value
+    assert all({'title', 'slug', 'level'} <= set(q) for q in value['similar']), value
     assert value['testcase'] and value['testable']
 
 

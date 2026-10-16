@@ -53,7 +53,9 @@ Plug 'ianding1/leetcode.vim'
   title or number, `F` clears the filter, `S` sorts, `s` lists your
   submissions. Topics and companies are folded above the table.
 - `:LeetCodeOpen 1` or `:LeetCodeOpen two-sum`: open a problem directly
-  (`<Tab>` completes slugs).
+  (`<Tab>` completes slugs). The description opens above the solution as a
+  Markdown buffer, with examples as code blocks, hints folded away and
+  similar questions you can open with `<CR>`.
 - `:LeetCodeTest`: run the code with the default test case.
 - `:LeetCodeSubmit`: submit the code.
 - `:LeetCodeSignIn`: sign in, or replace the saved cookie.

@@ -130,45 +130,45 @@ DESCRIPTION = '''<p>Given an array of integers&nbsp;<code>nums</code>&nbsp;and a
 <p><strong>Follow-up:&nbsp;</strong>Can you come up with an algorithm that is less than <code>O(n<sup>2</sup>)</code><font face="monospace">&nbsp;</font>time complexity? &#8805; &#x2264; &amp;lt;</p>'''
 
 EXPECTED = [
-    'Given an array of integers nums and an integer target, return indices of the two '
-    'numbers such that they add up to target.', '',
-    'Example 1:', '',
+    'Given an array of integers `nums` and an integer `target`, return *indices of the two '
+    'numbers such that they add up to `target`*.', '',
+    '**Example 1:**', '',
+    '```',
     'Input: nums = [2,7,11,15], target = 9',
-    'Output: [0,1]', '',
-    '[image: tree diagram]', '',
-    'Constraints:', '',
-    '- 2 <= nums.length <= 10^4',
-    '- -10^9 <= nums[i] <= 10^9',
-    '- Only one valid answer exists.', '',
-    'Follow-up: Can you come up with an algorithm that is less than O(n^2) time complexity? '
-    '≥ ≤ &lt;', '',
+    'Output: [0,1]',
+    '```', '',
+    '![tree diagram](https://assets.leetcode.com/x.png)', '',
+    '**Constraints:**', '',
+    '- `2 <= nums.length <= 10^4`',
+    '- `-10^9 <= nums[i] <= 10^9`',
+    '- **Only one valid answer exists.**', '',
+    '**Follow-up:** Can you come up with an algorithm that is less than `O(n^2)` time '
+    'complexity? ≥ ≤ &lt;',
 ]
 
 
-def html_lines(scenario, tmp_path, html, python_too=False):
+def markdown(scenario, tmp_path, html):
     path = tmp_path / 'desc.html'
     path.write_text(html, 'utf-8')
     s = scenario()
-    if python_too:
-        s.step('runtime autoload/leetcode.vim')
-    s.capture('vim', 'leetcode#html#ToLines(join(readfile("{}"), "\\n"))'.format(path))
-    if python_too:
-        s.capture('py', "py3eval('leetcode._html_to_lines("
-                        "open(r\"{}\", encoding=\"utf-8\").read())')".format(path))
+    s.capture('md', 'leetcode#html#ToMarkdown(join(readfile("{}"), "\\n"), '
+                    '"https://leetcode.com")'.format(path))
     r = s.run()
     r.assert_ok()
-    return r
+    return r.vars['md']
 
 
 def test_html_description(scenario, tmp_path):
-    r = html_lines(scenario, tmp_path, DESCRIPTION)
-    lines = [line.rstrip() for line in r.vars['vim']]
-    assert lines == EXPECTED, r.vars['vim']
+    assert markdown(scenario, tmp_path, DESCRIPTION) == EXPECTED
 
 
-@pytest.mark.python_only
-def test_html_matches_python(scenario, tmp_path):
-    """Both backends turn a description into the same lines."""
-    r = html_lines(scenario, tmp_path, DESCRIPTION, python_too=True)
-    assert r.vars['py'] == EXPECTED, r.vars['py']
-    assert r.vars['vim'] == r.vars['py'], r.vars
+def test_html_lists_links_and_escapes(scenario, tmp_path):
+    html = ('<p>Pick <a href="/problems/two-sum/">Two Sum</a> or 2 * 3 items:</p>'
+            '<ol><li>first</li><li>second <em>one</em></li></ol>'
+            '<p>Code: <code>a*b</code>, <strong> spaced </strong>.</p>')
+    assert markdown(scenario, tmp_path, html) == [
+        'Pick [Two Sum](https://leetcode.com/problems/two-sum/) or 2 \\* 3 items:', '',
+        '1. first',
+        '2. second *one*', '',
+        'Code: `a*b`, **spaced** .',
+    ]

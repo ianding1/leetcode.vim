@@ -201,7 +201,25 @@ endfunction
 
 let s:question_query = 'query getQuestionDetail($titleSlug : String!) {
             \ question(titleSlug: $titleSlug) { questionId questionFrontendId title content
-            \ stats difficulty codeDefinition sampleTestCase enableRunCode translatedContent } }'
+            \ stats difficulty codeDefinition sampleTestCase enableRunCode translatedContent
+            \ likes dislikes topicTags { name translatedName } hints similarQuestions } }'
+
+function! s:SimilarQuestions(text) abort
+    try
+        let similar = empty(s:Str(a:text)) ? [] : json_decode(a:text)
+    catch
+        let similar = []
+    endtry
+    let result = []
+    for p in type(similar) == v:t_list ? similar : []
+        if type(p) == v:t_dict && has_key(p, 'titleSlug')
+            call add(result, {'title': !empty(s:Str(get(p, 'translatedTitle'))) ? p.translatedTitle
+                        \ : get(p, 'title', p.titleSlug), 'slug': p.titleSlug,
+                        \ 'level': s:Str(get(p, 'difficulty', ''))})
+        endif
+    endfor
+    return result
+endfunction
 
 function! leetcode#api#GetProblem(slug) abort
     let res = s:Post('/graphql', {'query': s:question_query,
@@ -225,7 +243,13 @@ function! leetcode#api#GetProblem(slug) abort
                 \ 'title': q.title,
                 \ 'slug': a:slug,
                 \ 'level': q.difficulty,
-                \ 'desc': leetcode#html#ToLines(content),
+                \ 'content': content,
+                \ 'likes': s:OrZero(get(q, 'likes', 0)),
+                \ 'dislikes': s:OrZero(get(q, 'dislikes', 0)),
+                \ 'topics': map(copy(type(get(q, 'topicTags')) == v:t_list ? q.topicTags : []),
+                \   '!empty(s:Str(v:val.translatedName)) ? v:val.translatedName : v:val.name'),
+                \ 'hints': type(get(q, 'hints')) == v:t_list ? q.hints : [],
+                \ 'similar': s:SimilarQuestions(get(q, 'similarQuestions', '')),
                 \ 'templates': {},
                 \ 'testable': q.enableRunCode,
                 \ 'testcase': s:Split(q.sampleTestCase),

@@ -39,7 +39,7 @@ def test_full_workflow_without_python(scenario, lc, bare_vim_env):
     submission = r.text(r'^1\.two_sum\.123456\.cpp$')
     assert submission and 'Faster than 100.0% submissions' in submission, r.describe()
     assert 'return {0, 1};' in submission
-    assert any('Given an array of integers nums' in line for line in r.vars['desc']), r.vars['desc']
+    assert any('Given an array of integers' in line for line in r.vars['desc']), r.vars['desc']
 
 
 @pytest.mark.python_only

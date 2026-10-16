@@ -117,7 +117,7 @@ def test_typescript_solution(scenario, lc):
     r = s.run()
     r.assert_ok()
     assert r.text(r'^1\.two_sum\.ts$') is not None, r.describe()
-    assert r.text(r'DESCRIPTION').startswith('/* Two Sum')
+    assert r.text(r'DESCRIPTION').startswith('# 1. Two Sum')
 
 
 def test_open_submission_in_unknown_language(scenario, lc):

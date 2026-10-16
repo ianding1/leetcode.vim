@@ -46,8 +46,11 @@
   that differ; results show memory use and rank. Only submissions change a
   problem's status (a failed test run used to mark a solved one attempted).
 - ✓/~ status marks, colors that follow the colorscheme and can be
-  overridden (`:help leetcode-highlights`), long titles cut with "…", and
-  descriptions that keep example and list lines apart.
+  overridden (`:help leetcode-highlights`), and long titles cut with "…".
+- The description is a Markdown buffer instead of a comment block: title,
+  difficulty, acceptance, likes and topics, examples as code blocks, inline
+  code and emphasis kept, hints folded, and similar questions that `<CR>`
+  opens (`:help leetcode-description`).
 - The Python backend no longer needs beautifulsoup4.
 
 ### Fixes
