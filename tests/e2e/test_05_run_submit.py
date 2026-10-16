@@ -35,7 +35,9 @@ def test_run_with_default_testcase(scenario, lc):
     s.wait_for_buffer(RESULT, 60000)
     r = s.run()
     r.assert_ok()
-    assert r.vars['test_input'][0] == '# Test Input'
+    assert r.vars['test_input'][0].startswith('# Test input for 1. Two Sum'), r.vars
+    assert ':wq' in r.vars['test_input'][1] and ':LeetCodeTest' in r.vars['test_input'][1]
+    assert r.vars['test_input'][2:] == ['[2,7,11,15]', '9'], r.vars
     result = r.text(RESULT)
     assert result is not None, r.describe()
     assert result.startswith('# Two Sum (test run)'), result
@@ -163,3 +165,59 @@ def test_run_does_not_mark_the_problem_solved(scenario, lc):
     r = s.run()
     r.assert_ok()
     assert r.vars['before'] == r.vars['after'] == '✓', r.describe()
+
+
+def test_test_command_in_the_input_window_runs_the_test(scenario, lc):
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeTest')
+    s.step('LeetCodeTest')              # in the input window: run it
+    s.wait_for_buffer(RESULT, 60000)
+    r = s.run()
+    r.assert_ok()
+    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+
+
+@pytest.mark.parametrize('window', ['test input', 'description', 'result'])
+def test_submit_from_a_window_of_the_problem(scenario, lc, window):
+    """:LeetCodeSubmit used to take the problem from the current file name,
+    and failed in the test input or description window."""
+    if lc.live:
+        pytest.skip('would make a real submission')
+    s = with_solution(scenario, lc)
+    if window == 'test input':
+        s.step('LeetCodeTest')
+    elif window == 'description':
+        s.step('call leetcode#ResetSolution(0)')
+        s.step('wincmd k')
+    else:
+        s.step('LeetCodeTest')
+        s.step('wq')
+        s.wait_for_buffer(RESULT)
+        s.step('wincmd b')
+    s.capture('buffer', "bufname('%')")
+    s.step('LeetCodeSubmit')
+    s.wait_for('!leetcode#Busy()')
+    r = s.run()
+    r.assert_ok()
+    assert not r.vars['buffer'].endswith('.cpp'), r.vars
+    assert lc.server.requests_to('submit')[0]['path'] == '/problems/two-sum/submit/', r.describe()
+    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+
+
+def test_submit_outside_a_solution(scenario, lc):
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeSubmit')
+    r = s.run()
+    r.assert_ok()
+    assert 'this is not a solution file' in r.output, r.describe()
+
+
+@pytest.mark.replay_only
+def test_submit_error_says_why(scenario, lc):
+    lc.server.override('submit', {'status': 403, 'text': 'Forbidden'})
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeSubmit')
+    s.wait_for('!leetcode#Busy()')
+    r = s.run()
+    r.assert_ok()
+    assert 'cannot submit the solution for two-sum (HTTP 403)' in r.output, r.describe()

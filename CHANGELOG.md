@@ -52,6 +52,11 @@
   code and emphasis kept, hints folded, and similar questions that `<CR>`
   opens (`:help leetcode-description`).
 - The Python backend no longer needs beautifulsoup4.
+- The test input window says how to run the test (`:wq`, or `:LeetCodeTest`
+  again in it, which now runs it). `:LeetCodeTest` and `:LeetCodeSubmit`
+  work from the description, test input and result windows too: they used
+  to take the problem from that window's name and fail. Failed requests
+  say the HTTP status.
 
 ### Fixes
 - `:LeetCodeList` no longer fails with E684 when topics can't be loaded (#78).

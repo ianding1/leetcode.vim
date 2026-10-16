@@ -19,11 +19,17 @@ COMMANDS                                                *leetcode-commands*
 
                                                         *:LeetCodeTest*
 
-:LeetCodeTest       Run the code in the current buffer with the default test
-                    input.
+:LeetCodeTest       Run the solution against test input. A window opens with
+                    the problem's sample input, one argument per line; edit
+                    it if you like, then save and close it (|:wq|), or run
+                    :LeetCodeTest again in it, to start the run. |:q!|
+                    cancels. The input is kept for the next run.
 
                                                         *:LeetCodeSubmit*
-:LeetCodeSubmit     Submit the code in the current buffer.
+:LeetCodeSubmit     Submit the solution.
+
+:LeetCodeTest and :LeetCodeSubmit work from the solution file or from any
+window that belongs to it: its description, the test input or the result.
 
                                                         *:LeetCodeSignIn*
 :LeetCodeSignIn     Sign in, or replace the saved cookie (e.g. to switch

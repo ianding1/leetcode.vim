@@ -384,10 +384,10 @@ def _response_error(res, default):
     try:
         data = res.json()
     except ValueError:
-        return default
+        data = None
     if isinstance(data, dict) and data.get('error'):
         return str(data['error'])
-    return default
+    return default if res.status_code == 200 else '{} (HTTP {})'.format(default, res.status_code)
 
 
 def _json_field(res, key):

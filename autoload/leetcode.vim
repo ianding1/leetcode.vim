@@ -659,6 +659,9 @@ function! s:SlugToFileName(slug) abort
 endfunction
 
 function! s:ProblemSlugFromFileName() abort
+    if exists('b:leetcode_slug')
+        return b:leetcode_slug
+    endif
     let parts = split(expand('%:t:r'), '\.')  " Filename without the extension
     if len(parts) == 1
         " Old style, e.g. two-sum
@@ -1008,12 +1011,15 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     silent! normal! ggdG
     call append('$', code)
     silent! normal! ggdd
+    let b:leetcode_slug = problem_slug
+    let solution_nr = bufnr('%')
 
     let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['fid'], problem_slug)
     if buflisted(problem_desc_file_name)
         " Keep the solution in this window; show the description above it
         " only if it isn't visible already.
         let desc_bufnr = bufnr(problem_desc_file_name)
+        call setbufvar(desc_bufnr, 'leetcode_solution_bufnr', solution_nr)
         if bufwinnr(desc_bufnr) == -1
             execute 'leftabove sbuffer ' . desc_bufnr
             execute 'wincmd j'
@@ -1026,6 +1032,7 @@ function! leetcode#ResetSolution(with_latest_submission) abort
                 \ . problem_desc_file_name
     call setline(1, lines)
     call s:SetupDescriptionBuffer()
+    let b:leetcode_solution_bufnr = solution_nr
 
     execute 'wincmd j'
 endfunction
@@ -1182,10 +1189,56 @@ function! s:GuessFileType() abort
     return ''
 endfunction
 
+" :LeetCodeTest and :LeetCodeSubmit act on a solution: the current buffer, or
+" the one that the description, test input or result window belongs to. Go
+" to its window; false (with a message) when there is none.
+function! s:GoToSolution() abort
+    let nr = get(b:, 'leetcode_solution_bufnr', bufnr('%'))
+    if nr != bufnr('%')
+        if !bufexists(nr)
+            call s:NotASolution()
+            return v:false
+        endif
+        let win = bufwinnr(nr)
+        if win > 0
+            execute win . 'wincmd w'
+        else
+            execute 'rightbelow sbuffer ' . nr
+        endif
+    endif
+    if exists('b:leetcode_slug')
+        return v:true
+    endif
+    " A solution file from an earlier session, e.g. 1.two_sum.cpp.
+    try
+        let slug = s:ProblemSlugFromFileName()
+    catch /^leetcode: invalid file name/
+        let slug = ''
+    endtry
+    if empty(slug) || index(values(s:file_type_to_ext), expand('%:e')) < 0
+        call s:NotASolution()
+        return v:false
+    endif
+    return v:true
+endfunction
+
+function! s:NotASolution() abort
+    echohl ErrorMsg
+    echomsg 'leetcode.vim: this is not a solution file. Open a problem with '
+                \ . ':LeetCodeList or :LeetCodeOpen first.'
+    echohl None
+endfunction
+
 function! leetcode#TestSolution() abort
-    if s:CheckSignIn() == v:false
+    " In the test input window, :LeetCodeTest runs the test.
+    if get(b:, 'leetcode_test_input', 0)
+        silent wq
         return
     endif
+    if s:CheckSignIn() == v:false || !s:GoToSolution()
+        return
+    endif
+    let s:last_solution_nr = bufnr('%')
 
     let slug = s:ProblemSlugFromFileName()
     let filetype = s:GuessFileType()
@@ -1213,6 +1266,7 @@ endfunction
 let s:saved_test_input = {}
 
 function! s:AskTestInputAndRunTest(problem, filetype, code) abort
+    let solution_nr = bufnr('%')
     execute 'rightbelow new ' . tempname()
     setlocal noswapfile
     setlocal nobackup
@@ -1224,16 +1278,22 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
 
     let slug = a:problem['slug']
 
-    if has_key(s:saved_test_input, slug)
-        let default_test_input = s:saved_test_input[slug]
-    else
-        let default_test_input = ['# Test Input'] + a:problem['testcase']
-        let s:saved_test_input[slug] = default_test_input
-    endif
+    let header = [printf('# Test input for %s. %s, as on LeetCode: one argument per line.',
+                \ a:problem['fid'], a:problem['title']),
+                \ '# Save and close this window (:wq, or :LeetCodeTest) to run it; :q! cancels.']
+    let test_input = copy(get(s:saved_test_input, slug, a:problem['testcase']))
+    " Drop the header saved with an earlier run.
+    while !empty(test_input) && test_input[0] =~# '^#'
+        call remove(test_input, 0)
+    endwhile
 
-    call append('$', default_test_input)
+    call append('$', header + test_input)
 
     silent! normal! ggdd
+    call cursor(len(header) + 1, 1)
+    let b:leetcode_test_input = 1
+    let b:leetcode_solution_bufnr = solution_nr
+    echo 'Edit the test input, then :wq (or :LeetCodeTest) to run it; :q! cancels.'
 
     let s:leetcode_problem = a:problem
     let s:leetcode_code = a:code
@@ -1294,9 +1354,10 @@ function! s:RunTest() abort
 endfunction
 
 function! leetcode#SubmitSolution() abort
-    if s:CheckSignIn() == v:false
+    if s:CheckSignIn() == v:false || !s:GoToSolution()
         return
     endif
+    let s:last_solution_nr = bufnr('%')
 
     let slug = s:ProblemSlugFromFileName()
     let filetype = s:GuessFileType()
@@ -1402,6 +1463,8 @@ function! s:ShowRunResultInPreview(result) abort
 
     let saved_winnr = winnr()
     rightbelow new leetcode:///result
+    " Results arrive later: link them to the solution that was run.
+    let b:leetcode_solution_bufnr = get(s:, 'last_solution_nr', -1)
     setlocal buftype=nofile
     setlocal noswapfile
     setlocal bufhidden=delete

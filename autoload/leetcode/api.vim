@@ -136,7 +136,8 @@ function! s:ResponseError(res, default) abort
     if type(data) == v:t_dict && !empty(get(data, 'error', ''))
         return string(data.error)[1:-2]
     endif
-    return s:Describe(a:default, a:res)
+    return a:res.status >= 400 ? printf('%s (HTTP %d)', a:default, a:res.status)
+                \ : s:Describe(a:default, a:res)
 endfunction
 
 " ---- session -----------------------------------------------------------------
