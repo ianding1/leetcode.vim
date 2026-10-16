@@ -133,12 +133,12 @@ EXPECTED = [
     'Given an array of integers nums and an integer target, return indices of the two '
     'numbers such that they add up to target.', '',
     'Example 1:', '',
-    'Input: nums = [2,7,11,15], target = 9', '',
+    'Input: nums = [2,7,11,15], target = 9',
     'Output: [0,1]', '',
     '[image: tree diagram]', '',
     'Constraints:', '',
-    '- 2 <= nums.length <= 10^4', '',
-    '- -10^9 <= nums[i] <= 10^9', '',
+    '- 2 <= nums.length <= 10^4',
+    '- -10^9 <= nums[i] <= 10^9',
     '- Only one valid answer exists.', '',
     'Follow-up: Can you come up with an algorithm that is less than O(n^2) time complexity? '
     '≥ ≤ &lt;', '',
@@ -153,9 +153,8 @@ def html_lines(scenario, tmp_path, html, python_too=False):
         s.step('runtime autoload/leetcode.vim')
     s.capture('vim', 'leetcode#html#ToLines(join(readfile("{}"), "\\n"))'.format(path))
     if python_too:
-        s.capture('py', "py3eval('leetcode._break_paragraph_lines(leetcode.BeautifulSoup("
-                        "open(r\"{}\", encoding=\"utf-8\").read(), features=\"html.parser\")"
-                        ".get_text())')".format(path))
+        s.capture('py', "py3eval('leetcode._html_to_lines("
+                        "open(r\"{}\", encoding=\"utf-8\").read())')".format(path))
     r = s.run()
     r.assert_ok()
     return r
@@ -168,11 +167,8 @@ def test_html_description(scenario, tmp_path):
 
 
 @pytest.mark.python_only
-def test_html_matches_python_on_plain_markup(scenario, lc, tmp_path):
-    """Without sup/li/img (where the Vim script version is deliberately
-    better), both produce the same lines for the description fixture."""
-    fixture = lc.server._lookup('graphql.getQuestionDetail', 'two-sum')[1]
-    html = fixture['json']['data']['question']['content']
-    r = html_lines(scenario, tmp_path, html, python_too=True)
-    vim_lines = [line.rstrip() for line in r.vars['vim']]
-    assert vim_lines == [line.rstrip() for line in r.vars['py']], r.vars
+def test_html_matches_python(scenario, tmp_path):
+    """Both backends turn a description into the same lines."""
+    r = html_lines(scenario, tmp_path, DESCRIPTION, python_too=True)
+    assert r.vars['py'] == EXPECTED, r.vars['py']
+    assert r.vars['vim'] == r.vars['py'], r.vars

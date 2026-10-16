@@ -29,11 +29,11 @@ packages below go to that same Python:
 ```sh
 pip3 install pynvim --user
 ```
-2. Install **requests** and **beautifulsoup4** for the Python that Vim uses.
+2. Install **requests** for the Python that Vim uses.
 This is not always the `python3` on your `PATH`: check with
 `:py3 import sys; print(sys.version)`, then use the matching `pythonX.Y`:
 ```sh
-python3 -m pip install --user requests beautifulsoup4
+python3 -m pip install --user requests
 ```
 If they are missing, the plugin says so and prints the command to run.
 3. Only if you set `g:leetcode_browser` to `'chrome'` or `'firefox'` to read
@@ -98,7 +98,7 @@ Default value is `'paste'`.
 ### `g:leetcode_backend`
 
 `'vim'` (default) talks to LeetCode with Vim script and `curl`, with no
-Python at all; `'python'` goes through Python (`requests`, `beautifulsoup4`).
+Python at all; `'python'` goes through Python (`requests`).
 Reading cookies from a browser's store (`g:leetcode_browser` `'chrome'` or
 `'firefox'`) needs the Python backend, which is then the default.
 

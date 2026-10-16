@@ -106,7 +106,7 @@ class EditorSetup:
         self.name = name
         self.host_python = host_python  # nvim only: g:python3_host_prog
         self.host_path = host_path      # nvim only: pynvim
-        self.deps_path = deps_path      # requests, bs4
+        self.deps_path = deps_path      # requests
 
     def env(self, home, with_deps=True):
         # The runner's own cookies stay out: tests that sign in from the

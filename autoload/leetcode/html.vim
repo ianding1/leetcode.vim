@@ -31,23 +31,33 @@ function! leetcode#html#ToText(html) abort
     let s = substitute(s, '\c<sup>\(\_.\{-}\)</sup>', '^\1', 'g')
     let s = substitute(s, '\c<sub>\(\_.\{-}\)</sub>', '_\1', 'g')
     let s = substitute(s, '\c<li\>[^>]*>', '\n- ', 'g')
+    let s = substitute(s, '\c</li>', '\n', 'g')
     let s = substitute(s, '\c<img\>[^>]*\<alt="\([^"]*\)"[^>]*>', '[image: \1]', 'g')
-    let s = substitute(s, '\c</\=\(p\|div\|pre\|ul\|ol\|li\|h[1-6]\|table\|tr\|blockquote\)\>[^>]*>',
-                \ '\n', 'g')
+    " Block boundaries get a line of their own, marked with \x01.
+    let s = substitute(s, '\c</\=\(p\|div\|pre\|ul\|ol\|h[1-6]\|table\|tr\|blockquote\)\>[^>]*>',
+                \ "\n\x01\n", 'g')
     let s = substitute(s, '<[^>]*>', '', 'g')
     " Decode entities last, so a decoded '<' is never taken for a tag.
     let s = substitute(s, '&\(#\=\w\+\);', '\=s:Entity(submatch(1))', 'g')
     return substitute(s, nr2char(160), ' ', 'g')
 endfunction
 
-" The description as lines for the description window: every non-blank line
-" followed by one empty line, like the Python version.
+" The description as lines for the description window: one empty line
+" between blocks (paragraphs, examples, lists), none inside an example or
+" between list items. autoload/leetcode.py does the same.
 function! leetcode#html#ToLines(html) abort
     let result = []
+    let gap = 0
     for line in split(leetcode#html#ToText(a:html), "\n")
-        if line =~# '\S'
-            call extend(result, [line, ''])
+        if line ==# "\x01"
+            let gap = !empty(result)
+        elseif line =~# '\S'
+            if gap
+                call add(result, '')
+            endif
+            call add(result, substitute(line, '\s\+$', '', ''))
+            let gap = 0
         endif
     endfor
-    return result
+    return empty(result) ? result : add(result, '')
 endfunction

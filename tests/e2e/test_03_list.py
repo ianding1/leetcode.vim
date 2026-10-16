@@ -1,5 +1,6 @@
 """:LeetCodeList and navigating the problem list."""
 
+import json
 import re
 
 import pytest
@@ -29,7 +30,7 @@ def test_list_content_matches_api(scenario, lc):
     titles = [line.split('|')[3].strip() for line in rows]
     assert titles == ['Two Sum', 'Add Two Numbers', 'Median of Two Sorted Arrays',
                       'Binary Tree Upside Down [P]']   # hidden problem is skipped
-    assert rows[0].startswith('|X|') and rows[1].startswith('|?|')
+    assert rows[0].startswith('|✓|') and rows[1].startswith('|~|'), rows
     assert '50.0%' in rows[0] and 'Easy' in rows[0]
     text = '\n'.join(lines)
     assert 'array:2' in text and 'hash-table:1' in text     # topics
@@ -159,3 +160,35 @@ def test_enter_opens_a_section_and_it_stays_open(scenario, lc):
     r.assert_ok()
     assert '## Difficulty [Medium]' in r.text(LIST), r.describe()
     assert r.vars['topics_open'] and r.vars['companies_closed'], r.describe()
+
+
+@pytest.mark.replay_only
+def test_long_titles_are_cut(scenario, lc):
+    long_title = 'A Problem Whose Title Goes On ' * 4
+    problems = lc.server._lookup('problems', 'all')[1]
+    problems = json.loads(json.dumps(problems))
+    problems['json']['stat_status_pairs'][0]['stat']['question__title'] = long_title
+    lc.server.override('problems', problems)
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeList')
+    r = s.run()
+    r.assert_ok()
+    rows = [line for line in r.buffer(LIST) if re.match(r'^\|.\| \d+ ', line)]
+    cell = rows[0].split('|')[3]
+    assert cell.strip().endswith('…') and len(cell) <= 66, rows[0]
+    assert 'Add Two Numbers' in rows[1]
+
+
+def test_colors_follow_the_colorscheme(scenario, lc):
+    """Highlights are defaults (hi def): a user's own setting wins, and they
+    come back after :colorscheme clears them."""
+    s = scenario().signed_in(lc.cookies)
+    s.step('highlight lcHard ctermfg=123')
+    s.step('LeetCodeList')
+    s.capture('hard', "synIDattr(synIDtrans(hlID('lcHard')), 'fg', 'cterm')")
+    s.step('colorscheme default')
+    s.capture('easy_after', "execute('highlight lcEasy')")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['hard'] == '123', r.vars
+    assert 'ctermfg=' in r.vars['easy_after'] or 'links to' in r.vars['easy_after'], r.vars

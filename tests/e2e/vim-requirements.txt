@@ -1,4 +1,3 @@
 # Installed for the Python that Vim embeds (see conftest.py: vim_python_deps).
 # These are the plugin's runtime dependencies, not the test runner's.
 requests>=2.31
-beautifulsoup4>=4.12

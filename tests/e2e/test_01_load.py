@@ -19,7 +19,7 @@ def test_loads_with_dependencies_installed(scenario):
 
 @pytest.mark.python_only
 def test_missing_dependencies_are_reported(scenario, bare_vim_env):
-    """#81: without requests/bs4, say so and how to fix it; don't crash later."""
+    """#81: without requests, say so and how to fix it; don't crash later."""
     s = scenario(env=bare_vim_env)
     s.step('runtime autoload/leetcode.vim')
     s.capture('inited', "py3eval('leetcode.inited')")
@@ -28,10 +28,10 @@ def test_missing_dependencies_are_reported(scenario, bare_vim_env):
     s.step('LeetCodeSignIn')
     r = s.run()
     if r.vars.get('inited') == 1:
-        pytest.skip('requests and bs4 are importable without PYTHONPATH here')
+        pytest.skip('requests is importable without PYTHONPATH here')
     r.assert_ok()   # no NameError or E684, just a message
     assert "No module named" in r.output, r.describe()
-    assert 'python{} -m pip install --user requests beautifulsoup4'.format(r.vars['py']) \
+    assert 'python{} -m pip install --user requests'.format(r.vars['py']) \
         in r.output, r.describe()
 
 

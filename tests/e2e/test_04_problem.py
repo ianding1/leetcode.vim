@@ -25,6 +25,9 @@ def test_open_problem_from_list(scenario, lc):
     assert desc.startswith('/* Two Sum')
     assert '[End of Description] */' in desc
     assert 'array of integers nums' in desc
+    # Example lines stay apart (they used to be joined into one paragraph).
+    assert re.search(r'^ \* Input: .*\n \* Output: ', desc, re.M), desc
+    assert all(len(line) <= 79 for line in desc.split('\n')), desc
     if lc.live:
         assert re.search(r'\[Easy\] \[AC:[\d.]+% \S+ of \S+\] \[filetype:cpp\]', desc), desc
     else:

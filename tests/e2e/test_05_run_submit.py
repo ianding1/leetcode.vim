@@ -150,7 +150,7 @@ def test_run_does_not_mark_the_problem_solved(scenario, lc):
     s = with_solution(scenario, lc)
     s.step('LeetCodeList')
     s.goto(r'| Two Sum ')
-    s.capture('before', "getline('.')[1]")
+    s.capture('before', "matchstr(getline('.'), '^|\\zs[^|]*')")
     s.step('edit 1.two_sum.cpp')
     s.step('LeetCodeTest')
     s.step('wq')
@@ -159,7 +159,7 @@ def test_run_does_not_mark_the_problem_solved(scenario, lc):
     s.goto(r'\<Easy:')
     s.press(r'\<CR>')                  # redraws from the list's own data
     s.goto(r'| Two Sum ')
-    s.capture('after', "getline('.')[1]")
+    s.capture('after', "matchstr(getline('.'), '^|\\zs[^|]*')")
     r = s.run()
     r.assert_ok()
-    assert r.vars['before'] == r.vars['after'] == 'X', r.describe()
+    assert r.vars['before'] == r.vars['after'] == '✓', r.describe()

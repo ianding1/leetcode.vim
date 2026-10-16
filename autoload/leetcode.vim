@@ -17,7 +17,7 @@ let s:host = matchstr(s:base_url, '://\zs[^/]\+')
 
 " Which implementation of the LeetCode API to use:
 "   'vim'     autoload/leetcode/api.vim (needs curl, no Python); the default
-"   'python'  autoload/leetcode.py (needs +python3 with requests and bs4)
+"   'python'  autoload/leetcode.py (needs +python3 with requests)
 " Reading cookies from a browser's store needs Python, so a config that asks
 " for that keeps the Python backend unless it picks one.
 let s:backend = get(g:, 'leetcode_backend',
@@ -48,7 +48,7 @@ function! s:ReportMissingDependencies() abort
     else
         let py_version = py3eval('"%d.%d" % sys.version_info[:2]')
         echomsg printf('leetcode.vim: %s. Install the dependencies for the Python %s '
-                    \ . 'that Vim uses: python%s -m pip install --user requests beautifulsoup4',
+                    \ . 'that Vim uses: python%s -m pip install --user requests',
                     \ py3eval('leetcode.import_error'), py_version, py_version)
     endif
     echohl None
@@ -197,8 +197,60 @@ endfunction
 
 function! s:SetupBasicSyntax() abort
     syn match lcHeader /\v^#{1,7} .*/
+endfunction
 
-    hi! link lcHeader Title
+" Colors for the plugin's buffers. `hi def` leaves alone whatever your vimrc
+" or colorscheme sets for these groups. Neovim's diagnostic colors follow the
+" colorscheme; in Vim the colors suit 'background'.
+function! s:DefineHighlights() abort
+    if hlexists('DiagnosticOk')
+        hi def link lcEasy DiagnosticOk
+        hi def link lcMedium DiagnosticWarn
+        hi def link lcHard DiagnosticError
+        hi def link lcAccepted DiagnosticOk
+        hi def link lcFailure DiagnosticError
+    else
+        let light = &background ==# 'light'
+        execute 'hi def lcEasy ctermfg=' . (light ? 'darkgreen guifg=#1a7f37' : 'lightgreen guifg=#7ee787')
+        execute 'hi def lcMedium ctermfg=' . (light ? 'brown guifg=#9a6700' : 'yellow guifg=#e3b341')
+        execute 'hi def lcHard ctermfg=' . (light ? 'darkred guifg=#cf222e' : 'red guifg=#ff7b72')
+        execute 'hi def lcAccepted term=bold cterm=bold gui=bold ctermfg='
+                    \ . (light ? 'darkgreen guifg=#1a7f37' : 'lightgreen guifg=#7ee787')
+        execute 'hi def lcFailure term=bold cterm=bold gui=bold ctermfg='
+                    \ . (light ? 'darkred guifg=#cf222e' : 'red guifg=#ff7b72')
+    endif
+    hi def link lcHeader Title
+    hi def link lcDone lcEasy
+    hi def link lcTodo lcMedium
+    hi def link lcPaidOnly lcMedium
+    hi def link lcOK lcAccepted
+    hi def link lcWarning lcFailure
+    hi def link lcNA Comment
+    hi def link lcMismatch DiffText
+    hi def link TestInputComment Comment
+endfunction
+
+call s:DefineHighlights()
+augroup leetcode_highlights
+    autocmd!
+    autocmd ColorScheme * call s:DefineHighlights()
+augroup END
+
+" How a problem's status is shown in the list: solved, attempted, to do.
+let s:status_marks = &encoding ==# 'utf-8'
+            \ ? {'X': '✓', '?': '~', ' ': ' '} : {'X': 'X', '?': '?', ' ': ' '}
+
+" `text` cut to `width` display cells, ending in an ellipsis when cut.
+function! s:Truncate(text, width) abort
+    if strdisplaywidth(a:text) <= a:width
+        return a:text
+    endif
+    let ellipsis = &encoding ==# 'utf-8' ? '…' : '...'
+    let text = a:text
+    while strdisplaywidth(text) > a:width - strdisplaywidth(ellipsis)
+        let text = strcharpart(text, 0, strchars(text) - 1)
+    endwhile
+    return substitute(text, '\s\+$', '', '') . ellipsis
 endfunction
 
 function! s:SetupProblemListBuffer() abort
@@ -220,16 +272,9 @@ function! s:SetupProblemListBuffer() abort
     syn match lcEasy /| Easy /hs=s+2
     syn match lcMedium /| Medium /hs=s+2
     syn match lcHard /| Hard /hs=s+2
-    syn match lcDone /|X|/hs=s+1,he=e-1
-    syn match lcTodo /|?|/hs=s+1,he=e-1
+    execute 'syn match lcDone /^|\V' . s:status_marks['X'] . '\m|/hs=s+1,he=e-1'
+    execute 'syn match lcTodo /^|\V' . s:status_marks['?'] . '\m|/hs=s+1,he=e-1'
     syn match lcPaidOnly /\[P\]/
-
-    hi! lcEasy ctermfg=lightgreen guifg=lightgreen
-    hi! lcMedium ctermfg=yellow guifg=yellow
-    hi! lcHard ctermfg=red guifg=red
-    hi! lcDone ctermfg=green guifg=green
-    hi! lcTodo ctermfg=yellow guifg=yellow
-    hi! lcPaidOnly ctermfg=yellow guifg=yellow
 endfunction
 
 function! s:MaxWidthOfKey(list_of_dict, key, min_width) abort
@@ -291,7 +336,8 @@ function! s:PrintProblemList() abort
     endif
 
     let id_width = s:MaxWidthOfKey(sorted_problems, 'fid', 1)
-    let title_width = s:MaxWidthOfKey(sorted_problems, 'title', 1) + 4
+    " [P] takes 4 more cells; very long titles are cut.
+    let title_width = min([s:MaxWidthOfKey(sorted_problems, 'title', 1) + 4, 64])
     let max_frequency = s:Max(map(copy(sorted_problems), 'v:val["frequency"]'))
 
     call append('$', printf('## Difficulty [%s]', b:leetcode_difficulty))
@@ -318,7 +364,8 @@ function! s:PrintProblemList() abort
                 \ '  <CR> open   s submissions   S sort   r refresh'
                 \ . (get(b:, 'leetcode_buffer_type', '') ==# 'company' ? '   t time period' : '')
                 \ . (get(b:, 'leetcode_buffer_type', '') ==# 'all' ? '   zo/zc topics & companies' : ''),
-                \ '  [P] paid-only',
+                \ printf('  %s solved   %s attempted   [P] paid-only',
+                \   s:status_marks['X'], s:status_marks['?']),
                 \ ''])
 
     let format = '|%1S| %-' . id_width . 'S | %-' . title_width .
@@ -335,9 +382,11 @@ function! s:PrintProblemList() abort
     for problem in shown
         let title = substitute(problem['title'], '`', "'", 'g')
         if problem['paid_only']
-            let title .= ' [P]'
+            let title = s:Truncate(title, title_width - 4) . ' [P]'
+        else
+            let title = s:Truncate(title, title_width)
         endif
-        call add(problem_lines, printf(format, problem['state'],
+        call add(problem_lines, printf(format, get(s:status_marks, problem['state'], ' '),
                     \ problem['fid'], title,
                     \ printf('%7.1f%%', problem['ac_rate'] * 100),
                     \ problem['level'],
@@ -896,21 +945,45 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     call add(output, s:CommentLine(filetype, ''))
     call add(output, s:CommentLine(filetype, meta))
     call add(output, s:CommentLine(filetype, ''))
+    let width = 79 - strdisplaywidth(s:CommentLine(filetype, ''))
     for line in problem['desc']
-        call add(output, s:CommentLine(filetype, line))
+        for part in s:WrapLine(line, width)
+            call add(output, s:CommentLine(filetype, part))
+        endfor
     endfor
     call add(output, s:CommentEnd(filetype))
 
     execute 'leftabove '. len(output). 'new ' . problem_desc_file_name
     call append('$', output)
     silent! normal! ggdd
-    silent! normal! gggqG
 
     setlocal nomodifiable
     setlocal buftype=nofile
     setlocal nospell
 
     execute 'wincmd j'
+endfunction
+
+" `line` wrapped at word boundaries to `width` cells. Lines are never joined,
+" so examples and list items keep their own lines; list items continue
+" indented under their text.
+function! s:WrapLine(line, width) abort
+    if strdisplaywidth(a:line) <= a:width
+        return [a:line]
+    endif
+    let indent = a:line =~# '^\s*- ' ? repeat(' ', strdisplaywidth(matchstr(a:line, '^\s*- '))) : ''
+    let lines = []
+    let current = ''
+    for word in split(a:line, ' ', 1)
+        let candidate = empty(current) ? word : current . ' ' . word
+        if !empty(current) && strdisplaywidth(candidate) > a:width
+            call add(lines, current)
+            let current = indent . word
+        else
+            let current = candidate
+        endif
+    endfor
+    return add(lines, current)
 endfunction
 
 " Languages whose description is a /* ... */ block.
@@ -1030,7 +1103,6 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     setlocal nobuflisted
 
     syn match TestInputComment /\v^#.*/
-    hi! link TestInputComment Comment
 
     let slug = a:problem['slug']
 
@@ -1248,13 +1320,6 @@ function! s:ShowRunResultInPreview(result) abort
     syn match lcOK /OK:/
     syn match lcWarning /WARNING:/
 
-    " add custom highlighting rules
-    hi! lcAccepted term=bold gui=bold ctermfg=lightgreen guifg=lightgreen
-    hi! lcFailure term=bold gui=bold ctermfg=red guifg=red
-    hi! link lcOK lcAccepted
-    hi! link lcWarning lcFailure
-
-    hi! def link lcMismatch DiffText
     let first = search('^### Actual Answer$', 'nw')
     let expected = get(a:result, 'expected_answer', [])
     if first > 0 && !empty(expected)
@@ -1365,10 +1430,6 @@ function! s:ListSubmissions(slug, refresh) abort
         syn match lcFailure /Unknown Error/
         syn match lcFailure /Unknown State/
         syn match lcNA /N\/A/
-
-        hi! lcAccepted term=bold gui=bold ctermfg=lightgreen guifg=lightgreen
-        hi! lcFailure term=bold gui=bold ctermfg=red guifg=red
-        hi! lcNA ctermfg=gray guifg=gray
     endif
 
     let b:leetcode_problem_slug = a:slug

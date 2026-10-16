@@ -90,8 +90,8 @@ g:leetcode_backend  How the plugin talks to LeetCode:
                                It does not read cookies from a browser's
                                store ("chrome", "firefox").
                     "python"   through autoload/leetcode.py. Needs Vim with
-                               +python3 (Neovim: pynvim) and the requests and
-                               beautifulsoup4 packages.
+                               +python3 (Neovim: pynvim) and the requests
+                               package.
 
                     Default: "vim", or "python" when |g:leetcode_browser|
                     is "chrome" or "firefox"
