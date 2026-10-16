@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "json": {
+    "data": {
+      "questionTopicTags": {
+        "edges": [
+          {"node": {"name": "Array", "translatedName": null, "slug": "array", "questionIds": [1, 2]}},
+          {"node": {"name": "Hash Table", "translatedName": null, "slug": "hash-table", "questionIds": [1]}}
+        ]
+      },
+      "companyTags": [
+        {"name": "Google", "slug": "google", "questionCount": 2}
+      ]
+    }
+  }
+}

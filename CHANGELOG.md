@@ -24,6 +24,16 @@
   Vim uses; if they are missing, the plugin says so and prints the command.
 - Requests send a browser User-Agent (#77, #83).
 
+### Today's leetcode.com (checked live, both backends)
+- Topics and companies come from GraphQL: `/problemset/all/` now answers 403
+  to scripts, so scraping it left `:LeetCodeList` without topics.
+- Past submissions are read with the `submissionDetails` GraphQL query
+  instead of being scraped from their page, which no longer holds the data.
+- Company problem lists work again: LeetCode dropped the
+  `frequencyTimePeriod` field the query asked for.
+- The problem list and submission list use the trailing-slash URLs. Without
+  it LeetCode redirects, and the Vim script backend got an empty answer.
+
 ### Fixes
 - `:LeetCodeList` no longer fails with E684 when topics can't be loaded (#78).
 - Submissions are no longer shown as test runs when the judge's reply lacks

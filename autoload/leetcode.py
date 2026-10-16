@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 import time
 import os
 import pickle
@@ -35,14 +34,13 @@ LC_BASE = os.environ['LEETCODE_BASE_URL']
 LC_CSRF = LC_BASE + '/ensure_csrf/'
 LC_LOGIN = LC_BASE + '/accounts/login/'
 LC_GRAPHQL = LC_BASE + '/graphql'
-LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}'
+LC_CATEGORY_PROBLEMS = LC_BASE + '/api/problems/{category}/'
 LC_PROBLEM = LC_BASE + '/problems/{slug}/description'
 LC_TEST = LC_BASE + '/problems/{slug}/interpret_solution/'
 LC_SUBMIT = LC_BASE + '/problems/{slug}/submit/'
-LC_SUBMISSIONS = LC_BASE + '/api/submissions/{slug}'
+LC_SUBMISSIONS = LC_BASE + '/api/submissions/{slug}/'
 LC_SUBMISSION = LC_BASE + '/submissions/detail/{submission}/'
 LC_CHECK = LC_BASE + '/submissions/detail/{submission}/check/'
-LC_PROBLEM_SET_ALL = LC_BASE + '/problemset/all/'
 LC_PROGRESS_ALL = LC_BASE + '/api/progress/all/'
 
 EMPTY_FREQUENCIES = [0, 0, 0, 0, 0, 0, 0, 0]
@@ -579,98 +577,103 @@ def get_submissions(slug):
     return submissions
 
 
-def _group1(match, default):
-    if match:
-        return match.group(1)
-    return default
-
-
-def _unescape(s):
-    return s.encode().decode('unicode_escape')
-
-
 def get_submission(sid):
     assert is_login()
+    request_body = {
+        'operationName': 'submissionDetails',
+        'variables': {'submissionId': int(sid)},
+        'query': '''query submissionDetails($submissionId: Int!) {
+  submissionDetails(submissionId: $submissionId) {
+    runtimeDisplay
+    runtimePercentile
+    code
+    statusCode
+    totalCorrect
+    totalTestcases
+    lastTestcase
+    codeOutput
+    expectedOutput
+    runtimeError
+    compileError
+    lang {
+      name
+    }
+    question {
+      questionId
+      titleSlug
+    }
+  }
+}
+'''}
+
     headers = _make_headers()
-    url = LC_SUBMISSION.format(submission=sid)
-    log.info('get submission request: url="%s" headers="%s"', url, headers)
-    res = session.get(url, headers=headers)
+    headers['Referer'] = LC_SUBMISSION.format(submission=sid)
+    log.info('get submission request: headers="%s" body="%s"', headers, request_body)
+    res = session.post(LC_GRAPHQL, headers=headers, json=request_body)
     log.info('get submission response: status="%s" body="%s"', res.status_code, res.text)
-    if res.status_code != 200:
+    try:
+        detail = res.json()['data']['submissionDetails'] if res.status_code == 200 else None
+    except (KeyError, TypeError, ValueError):
+        detail = None
+    if not detail:
         _echoerr('cannot find the submission: ' + sid)
         return None
 
-    # we need to parse the data from the Javascript snippet
-    s = res.text
+    def text(key):
+        return detail.get(key) or ''
+
+    error = text('compileError') or text('runtimeError')
     submission = {
         'id': sid,
-        'state': _status_to_name(int(_group1(re.search(r"status_code: parseInt\('([^']*)'", s),
-                                             'not found'))),
-        'runtime': _group1(re.search("runtime: '([^']*)'", s), 'not found'),
-        'passed': _group1(re.search("total_correct : '([^']*)'", s), 'not found'),
-        'total': _group1(re.search("total_testcases : '([^']*)'", s), 'not found'),
-        'testcase': _split(_unescape(_group1(re.search("input : '([^']*)'", s), ''))),
-        'answer': _split(_unescape(_group1(re.search("code_output : '([^']*)'", s), ''))),
-        'expected_answer': _split(_unescape(_group1(re.search("expected_output : '([^']*)'", s),
-                                                    ''))),
-        'problem_id': _group1(re.search("questionId: '([^']*)'", s), 'not found'),
-        'slug': _group1(re.search("editCodeUrl: '([^']*)'", s), '///').split('/')[2],
-        'filetype': _group1(re.search("getLangDisplay: '([^']*)'", s), 'not found'),
-        'error': [],
+        'state': _status_to_name(detail.get('statusCode')),
+        'runtime': text('runtimeDisplay') or 'N/A',
+        'passed': str(detail.get('totalCorrect')),
+        'total': str(detail.get('totalTestcases')),
+        'testcase': _split(text('lastTestcase')),
+        'answer': _split(text('codeOutput')),
+        'expected_answer': _split(text('expectedOutput')),
+        'problem_id': detail['question']['questionId'],
+        'slug': detail['question']['titleSlug'],
+        'filetype': detail['lang']['name'],
+        'error': _split(error) if error else [],
         'stdout': [],
+        'code': (detail.get('code') or '').splitlines(),
+        'runtime_percentile': _format_percentile(detail.get('runtimePercentile')),
     }
 
     problem = get_problem(submission['slug'])
     if problem is None:
         return None
     submission['title'] = problem['title']
-
-    # the punctuations and newlines in the code are escaped like '\\u0010' ('\\' => real backslash)
-    # to unscape the string, we do the trick '\\u0010'.encode().decode('unicode_escape') ==> '\n'
-    # submission['code'] = _break_code_lines(_unescape(_group1(
-    #     re.search("submissionCode: '([^']*)'", s), '')))
-    submission['code'] = _unescape_with_Chinese(
-        _group1(re.search("submissionCode: '([^']*)'", s), ''))
-
-    dist_str = _unescape(_group1(re.search("runtimeDistributionFormatted: '([^']*)'", s),
-                                 '{"distribution":[]}'))
-    dist = json.loads(dist_str)['distribution']
-    dist.reverse()
-
-    # the second key "runtime" is the runtime in milliseconds
-    # we need to search from the position after the first "runtime" key
-    prev_runtime = re.search("runtime: '([^']*)'", s)
-    if not prev_runtime:
-        my_runtime = 0
-    else:
-        my_runtime = int(_group1(re.search("runtime: '([^']*)'", s[prev_runtime.end():]), 0))
-
-    accum = 0
-    for runtime, frequency in dist:
-        accum += frequency
-        if my_runtime >= int(runtime):
-            break
-
-    submission['runtime_percentile'] = _format_percentile(accum) if dist else ''
     return submission
 
 
-def _process_topic_element(topic):
-    return {'topic_name': topic.find(class_='text-gray').string.strip(),
-            'num_problems': topic.find(class_='badge').string,
-            'topic_slug': topic.get('href').split('/')[2]}
-
-
-def _process_company_element(company):
-    return {'company_name': company.find(class_='text-gray').string.strip(),
-            'num_problems': company.find(class_='badge').string,
-            'company_slug': company.get('href').split('/')[2]}
-
-
 def get_topics_and_companies():
+    request_body = {
+        'operationName': 'getTopicsAndCompanies',
+        'variables': {},
+        'query': '''query getTopicsAndCompanies {
+  questionTopicTags {
+    edges {
+      node {
+        name
+        translatedName
+        slug
+        questionIds
+      }
+    }
+  }
+  companyTags {
+    name
+    slug
+    questionCount
+  }
+}
+'''}
+
     headers = _make_headers()
-    log.info('get_topics_and_companies request: url="%s', LC_PROBLEM_SET_ALL)
-    res = session.get(LC_PROBLEM_SET_ALL, headers=headers)
+    log.info('get_topics_and_companies request: headers="%s" body="%s"', headers, request_body)
+    res = session.post(LC_GRAPHQL, headers=headers, json=request_body)
     log.info('get_topics_and_companies response: status="%s" body="%s"', res.status_code,
              res.text)
 
@@ -678,15 +681,17 @@ def get_topics_and_companies():
         _echoerr('cannot get topics')
         return {'topics': [], 'companies': []}
 
-    soup = BeautifulSoup(res.text, features='html.parser')
-
     try:
-        topic_elements = soup.find_all(class_='sm-topic')
-        topics = [_process_topic_element(topic) for topic in topic_elements]
-
-        company_elements = soup.find_all(class_='sm-company')
-        companies = [_process_company_element(company) for company in company_elements]
-    except (AttributeError, IndexError, TypeError):
+        data = res.json()['data']
+        topics = [{'topic_name': node['translatedName'] or node['name'],
+                   'num_problems': str(len(node['questionIds'] or [])),
+                   'topic_slug': node['slug']}
+                  for node in (edge['node'] for edge in data['questionTopicTags']['edges'])]
+        companies = [{'company_name': c['name'],
+                      'num_problems': str(c['questionCount']),
+                      'company_slug': c['slug']}
+                     for c in data['companyTags'] or []]
+    except (AttributeError, KeyError, TypeError, ValueError):
         _echoerr('cannot parse topics')
         return {'topics': [], 'companies': []}
 
@@ -788,7 +793,6 @@ fragment questionFields on QuestionNode {
   stats
   difficulty
   isPaidOnly
-  frequencyTimePeriod
 }
 '''}
 
@@ -882,12 +886,6 @@ def _echoerr(s):
         task_err = s
     else:
         print(s)
-
-
-def _unescape_with_Chinese(code):
-    for ch in set(re.findall(r'\\u\w{4}', code)):
-        code = code.replace(ch, ch.encode('utf-8').decode('unicode_escape'))
-    return code.splitlines()
 
 
 task_thread = Thread(target=_thread_main, daemon=True)

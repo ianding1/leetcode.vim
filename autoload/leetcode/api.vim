@@ -173,7 +173,7 @@ endfunction
 function! leetcode#api#GetProblems(categories) abort
     let problems = []
     for category in a:categories
-        let content = s:JsonDict(s:Get('/api/problems/' . category))
+        let content = s:JsonDict(s:Get('/api/problems/' . category . '/'))
         if content is v:null
             call s:Echoerr('cannot get the category: ' . category)
             continue
@@ -247,7 +247,7 @@ let s:topic_query = 'query getTopicTag($slug: String!) { topicTag(slug: $slug) {
 let s:company_query = 'query getCompanyTag($slug: String!) { companyTag(slug: $slug) {
             \ name translatedName frequencies questions { ...questionFields } } }
             \ fragment questionFields on QuestionNode { status questionId questionFrontendId
-            \ title titleSlug translatedTitle stats difficulty isPaidOnly frequencyTimePeriod }'
+            \ title titleSlug translatedTitle stats difficulty isPaidOnly }'
 
 function! s:TagProblem(p, frequency_key, frequency) abort
     let stats = json_decode(a:p.stats)
@@ -305,55 +305,41 @@ function! leetcode#api#GetProblemsOfCompany(slug) abort
                 \   's:TagProblem(v:val, "frequencies", get(freq, v:val.questionId, empty_freq)[4:])')}
 endfunction
 
-" Topics and companies are scraped from the HTML of the problem set page.
+let s:topics_and_companies_query = 'query getTopicsAndCompanies {
+            \ questionTopicTags { edges { node { name translatedName slug questionIds } } }
+            \ companyTags { name slug questionCount } }'
+
 function! leetcode#api#GetTopicsAndCompanies() abort
-    let res = s:Get('/problemset/all/')
+    let res = s:Post('/graphql', {'operationName': 'getTopicsAndCompanies', 'variables': {},
+                \ 'query': s:topics_and_companies_query}, s:base_url . '/problemset/')
     if res.status != 200
         call s:Echoerr('cannot get topics')
         return {'topics': [], 'companies': []}
     endif
-    let topics = []
-    for a in s:Anchors(res.body, 'sm-topic')
-        call add(topics, {'topic_name': a.name, 'num_problems': a.count, 'topic_slug': a.slug})
-    endfor
-    let companies = []
-    for a in s:Anchors(res.body, 'sm-company')
-        call add(companies, {'company_name': a.name, 'num_problems': a.count,
-                    \ 'company_slug': a.slug})
-    endfor
-    if (empty(topics) && res.body =~# 'sm-topic') || (empty(companies) && res.body =~# 'sm-company')
+    let data = s:JsonDict(res)
+    let data = data is v:null ? {} : get(data, 'data', {})
+    let tags = type(data) == v:t_dict ? get(data, 'questionTopicTags', v:null) : v:null
+    let edges = type(tags) == v:t_dict ? get(tags, 'edges', v:null) : v:null
+    let companies = type(data) == v:t_dict ? get(data, 'companyTags', v:null) : v:null
+    if type(edges) != v:t_list
         call s:Echoerr('cannot parse topics')
         return {'topics': [], 'companies': []}
     endif
+    let topics = []
+    for t in map(copy(edges), 'v:val.node')
+        call add(topics, {'topic_name': !empty(s:Str(t.translatedName)) ? t.translatedName : t.name,
+                    \ 'num_problems': string(len(t.questionIds)), 'topic_slug': t.slug})
+    endfor
+    let companies = type(companies) == v:t_list ? companies : []
+    call map(companies, '{"company_name": v:val.name, "company_slug": v:val.slug,'
+                \ . ' "num_problems": string(v:val.questionCount)}')
     return {'topics': topics, 'companies': companies}
-endfunction
-
-" <a class="... CLASS ..." href="/x/SLUG/"><span class="text-gray">NAME</span>
-" <span class="badge">COUNT</span></a>
-function! s:Anchors(html, class) abort
-    let result = []
-    let start = 0
-    while 1
-        let anchor = matchstr(a:html, '<a\>\_[^>]*\<' . a:class . '\>\_.\{-}</a>', start)
-        if empty(anchor)
-            break
-        endif
-        let start = matchend(a:html, '<a\>\_[^>]*\<' . a:class . '\>\_.\{-}</a>', start)
-        let slug = get(split(matchstr(anchor, 'href="\zs[^"]*'), '/'), 1, '')
-        let name = trim(matchstr(anchor, 'class="[^"]*\<text-gray\>[^"]*"\_[^>]*>\zs\_[^<]*'))
-        let num = matchstr(anchor, 'class="[^"]*\<badge\>[^"]*"\_[^>]*>\zs\_[^<]*')
-        if empty(slug) || empty(name)
-            return []
-        endif
-        call add(result, {'slug': slug, 'name': name, 'count': num})
-    endwhile
-    return result
 endfunction
 
 " ---- submissions -------------------------------------------------------------
 
 function! leetcode#api#GetSubmissions(slug) abort
-    let data = s:JsonDict(s:Get('/api/submissions/' . a:slug, s:ProblemUrl(a:slug)))
+    let data = s:JsonDict(s:Get('/api/submissions/' . a:slug . '/', s:ProblemUrl(a:slug)))
     if data is v:null
         call s:Echoerr('cannot find the submissions of problem: ' . a:slug)
         return v:null
@@ -369,69 +355,48 @@ function! leetcode#api#GetSubmissions(slug) abort
     return submissions
 endfunction
 
-" Undo the escaping of a JavaScript string literal.
-function! s:Unescape(s) abort
-    let s = substitute(a:s, '\\u\(\x\{4}\)', '\=nr2char(str2nr(submatch(1), 16))', 'g')
-    return substitute(s, '\\\(.\)', '\=get({"n": "\n", "t": "\t", "r": "\r"}, '
-                \ . 'submatch(1), submatch(1))', 'g')
-endfunction
+let s:submission_query = 'query submissionDetails($submissionId: Int!) {
+            \ submissionDetails(submissionId: $submissionId) { runtimeDisplay runtimePercentile
+            \ code statusCode totalCorrect totalTestcases lastTestcase codeOutput expectedOutput
+            \ runtimeError compileError lang { name } question { questionId titleSlug } } }'
 
-function! s:Group1(text, pattern, default) abort
-    let m = matchlist(a:text, a:pattern)
-    return empty(m) ? a:default : m[1]
-endfunction
-
-" A submission's details, scraped from the JavaScript on its page.
 function! leetcode#api#GetSubmission(sid) abort
-    let res = s:Get('/submissions/detail/' . a:sid . '/')
-    if res.status != 200
+    let res = s:Post('/graphql', {'operationName': 'submissionDetails',
+                \ 'variables': {'submissionId': str2nr(a:sid)}, 'query': s:submission_query},
+                \ s:base_url . '/submissions/detail/' . a:sid . '/')
+    let data = s:JsonDict(res)
+    let d = data is v:null ? v:null : get(get(data, 'data', {}), 'submissionDetails', v:null)
+    if type(d) != v:t_dict
         call s:Echoerr('cannot find the submission: ' . a:sid)
         return v:null
     endif
-    let s = res.body
-    let slug = get(split(s:Group1(s, "editCodeUrl: '\\([^']*\\)'", '///'), '/', 1), 2, '')
+    let error = !empty(s:Str(d.compileError)) ? d.compileError : s:Str(d.runtimeError)
     let submission = {
                 \ 'id': a:sid,
-                \ 'state': s:StatusToName(str2nr(s:Group1(s, "status_code: parseInt('\\([^']*\\)'", '0'))),
-                \ 'runtime': s:Group1(s, "runtime: '\\([^']*\\)'", 'not found'),
-                \ 'passed': s:Group1(s, "total_correct : '\\([^']*\\)'", 'not found'),
-                \ 'total': s:Group1(s, "total_testcases : '\\([^']*\\)'", 'not found'),
-                \ 'testcase': s:Split(s:Unescape(s:Group1(s, "input : '\\([^']*\\)'", ''))),
-                \ 'answer': s:Split(s:Unescape(s:Group1(s, "code_output : '\\([^']*\\)'", ''))),
-                \ 'expected_answer': s:Split(s:Unescape(s:Group1(s, "expected_output : '\\([^']*\\)'", ''))),
-                \ 'problem_id': s:Group1(s, "questionId: '\\([^']*\\)'", 'not found'),
-                \ 'slug': slug,
-                \ 'filetype': s:Group1(s, "getLangDisplay: '\\([^']*\\)'", 'not found'),
-                \ 'error': [],
+                \ 'state': s:StatusToName(s:OrZero(d.statusCode)),
+                \ 'runtime': !empty(s:Str(d.runtimeDisplay)) ? d.runtimeDisplay : 'N/A',
+                \ 'passed': string(d.totalCorrect),
+                \ 'total': string(d.totalTestcases),
+                \ 'testcase': s:Split(s:Str(d.lastTestcase)),
+                \ 'answer': s:Split(s:Str(d.codeOutput)),
+                \ 'expected_answer': s:Split(s:Str(d.expectedOutput)),
+                \ 'problem_id': d.question.questionId,
+                \ 'slug': d.question.titleSlug,
+                \ 'filetype': d.lang.name,
+                \ 'error': empty(error) ? [] : s:Split(error),
                 \ 'stdout': [],
+                \ 'runtime_percentile': s:FormatPercentile(d.runtimePercentile),
                 \ }
-
-    let problem = leetcode#api#GetProblem(slug)
-    if problem is v:null
-        return v:null
-    endif
-    let submission.title = problem.title
-    let submission.code = split(s:Unescape(s:Group1(s, "submissionCode: '\\([^']*\\)'", '')),
-                \ '\r\=\n', 1)
+    let submission.code = split(s:Str(d.code), '\r\=\n', 1)
     if !empty(submission.code) && submission.code[-1] ==# ''
         call remove(submission.code, -1)
     endif
 
-    " Runtime rank: the share of submissions at least as slow as this one.
-    let dist_str = s:Unescape(s:Group1(s, "runtimeDistributionFormatted: '\\([^']*\\)'",
-                \ '{"distribution":[]}'))
-    let dist = reverse(copy(json_decode(dist_str).distribution))
-    " The second "runtime" key holds the runtime in milliseconds.
-    let first = matchend(s, "runtime: '[^']*'")
-    let my_runtime = first < 0 ? 0 : str2nr(s:Group1(strpart(s, first), "runtime: '\\([^']*\\)'", '0'))
-    let accum = 0.0
-    for [runtime, frequency] in dist
-        let accum += frequency
-        if my_runtime >= str2nr(runtime)
-            break
-        endif
-    endfor
-    let submission.runtime_percentile = empty(dist) ? '' : s:FormatPercentile(accum)
+    let problem = leetcode#api#GetProblem(submission.slug)
+    if problem is v:null
+        return v:null
+    endif
+    let submission.title = problem.title
     return submission
 endfunction
 

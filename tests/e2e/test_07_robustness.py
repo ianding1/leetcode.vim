@@ -1,5 +1,7 @@
 """Bugs found by code review: error paths and edge cases in the UI and API layer."""
 
+import copy
+
 import pytest
 
 pytestmark = pytest.mark.replay_only
@@ -118,9 +120,9 @@ def test_typescript_solution(scenario, lc):
 
 
 def test_open_submission_in_unknown_language(scenario, lc):
-    page = lc.server._lookup('submission_page', '123456')[1]['text']
-    lc.server.override('submission_page', {'status': 200, 'text': page.replace(
-        "getLangDisplay: 'cpp'", "getLangDisplay: 'erlang'")})
+    detail = copy.deepcopy(lc.server._lookup('graphql.submissionDetails', '123456')[1])
+    detail['json']['data']['submissionDetails']['lang']['name'] = 'erlang'
+    lc.server.override('graphql.submissionDetails', detail)
     s = scenario().signed_in(lc.cookies)
     s.step('LeetCodeList')
     s.goto(r'| Two Sum ')

@@ -25,13 +25,11 @@ from urllib.parse import urlsplit
 ROUTES = [
     ('GET', r'^/api/problems/(?P<category>[^/]+)/?$', 'problems'),
     ('GET', r'^/api/progress/all/?$', 'progress'),
-    ('GET', r'^/problemset/all/?$', 'problemset_page'),
     ('POST', r'^/graphql/?$', 'graphql'),
     ('POST', r'^/problems/(?P<slug>[^/]+)/interpret_solution/?$', 'interpret_solution'),
     ('POST', r'^/problems/(?P<slug>[^/]+)/submit/?$', 'submit'),
     ('GET', r'^/submissions/detail/(?P<id>[^/]+)/check/?$', 'check'),
     ('GET', r'^/api/submissions/(?P<slug>[^/]+)/?$', 'submissions'),
-    ('GET', r'^/submissions/detail/(?P<id>[^/]+)/?$', 'submission_page'),
 ]
 
 # Routes that answer 403 in replay mode unless a session cookie is sent, so
@@ -55,7 +53,7 @@ def _match_route(method, path):
 
 
 def _graphql_route(body):
-    """Split /graphql into one route per operation, keyed by the slug."""
+    """Split /graphql into one route per operation, keyed by the slug or submission id."""
     try:
         payload = json.loads(body or b'{}')
     except ValueError:
@@ -65,7 +63,8 @@ def _graphql_route(body):
         m = re.search(r'\b(?:query|mutation)\s+(\w+)', payload.get('query', ''))
         op = m.group(1) if m else 'anonymous'
     variables = payload.get('variables') or {}
-    key = variables.get('titleSlug') or variables.get('slug')
+    key = variables.get('titleSlug') or variables.get('slug') or variables.get('submissionId')
+    key = None if key is None else str(key)
     return 'graphql.' + op, key
 
 

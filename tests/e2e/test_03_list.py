@@ -65,11 +65,11 @@ def test_list_filters_by_difficulty(scenario, lc):
 @pytest.mark.replay_only
 @pytest.mark.parametrize('page', [
     {'status': 403, 'text': 'Forbidden'},
-    {'status': 200, 'text': '<a class="sm-topic" href="/tag/x/">no spans</a>'},
-], ids=['http-error', 'unexpected-html'])
+    {'status': 200, 'json': {'data': {'questionTopicTags': None, 'companyTags': None}}},
+], ids=['http-error', 'unexpected-json'])
 def test_list_survives_missing_topics(scenario, lc, page):
     """#78: used to fail with E684 in ListProblems."""
-    lc.server.override('problemset_page', page)
+    lc.server.override('graphql.getTopicsAndCompanies', page)
     s = scenario().signed_in(lc.cookies)
     s.step('LeetCodeList')
     r = s.run()
@@ -78,7 +78,7 @@ def test_list_survives_missing_topics(scenario, lc, page):
 
 
 def test_list_topics_are_present(scenario, lc):
-    """Topics come from scraping /problemset/all/ HTML."""
+    """Topics and companies come from GraphQL (getTopicsAndCompanies)."""
     s = scenario().signed_in(lc.cookies)
     s.step('call leetcode#SignIn(0)')
     s.capture('tc', 'leetcode#Api("GetTopicsAndCompanies")')

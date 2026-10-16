@@ -1,4 +1,0 @@
-{
-  "status": 200,
-  "text": "<!DOCTYPE html><html><head></head><body>\n<script>\n  var pageData = {\n    questionId: '1',\n    sessionId: '0',\n    getLangDisplay: 'cpp',\n    submissionCode: 'class Solution {\\u000Apublic:\\u000A    vector\\u003Cint\\u003E twoSum(vector\\u003Cint\\u003E\\u0026 nums, int target) {\\u000A        // e2e: solution from submission 123456\\u000A        return {0, 1};\\u000A    }\\u000A};\\u000A',\n    editCodeUrl: '/problems/two-sum/',\n    checkUrl: '/submissions/detail/123456/check/',\n    runtimeDistributionFormatted: '{\\u0022lang\\u0022: \\u0022cpp\\u0022, \\u0022distribution\\u0022: [[\\u00224\\u0022, 60.0], [\\u00228\\u0022, 30.0], [\\u002212\\u0022, 10.0]]}',\n    status_code: parseInt('10', 10),\n    runtime: '4 ms',\n    memory: '10.1 MB',\n    total_correct : '57',\n    total_testcases : '57',\n    input : '',\n    code_output : '',\n    expected_output : '',\n    runtime: '4',\n  };\n</script>\n</body></html>\n"
-}
