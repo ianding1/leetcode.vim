@@ -7,7 +7,15 @@ This plugin makes it possible to solve LeetCode problems in Vim.
 COMMANDS                                                *leetcode-commands*
 
                                                         *:LeetCodeList*
-:LeetCodeList       List all the problems in a new window.
+:LeetCodeList       List all the problems in a new window. The cursor starts
+                    on the first problem; topics and companies are folded
+                    above the table (see |leetcode-<CR>|).
+
+                                                        *:LeetCodeOpen*
+:LeetCodeOpen {problem}
+                    Open a problem by its number or slug, e.g.
+                    `:LeetCodeOpen 1` or `:LeetCodeOpen two-sum`. <Tab>
+                    completes slugs. An empty window is reused.
 
                                                         *:LeetCodeTest*
 
@@ -53,7 +61,16 @@ These mappings are available in the problem list buffers.
 
                                                         *leetcode-<CR>*
 <CR>                Open the problem under the cursor or list the problems of
-                    the topic or company under the cursor.
+                    the topic or company under the cursor. On the closed
+                    Topics or Companies fold, open it (|zo| and |zc| work too;
+                    a fold stays open when the list is redrawn).
+
+                                                        *leetcode-f*
+f                   Show only the problems whose title contains the text you
+                    type (ignoring case), or the problem with that number.
+
+                                                        *leetcode-F*
+F                   Show all problems again.
 
                                                         *leetcode-s*
 s                   List the submissions of the problem under the cursor.
@@ -68,6 +85,23 @@ S                   Sort the problem list. The command will prompt users to
                                                         *leetcode-t*
 t                   Choose the time period of the frequency to show. This
                     command is only available in the company problem list.
+
+In the list, ✓ marks solved problems and ~ attempted ones (X and ? when
+'encoding' isn't UTF-8). A test run says Accepted or Wrong Answer; only a
+submission changes a problem's mark.
+
+HIGHLIGHTS                                              *leetcode-highlights*
+
+The plugin's colors are defaults, so you can set your own after it loads or
+in your colorscheme, e.g. `highlight lcHard ctermfg=203`. Neovim links them
+to the diagnostic groups; Vim picks colors that suit 'background'.
+
+    lcEasy lcMedium lcHard      difficulty in the list
+    lcDone lcTodo               solved and attempted marks
+    lcPaidOnly                  [P] after paid-only titles
+    lcAccepted lcFailure        the verdict in results
+    lcMismatch                  answer lines that differ from the expected
+                                ones (DiffText)
 
 
 CUSTOMIZATIONS                                       *leetcode-customizations*

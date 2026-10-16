@@ -266,6 +266,8 @@ function! s:SetupProblemListBuffer() abort
     nnoremap <silent> <buffer> s :call <SID>HandleProblemListS()<cr>
     nnoremap <silent> <buffer> r :call <SID>HandleProblemListR()<cr>
     nnoremap <silent> <buffer> S :call <SID>HandleProblemListSort()<cr>
+    nnoremap <silent> <buffer> f :call <SID>HandleProblemListFilter()<cr>
+    nnoremap <silent> <buffer> F :call <SID>HandleProblemListClearFilter()<cr>
 
     call s:SetupBasicSyntax()
 
@@ -356,12 +358,16 @@ function! s:PrintProblemList() abort
 
     let shown = filter(copy(sorted_problems),
                 \ '(b:leetcode_difficulty ==# "All" || b:leetcode_difficulty ==# v:val.level)'
-                \ . ' && (b:leetcode_state ==# "All" || b:leetcode_state ==# v:val.state)')
+                \ . ' && (b:leetcode_state ==# "All" || b:leetcode_state ==# v:val.state)'
+                \ . ' && s:MatchesFilter(v:val)')
+    let filter_text = get(b:, 'leetcode_filter', '')
     let sort_column_name = s:sort_column_to_name_map[b:leetcode_sort_column]
     let sort_order_name = s:sort_order_to_name_map[b:leetcode_sort_order]
-    call append('$', [printf('## Problem List (%d shown, sorted by %s, %s)', len(shown),
+    call append('$', [printf('## Problem List (%d shown%s, sorted by %s, %s)', len(shown),
+                \ empty(filter_text) ? '' : ', filter "' . filter_text . '"',
                 \ sort_column_name, tolower(sort_order_name)),
-                \ '  <CR> open   s submissions   S sort   r refresh'
+                \ '  <CR> open   s submissions   S sort   f filter'
+                \ . (empty(filter_text) ? '' : '   F clear filter') . '   r refresh'
                 \ . (get(b:, 'leetcode_buffer_type', '') ==# 'company' ? '   t time period' : '')
                 \ . (get(b:, 'leetcode_buffer_type', '') ==# 'all' ? '   zo/zc topics & companies' : ''),
                 \ printf('  %s solved   %s attempted   [P] paid-only',
@@ -736,21 +742,100 @@ function! s:HandleProblemListCR() abort
 
     if line_nr >= b:leetcode_problem_start_line &&
                 \ line_nr < b:leetcode_problem_end_line
-        let problem_id = s:ProblemIdFromNr(line_nr)
-        let problem = s:GetProblem(problem_id)
-        let problem_slug = problem['slug']
-        let problem_ext = s:SolutionFileExt(g:leetcode_solution_filetype)
-        let problem_file_name = printf('%s.%s.%s', problem_id,
-                    \  s:SlugToFileName(problem_slug),
-                    \ problem_ext)
+        call s:OpenProblem(s:GetProblem(s:ProblemIdFromNr(line_nr)))
+    endif
+endfunction
 
-        if buflisted(problem_file_name)
-            execute bufnr(problem_file_name) . 'buffer'
+" Open the solution file of `problem`, with its description above. An empty
+" window is reused; otherwise the solution opens in a new one on the right.
+function! s:OpenProblem(problem) abort
+    if empty(a:problem)
+        return
+    endif
+    let file_name = printf('%s.%s.%s', a:problem['fid'], s:SlugToFileName(a:problem['slug']),
+                \ s:SolutionFileExt(g:leetcode_solution_filetype))
+    if buflisted(file_name)
+        execute bufnr(file_name) . 'buffer'
+        return
+    endif
+    if empty(bufname('%')) && !&modified && line('$') == 1 && empty(getline(1))
+        execute 'edit ' . fnameescape(file_name)
+    else
+        execute 'rightbelow vnew ' . fnameescape(file_name)
+    endif
+    call leetcode#ResetSolution(1)
+endfunction
+
+" All problems: those of an open problem list, or downloaded once.
+function! s:AllProblems(download) abort
+    let list = bufnr('leetcode:///problems/' . g:leetcode_problemset)
+    let problems = list > 0 ? getbufvar(list, 'leetcode_downloaded_problems', []) : []
+    if type(problems) == v:t_list && !empty(problems)
+        return problems
+    endif
+    if !exists('s:all_problems') && a:download
+        let problems = leetcode#Api('GetProblems', [g:leetcode_problemset])
+        if type(problems) == v:t_list && !empty(problems)
+            let s:all_problems = problems
+        endif
+    endif
+    return get(s:, 'all_problems', [])
+endfunction
+
+" :LeetCodeOpen 1, :LeetCodeOpen two-sum
+function! leetcode#OpenProblem(name) abort
+    if s:CheckSignIn() == v:false
+        return
+    endif
+    let name = trim(a:name)
+    for problem in s:AllProblems(1)
+        if problem['fid'] ==# name || problem['slug'] ==# name
+            call s:OpenProblem(problem)
             return
         endif
+    endfor
+    echohl ErrorMsg
+    echomsg 'leetcode.vim: no problem ' . string(name) . ' (give its number or slug)'
+    echohl None
+endfunction
 
-        execute 'rightbelow vnew ' . problem_file_name
-        call leetcode#ResetSolution(1)
+" Signed in, or signs in with the saved session; never asks for a cookie.
+function! s:QuietSignIn() abort
+    if !s:inited
+        return v:false
+    endif
+    if leetcode#Api('IsLogin')
+        return v:true
+    endif
+    let saved = g:leetcode_browser ==# 'paste' ? leetcode#auth#Load(s:host) : {}
+    return !empty(saved) && s:StartSession(saved)
+endfunction
+
+" Completes slugs. It never asks to sign in: without a session it only knows
+" the problems of an open list.
+function! leetcode#CompleteProblem(arg_lead, cmd_line, cursor_pos) abort
+    let problems = s:AllProblems(s:QuietSignIn())
+    return filter(map(copy(problems), 'v:val["slug"]'), 'stridx(v:val, a:arg_lead) == 0')
+endfunction
+
+function! s:MatchesFilter(problem) abort
+    let text = get(b:, 'leetcode_filter', '')
+    return empty(text) || a:problem['fid'] ==# text
+                \ || stridx(tolower(a:problem['title']), tolower(text)) >= 0
+endfunction
+
+function! s:HandleProblemListFilter() abort
+    let text = trim(input('Filter by title or number: ', get(b:, 'leetcode_filter', '')))
+    let b:leetcode_filter = text
+    call s:RedrawProblemList()
+    call cursor(b:leetcode_problem_start_line, 1)
+endfunction
+
+function! s:HandleProblemListClearFilter() abort
+    if !empty(get(b:, 'leetcode_filter', ''))
+        let b:leetcode_filter = ''
+        call s:RedrawProblemList()
+        call cursor(b:leetcode_problem_start_line, 1)
     endif
 endfunction
 

@@ -22,8 +22,8 @@
 
 ### Python backend
 - The bundled copies of requests/urllib3 are gone: they no longer import on
-  Python 3.12+ (#81). Install `requests` and `beautifulsoup4` for the Python
-  Vim uses; if they are missing, the plugin says so and prints the command.
+  Python 3.12+ (#81). Install `requests` for the Python
+  Vim uses; if it is missing, the plugin says so and prints the command.
 - Requests send a browser User-Agent (#77, #83).
 
 ### Today's leetcode.com (checked live, both backends)
@@ -35,6 +35,20 @@
   `frequencyTimePeriod` field the query asked for.
 - The problem list and submission list use the trailing-slash URLs. Without
   it LeetCode redirects, and the Vim script backend got an empty answer.
+
+### Interface
+- The problem list starts with the problems: topics and companies are
+  folds, closed by default, and the cursor is on the first problem. Keys,
+  sort order and legend fit in three lines.
+- `:LeetCodeOpen {number|slug}` opens a problem from anywhere, with
+  completion; `f`/`F` filter the list by title or number.
+- Test runs say Accepted or Wrong Answer, and highlight the answer lines
+  that differ; results show memory use and rank. Only submissions change a
+  problem's status (a failed test run used to mark a solved one attempted).
+- ✓/~ status marks, colors that follow the colorscheme and can be
+  overridden (`:help leetcode-highlights`), long titles cut with "…", and
+  descriptions that keep example and list lines apart.
+- The Python backend no longer needs beautifulsoup4.
 
 ### Fixes
 - `:LeetCodeList` no longer fails with E684 when topics can't be loaded (#78).

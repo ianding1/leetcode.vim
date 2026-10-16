@@ -49,7 +49,11 @@ Plug 'ianding1/leetcode.vim'
 
 ## Quick Start
 
-- `:LeetCodeList`: browse the problems.
+- `:LeetCodeList`: browse the problems. `<CR>` opens one, `f` filters by
+  title or number, `F` clears the filter, `S` sorts, `s` lists your
+  submissions. Topics and companies are folded above the table.
+- `:LeetCodeOpen 1` or `:LeetCodeOpen two-sum`: open a problem directly
+  (`<Tab>` completes slugs).
 - `:LeetCodeTest`: run the code with the default test case.
 - `:LeetCodeSubmit`: submit the code.
 - `:LeetCodeSignIn`: sign in, or replace the saved cookie.
@@ -62,6 +66,7 @@ lines to your **.vimrc** to set up the key mappings.
 
 ```vim
 nnoremap <leader>ll :LeetCodeList<cr>
+nnoremap <leader>lo :LeetCodeOpen<space>
 nnoremap <leader>lt :LeetCodeTest<cr>
 nnoremap <leader>ls :LeetCodeSubmit<cr>
 nnoremap <leader>li :LeetCodeSignIn<cr>
