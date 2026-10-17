@@ -50,10 +50,12 @@ def test_one_test_input_window_per_problem(scenario, lc):
     s.step('LeetCodeTest')              # again: goes to the open one
     s.capture('windows', 'winnr("$")')
     s.capture('current', 'exists("b:leetcode_test")')
+    s.capture('name', "expand('%:t')")
     s.step('q!')
     r = s.run()
     r.assert_ok()
     assert r.vars['windows'] == 3 and r.vars['current'], r.vars
+    assert r.vars['name'] == 'p0001_two_sum_testcases.txt', r.vars
 
 
 def test_test_runs_the_code_as_it_is_when_the_input_is_closed(scenario, lc):

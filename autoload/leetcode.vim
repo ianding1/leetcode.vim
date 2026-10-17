@@ -1448,7 +1448,7 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     " A file of its own (in Vim's temporary directory) that :wq writes, named
     " after the problem.
     let file = fnamemodify(tempname(), ':h') . '/'
-                \ . s:SolutionBase(a:problem) . '.testcases'
+                \ . s:SolutionBase(a:problem) . '_testcases.txt'
     " No file until :wq writes it, so :q! leaves none and nothing runs.
     call delete(file)
     execute 'rightbelow new ' . fnameescape(file)
