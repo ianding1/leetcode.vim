@@ -882,8 +882,8 @@ function! s:OpenProblem(problem, ...) abort
     endif
 endfunction
 
-" Where the solution of `problem` lives: in g:leetcode_solution_dir
-" (default ~/leetcode), or the current directory when that is empty.
+"" Where the solution of `problem` lives: in g:leetcode_solution_dir, or the
+" current directory when that is empty (the default).
 function! s:SolutionPath(problem) abort
     let dir = empty(g:leetcode_solution_dir) ? getcwd() : expand(g:leetcode_solution_dir)
     " :p ends in a slash only when the directory exists.

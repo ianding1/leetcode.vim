@@ -131,18 +131,18 @@ def test_description_hints_and_similar_questions(scenario, lc):
     assert r.text(r'^p0002_add_two_numbers\.cpp$') is not None, r.describe()
 
 
-def test_new_solution_is_saved_in_the_solution_dir(scenario, lc):
-    """A new solution is written to ~/leetcode at once: no "modified" flag,
-    no question of where to save it."""
+def test_new_solution_is_saved_in_the_current_directory(scenario, lc):
+    """By default a new solution is written to the current directory at once:
+    no "modified" flag, no question of where to save it."""
     s = scenario().signed_in(lc.cookies).unlet('leetcode_solution_dir')
     s.step('LeetCodeOpen 1')
     s.capture('path', "expand('%:p')")
-    s.capture('home', "expand('~')")
+    s.capture('cwd', "getcwd()")
     s.capture('modified', '&modified')
     s.capture('on_disk', "readfile(expand('%:p'))")
     r = s.run()
     r.assert_ok()
-    assert r.vars['path'] == r.vars['home'] + '/leetcode/p0001_two_sum.cpp', r.vars
+    assert r.vars['path'] == r.vars['cwd'] + '/p0001_two_sum.cpp', r.vars
     assert not r.vars['modified'], r.vars
     assert any('twoSum' in line for line in r.vars['on_disk']), r.vars
 
@@ -225,3 +225,13 @@ def test_problems_numbered_otherwise_use_the_slug(scenario, lc):
     r = s.run()
     r.assert_ok()
     assert r.vars['name'] == 'two_sum.cpp', r.vars
+
+
+def test_solution_dir_option(scenario, lc):
+    s = scenario().signed_in(lc.cookies).let('leetcode_solution_dir', '~/solutions')
+    s.step('LeetCodeOpen 1')
+    s.capture('path', "expand('%:p')")
+    s.capture('home', "expand('~')")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['path'] == r.vars['home'] + '/solutions/p0001_two_sum.cpp', r.vars

@@ -85,9 +85,9 @@
 - Solution files are named `p0001_two_sum.rs`: `1.two_sum.rs` isn't a valid
   crate name for Rust, and Python can't import a module with a dot. Files
   saved with the old names are still found and used.
-- Solutions are saved in `g:leetcode_solution_dir` (default `~/leetcode`)
-  as soon as a problem is opened, instead of being left unsaved in whatever
-  directory Vim was in. Opening a problem whose file exists keeps the file
+- Solutions are saved as soon as a problem is opened, in the current
+  directory or the new `g:leetcode_solution_dir`, instead of being left
+  unsaved. Opening a problem whose file exists keeps the file
   as it is: it used to replace your code with the template or your last
   submission. Past submissions open as scratch buffers.
 - The test input window says how to run the test (`:wq`, or `:LeetCodeTest`

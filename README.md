@@ -99,12 +99,12 @@ Default value is `'cpp'`.
 
 ### `g:leetcode_solution_dir`
 
-Where solution files are saved (e.g. `~/leetcode/p0001_two_sum.cpp`, a valid
-identifier in every language). Opening a
-problem writes its new solution file there right away; an existing file is
-opened as it is, never overwritten. `''` means the current directory.
+Where solution files are saved (e.g. `p0001_two_sum.cpp`, a valid identifier
+in every language). Opening a problem writes its new solution file there right
+away; an existing file is opened as it is, never overwritten. `''` means
+Vim's current directory; set e.g. `'~/leetcode'` to keep them all in one place.
 
-Default value is `'~/leetcode'`.
+Default value is `''` (the current directory).
 
 ### `g:leetcode_browser`
 

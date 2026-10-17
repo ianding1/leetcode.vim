@@ -207,9 +207,10 @@ g:leetcode_solution_dir
                     that language) is written there as soon as you open the
                     problem; an existing file is opened as it is, so your
                     work is never replaced (|:LeetCodeReset| starts over).
-                    An empty string means the current directory.
+                    An empty string means Vim's current directory; set e.g.
+                    "~/leetcode" to keep all solutions in one place.
 
-                    Default: "~/leetcode"
+                    Default: "" (the current directory)
 
                                                   *g:leetcode_hide_paid_only*
 g:leetcode_hide_paid_only

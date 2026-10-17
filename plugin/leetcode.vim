@@ -17,7 +17,7 @@ if !exists('g:leetcode_solution_filetype')
 endif
 
 if !exists('g:leetcode_solution_dir')
-    let g:leetcode_solution_dir = '~/leetcode'
+    let g:leetcode_solution_dir = ''
 endif
 
 if !exists('g:leetcode_debug')
