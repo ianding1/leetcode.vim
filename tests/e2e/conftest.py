@@ -17,6 +17,7 @@ from vim_driver import REPO_ROOT, Scenario  # noqa: E402
 E2E_DIR = Path(__file__).resolve().parent
 CACHE_DIR = REPO_ROOT / '.e2e-cache'
 VIM_REQUIREMENTS = E2E_DIR / 'vim-requirements.txt'
+WITHOUT_DEPS = E2E_DIR / 'lib' / 'without_deps'
 
 # Fake credentials used against the replay server.
 REPLAY_COOKIES = {'LEETCODE_SESSION': 'e2e-session', 'csrftoken': 'e2e-csrf'}
@@ -148,7 +149,9 @@ class EditorSetup:
         # The plugin must reach the local fake server directly.
         env['NO_PROXY'] = env['no_proxy'] = ','.join(
             filter(None, [os.environ.get('NO_PROXY', ''), '127.0.0.1', 'localhost']))
-        paths = [self.host_path] + ([self.deps_path] if with_deps else [])
+        # Without the dependencies, a stand-in requests that fails to import
+        # hides one the system Python may have.
+        paths = [self.host_path] + ([self.deps_path] if with_deps else [WITHOUT_DEPS])
         paths = [str(p) for p in paths if p]
         if paths:
             env['PYTHONPATH'] = os.pathsep.join(paths)
