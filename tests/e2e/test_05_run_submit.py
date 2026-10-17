@@ -253,3 +253,24 @@ def test_stale_csrf_token_is_renewed(scenario, lc):
     r.assert_ok()
     assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
     assert [q['status'] for q in lc.server.requests_to('submit')] == [499, 200]
+
+
+@pytest.mark.parametrize('how', ['opened', 'edited'])
+def test_python_solution_runs_without_asking_which_python(scenario, lc, how):
+    """.py is Python 2 or 3; the plugin used to ask on every run."""
+    s = scenario().signed_in(lc.cookies).let('leetcode_solution_filetype', 'python3')
+    if how == 'opened':
+        s.step('LeetCodeOpen 1')
+    else:
+        s.step('edit 1.two_sum.py')
+        s.step('call setline(1, ["class Solution:", "    def twoSum(self, nums, target):",'
+               ' "        return [0, 1]"])')
+    s.step('LeetCodeTest')
+    s.step('wq')
+    s.wait_for_buffer(RESULT, 60000)
+    r = s.run()
+    r.assert_ok()
+    assert 'Which Python' not in r.output, r.output
+    if not lc.live:
+        assert json.loads(lc.server.requests_to('interpret_solution')[0]['body'])['lang'] \
+            == 'python3'

@@ -1128,6 +1128,7 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     call append('$', code)
     silent! normal! ggdd
     let b:leetcode_slug = problem_slug
+    let b:leetcode_filetype = filetype
     call s:ShowDescription(problem)
 endfunction
 
@@ -1287,8 +1288,12 @@ function! s:SolutionCode() abort
 endfunction
 
 function! s:GuessFileType() abort
-    " Try figuring out the file type from the comment in the first 10
-    " lines. If failed, try guessing it from the extension name.
+    " The language the plugin opened this buffer in.
+    if !empty(get(b:, 'leetcode_filetype', ''))
+        return b:leetcode_filetype
+    endif
+    " Files from older versions name it in a comment in the first lines;
+    " otherwise the extension tells.
     for line in getline(1, 10)
         let filetype = matchstr(line, '\[filetype:[[:alnum:]]\+\]')
         if filetype !=# ''
@@ -1310,17 +1315,10 @@ function! s:GuessFileType() abort
         return guessed_filetype
     endif
 
+    " .py is Python 2 or 3: the one you solve in, or else Python 3. (It used
+    " to ask on every run.)
     if ext ==# 'py'
-        let python_version = input('Which Python [2/3]: ', '3')
-        redraw
-        if python_version ==# '2'
-            return 'python'
-        elseif python_version ==# '3'
-            return 'python3'
-        else
-            echo 'unrecognized answer, default to Python3'
-            return 'python3'
-        endif
+        return g:leetcode_solution_filetype ==# 'python' ? 'python' : 'python3'
     endif
 
     return ''
@@ -1861,6 +1859,7 @@ function! s:HandleSubmissionsCR() abort
     setlocal buftype=nofile bufhidden=hide noswapfile
     setlocal modifiable
     let b:leetcode_submission_view = 1
+    let b:leetcode_filetype = submission['filetype']
 
     let filetype = submission['filetype']
     let output = [s:CommentStart(filetype, printf('Submission %s%s%s',
