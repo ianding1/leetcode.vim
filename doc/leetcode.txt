@@ -22,11 +22,15 @@ COMMANDS                                                *leetcode-commands*
 
                                                         *:LeetCodeTest*
 
-:LeetCodeTest       Run the solution against test input. A window opens with
-                    the problem's sample input, one argument per line; edit
-                    it if you like, then save and close it (|:wq|), or run
-                    :LeetCodeTest again in it, to start the run. |:q!|
-                    cancels. The input is kept for the next run.
+:LeetCodeTest       Run the solution against test cases. A window opens with
+                    all the problem's examples, one argument per line and a
+                    blank line between cases; edit them or add your own,
+                    then save and close it (|:wq|), or run :LeetCodeTest
+                    again in it, to start the run. |:q!| cancels. The cases
+                    are kept for the next run. The result shows the verdict
+                    and each case: its input, your output, the expected one
+                    and what your code printed, failed ones marked and
+                    highlighted (the window scrolls to the first).
 
                                                         *:LeetCodeSubmit*
 :LeetCodeSubmit     Submit the solution.

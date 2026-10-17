@@ -146,6 +146,14 @@ def _break_code_lines(s):
     return s.replace('\r\n', '\n').replace('\xa0', ' ').split('\n')
 
 
+def _param_names(text):
+    """The names of the solution's arguments: one line of test input each."""
+    try:
+        return [p['name'] for p in json.loads(text or '{}').get('params') or []]
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return []
+
+
 def _similar_questions(text):
     try:
         similar = json.loads(text or '[]')
@@ -371,6 +379,8 @@ def get_problem(slug):
     }
     hints
     similarQuestions
+    exampleTestcaseList
+    metaData
   }
 }''',
             'variables': {'titleSlug': slug},
@@ -400,6 +410,9 @@ def get_problem(slug):
     problem['topics'] = [t.get('translatedName') or t['name'] for t in q.get('topicTags') or []]
     problem['hints'] = q.get('hints') or []
     problem['similar'] = _similar_questions(q.get('similarQuestions'))
+    problem['testcases'] = [_split(c) for c in q.get('exampleTestcaseList') or []] \
+        or [_split(q['sampleTestCase'])]
+    problem['params'] = _param_names(q.get('metaData'))
     problem['templates'] = {}
     for t in json.loads(q['codeDefinition']):
         problem['templates'][t['value']] = _break_code_lines(t['defaultCode'])
@@ -506,6 +519,11 @@ def _check_result(submission_id, is_submit):
         result['expected_answer'] = r.get('expected_code_answer', [])
         # The judge's verdict on the answers, when it gives one.
         result['correct_answer'] = r.get('correct_answer')
+        # One character per test case: 1 right, 0 wrong.
+        result['compare_result'] = r.get('compare_result') or ''
+        result['stdout_list'] = r.get('std_output_list') or []
+        if r.get('invalid_testcase') and isinstance(r.get('case_idx'), int):
+            result['invalid_case'] = r['case_idx'] + 1
     return result
 
 

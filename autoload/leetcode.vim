@@ -223,8 +223,6 @@ function! s:DefineHighlights() abort
     hi def link lcDone lcEasy
     hi def link lcTodo lcMedium
     hi def link lcPaidOnly lcMedium
-    hi def link lcOK lcAccepted
-    hi def link lcWarning lcFailure
     hi def link lcNA Comment
     hi def link lcMismatch DiffText
     hi def link lcBorder NonText
@@ -1413,12 +1411,24 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
 
     let slug = a:problem['slug']
 
-    let header = [printf('# Test input for %s. %s, as on LeetCode: one argument per line.',
-                \ a:problem['fid'], a:problem['title']),
-                \ '# Save and close this window (:wq, or :LeetCodeTest) to run it; :q! cancels.']
-    let test_input = copy(get(s:saved_test_input, slug, a:problem['testcase']))
+    let params = get(a:problem, 'params', [])
+    let header = [printf('# Test cases for %s. %s, as on LeetCode: one argument per line%s,',
+                \ a:problem['fid'], a:problem['title'],
+                \ empty(params) ? '' : ' (' . join(params, ', ') . ')'),
+                \ '# a blank line between cases. Add your own.',
+                \ '# Save and close this window (:wq, or :LeetCodeTest) to run them; :q! cancels.',
+                \ '']
+    if has_key(s:saved_test_input, slug)
+        let test_input = copy(s:saved_test_input[slug])
+    else
+        " All the examples, as the website starts with.
+        let test_input = []
+        for case in get(a:problem, 'testcases', [a:problem['testcase']])
+            call extend(test_input, (empty(test_input) ? [] : ['']) + case)
+        endfor
+    endif
     " Drop the header saved with an earlier run.
-    while !empty(test_input) && test_input[0] =~# '^#'
+    while !empty(test_input) && test_input[0] =~# '^#\|^\s*$'
         call remove(test_input, 0)
     endwhile
 
@@ -1535,54 +1545,22 @@ function! s:FormatSection(title, block, level) abort
     return result
 endfunction
 
-function! s:TestSummary(all_passed) abort
-    if a:all_passed
-        return 'OK: all test cases passed'
-    else
-        return 'WARNING: some test cases failed'
-    endif
-endfunction
-
 function! s:FormatResult(result_) abort
     let result = a:result_
     let kind = get(result, 'kind', '')
-    let output = ['# ' . result['title'] . (empty(kind) ? '' : ' (' . kind . ')'),
-                \ '',
-                \ '## State',
-                \ '  - ' . result['state'],
-                \ '',
-                \ '## Runtime',
-                \ '  - ' . result['runtime'],
-                \ '']
-    if !empty(result['runtime_percentile'])
-        let message = printf('  - Faster than %s%% submissions',
-                    \ result['runtime_percentile'])
-        call extend(output, [
-                    \ '## Runtime Rank',
-                    \ message,
-                    \ '',
-                    \ ])
-    endif
+    let output = ['# ' . result['title'] . (empty(kind) ? '' : ' (' . kind . ')'), '']
+    call extend(output, map(s:ResultHeadline(result), '"  " . v:val'))
+    call add(output, '')
 
-    if !empty(get(result, 'memory', ''))
-        call extend(output, ['## Memory', '  - ' . result['memory']
-                    \ . (empty(get(result, 'memory_percentile', '')) ? ''
-                    \     : printf(', less than %s%% of submissions', result['memory_percentile'])),
-                    \ ''])
-    endif
+    call extend(output, s:FormatSection('Error' . (has_key(result, 'invalid_case')
+                \ ? printf(' (case %d is not a valid input)', result['invalid_case']) : ''),
+                \ result['error'], 2))
 
-    if result['total'] > 0
-        let test_summary = s:TestSummary(result['passed'] == result['total'])
-        call extend(output, [
-                    \ '## Test Cases',
-                    \ '  - Passed: ' . result['passed'],
-                    \ '  - Total:  ' . result['total'],
-                    \ '  - ' . test_summary,
-                    \ '',
-                    \ ])
+    let cases = s:Cases(result)
+    if !empty(cases)
+        call extend(output, s:FormatCases(result, cases, len(output)))
+        return output
     endif
-
-    call extend(output, s:FormatSection('Error', result['error'], 2))
     call extend(output, s:FormatSection('Standard Output', result['stdout'], 2))
 
     call extend(output, s:FormatSection('Input', result['testcase'], 3))
@@ -1590,6 +1568,58 @@ function! s:FormatResult(result_) abort
     call extend(output, s:FormatSection('Expected Answer',
                 \ result['expected_answer'], 3))
     return output
+endfunction
+
+" A test run's input split into its cases (lists of lines), when the number
+" of lines per case is known; [] otherwise.
+function! s:Cases(result) abort
+    let n = get(a:result, 'params', 0)
+    let lines = filter(copy(get(a:result, 'testcase', [])), 'v:val !=# ""')
+    if get(a:result, 'kind', '') !=# 'test run' || n <= 0 || empty(lines) || len(lines) % n
+        return []
+    endif
+    return map(range(len(lines) / n), 'lines[v:val * n : v:val * n + n - 1]')
+endfunction
+
+" One section per case: its input, your output and the expected one (from
+" the judge's per-case verdicts), and what it printed. Output lines of failed
+" cases are noted in s:mismatch_lines, for the highlight. `offset` is where
+" the sections start in the result.
+function! s:FormatCases(result, cases, offset) abort
+    let r = a:result
+    let verdicts = split(get(r, 'compare_result', ''), '\zs')
+    let lines = []
+    for i in range(len(a:cases))
+        let answer = get(r['answer'], i, v:null)
+        let expected = get(r['expected_answer'], i, v:null)
+        let verdict = get(verdicts, i, '')
+        let ok = verdict ==# '1' ? 1 : verdict ==# '0' ? 0
+                    \ : answer isnot v:null && answer ==# expected
+        " The judge ends the list with an empty entry; a real answer is never
+        " empty (strings come quoted).
+        let ran = answer isnot v:null && answer !=# ''
+        call add(lines, printf('### Case %d%s', i + 1,
+                    \ ran ? ' ' . (ok ? s:status_marks['X'] : s:glyphs['fail']) : ''))
+        call add(lines, '  Input')
+        call extend(lines, map(copy(a:cases[i]), '"    " . v:val'))
+        if ran
+            call add(lines, '  Output')
+            if !ok
+                call add(s:mismatch_lines, a:offset + len(lines) + 1)
+            endif
+            call add(lines, '    ' . answer)
+            if expected isnot v:null
+                call extend(lines, ['  Expected', '    ' . expected])
+            endif
+        endif
+        let stdout = split(get(get(r, 'stdout_list', []), i, ''), "\n")
+        if !empty(filter(copy(stdout), 'v:val !=# ""'))
+            call add(lines, '  Stdout')
+            call extend(lines, map(stdout, '"    " . v:val'))
+        endif
+        call add(lines, '')
+    endfor
+    return lines
 endfunction
 
 function! s:ShowRunResultInPreview(result) abort
@@ -1609,6 +1639,7 @@ function! s:ShowRunResultInPreview(result) abort
     setlocal nobuflisted
     setlocal modifiable
 
+    let s:mismatch_lines = []
     let output = s:FormatResult(a:result)
     call append('$', output)
 
@@ -1632,12 +1663,21 @@ function! s:ShowRunResultInPreview(result) abort
     syn match lcFailure /Compile Error/
     syn match lcFailure /Unknown Error/
     syn match lcFailure /Unknown State/
-    syn match lcOK /OK:/
-    syn match lcWarning /WARNING:/
 
+    syn match lcCaseHead /^### Case \d\+/
+    execute 'syn match lcAccepted /\%(^### Case \d\+ \)\@<=' . s:status_marks['X'] . '/'
+    execute 'syn match lcFailure /\%(^### Case \d\+ \)\@<=' . s:glyphs['fail'] . '/'
+    syn match lcLabel /^  \%(Input\|Output\|Expected\|Stdout\)$/
+    hi def link lcCaseHead Title
     let first = search('^### Actual Answer$', 'nw')
     let expected = get(a:result, 'expected_answer', [])
-    if first > 0 && !empty(expected)
+    if !empty(s:mismatch_lines)
+        call matchaddpos('lcMismatch', s:mismatch_lines)
+        " Show the first failed case, which may be further down.
+        call cursor(s:mismatch_lines[0], 1)
+        call cursor(search('^### Case ', 'bnW'), 1)
+        normal! zt
+    elseif first > 0 && !empty(expected)
         let lines = []
         for i in range(len(a:result['answer']))
             if get(expected, i, v:null) isnot# a:result['answer'][i]
@@ -1680,6 +1720,8 @@ function! s:HandleTaskResult(task_name, output, error) abort
     endif
     if a:task_name ==# 'test_solution'
         let task_output['kind'] = 'test run'
+        " Lines of input per case, to show the results case by case.
+        let task_output['params'] = len(get(get(s:, 'leetcode_problem', {}), 'params', []))
         if task_output['state'] ==# 'Finished'
             " The judge says whether the answers are right; older replies
             " don't, so compare them then.
@@ -1877,24 +1919,31 @@ function! s:HandleSubmissionsCR() abort
     silent! normal! ggdd
 endfunction
 
-" A few lines on how a submission did, for the comment above its code.
-function! s:SubmissionSummary(submission) abort
-    let s = a:submission
+" How a run or submission did, in a line or two: the verdict and test cases,
+" then runtime and memory with how they rank.
+function! s:ResultHeadline(result) abort
+    let s = a:result
     let dot = s:glyphs['dot']
-    let lines = [s['state'] . (s['total'] =~# '^\d\+$' && s['total'] > 0
-                \ ? printf('%s%s/%s test cases passed', dot, s['passed'], s['total']) : '')]
+    " Numbers from a run, strings from a past submission.
+    let total = type(s['total']) == v:t_string ? s['total'] : string(s['total'])
+    let lines = [s['state'] . (total =~# '^\d\+$' && str2nr(total) > 0
+                \ ? printf('%s%s/%s test cases passed', dot, s['passed'], total) : '')]
     let perf = []
     if !empty(s['runtime']) && s['runtime'] !=# 'N/A'
         call add(perf, 'Runtime ' . s['runtime'] . (empty(s['runtime_percentile']) ? ''
                     \ : printf(', faster than %s%%', s['runtime_percentile'])))
     endif
-    if !empty(get(s, 'memory', ''))
+    if !empty(get(s, 'memory', '')) && s['memory'] !=# 'N/A'
         call add(perf, 'Memory ' . s['memory'] . (empty(get(s, 'memory_percentile', '')) ? ''
                     \ : printf(', less than %s%%', s['memory_percentile'])))
     endif
-    if !empty(perf)
-        call add(lines, join(perf, dot))
-    endif
+    return empty(perf) ? lines : add(lines, join(perf, dot))
+endfunction
+
+" A few lines on how a submission did, for the comment above its code.
+function! s:SubmissionSummary(submission) abort
+    let s = a:submission
+    let lines = s:ResultHeadline(s)
     for [title, block] in [['Error', s['error']], ['Input', s['testcase']],
                 \ ['Output', s['answer']], ['Expected', s['expected_answer']]]
         let block = filter(copy(block), 'v:val !=# ""')

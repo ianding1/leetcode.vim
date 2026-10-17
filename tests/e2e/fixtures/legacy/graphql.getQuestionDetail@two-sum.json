@@ -29,7 +29,13 @@
           "A really brute force way would be to search for all possible pairs of numbers.",
           "Try a <code>hash map</code> to look up the complement."
         ],
-        "similarQuestions": "[{\"title\": \"Add Two Numbers\", \"titleSlug\": \"add-two-numbers\", \"difficulty\": \"Medium\", \"translatedTitle\": null}]"
+        "similarQuestions": "[{\"title\": \"Add Two Numbers\", \"titleSlug\": \"add-two-numbers\", \"difficulty\": \"Medium\", \"translatedTitle\": null}]",
+        "exampleTestcaseList": [
+          "[2,7,11,15]\n9",
+          "[3,2,4]\n6",
+          "[3,3]\n6"
+        ],
+        "metaData": "{\"name\": \"twoSum\", \"params\": [{\"name\": \"nums\", \"type\": \"integer[]\"}, {\"name\": \"target\", \"type\": \"integer\"}], \"return\": {\"type\": \"integer[]\"}}"
       }
     }
   }

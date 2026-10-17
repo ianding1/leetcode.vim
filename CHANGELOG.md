@@ -57,6 +57,13 @@
   whole, with a short comment on how it did (verdict, test cases, runtime
   and memory ranks, the failing input); the next one opened takes its
   place. The comment no longer ends in "[End of Description]".
+- `:LeetCodeTest` runs all the examples, as the website does, and any
+  cases you add (a blank line between cases). The result goes case by
+  case, using the judge's own verdict per case, with input, output,
+  expected output and stdout; failed cases are marked and highlighted, an
+  invalid case is named, and the window scrolls to the first failure.
+- Results start with a two-line summary (verdict and test cases; runtime
+  and memory with their ranks) instead of a section per number.
 - `:LeetCodeOpen {number|slug}` opens a problem from anywhere, with
   completion; `f`/`F` filter the list by title or number.
 - Test runs say Accepted or Wrong Answer, and highlight the answer lines

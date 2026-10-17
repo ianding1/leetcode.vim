@@ -18,17 +18,30 @@
       "status_code": 10,
       "status_runtime": "0 ms",
       "code_answer": [
-        "[0,1]"
+        "[0,1]",
+        "[1,2]",
+        "[0,1]",
+        ""
       ],
       "expected_code_answer": [
-        "[0,1]"
+        "[0,1]",
+        "[1,2]",
+        "[0,1]",
+        ""
       ],
       "code_output": [],
       "correct_answer": true,
-      "total_correct": null,
-      "total_testcases": null,
+      "total_correct": 3,
+      "total_testcases": 3,
       "run_success": true,
-      "lang": "cpp"
+      "lang": "cpp",
+      "compare_result": "111",
+      "std_output_list": [
+        "",
+        "",
+        "",
+        ""
+      ]
     }
   }
 ]

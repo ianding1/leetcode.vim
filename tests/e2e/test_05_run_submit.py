@@ -35,19 +35,24 @@ def test_run_with_default_testcase(scenario, lc):
     s.wait_for_buffer(RESULT, 60000)
     r = s.run()
     r.assert_ok()
-    assert r.vars['test_input'][0].startswith('# Test input for 1. Two Sum'), r.vars
-    assert ':wq' in r.vars['test_input'][1] and ':LeetCodeTest' in r.vars['test_input'][1]
-    assert r.vars['test_input'][2:] == ['[2,7,11,15]', '9'], r.vars
+    header, cases = r.vars['test_input'][:4], r.vars['test_input'][4:]
+    assert header[0].startswith('# Test cases for 1. Two Sum') and '(nums, target)' in header[0]
+    assert ':wq' in header[2] and ':LeetCodeTest' in header[2] and header[3] == '', header
+    # All the examples, as on the website.
+    assert cases == ['[2,7,11,15]', '9', '', '[3,2,4]', '6', '', '[3,3]', '6'], cases
     result = r.text(RESULT)
     assert result is not None, r.describe()
     assert result.startswith('# Two Sum (test run)'), result
-    assert '## State\n  - Accepted' in result, result
-    assert '### Actual Answer\n    [0,1]' in result
+    assert '\n  Accepted' in result, result
+    assert ('### Case 1 ✓\n  Input\n    [2,7,11,15]\n    9\n  Output\n    [0,1]\n'
+            '  Expected\n    [0,1]\n') in result, result
+    assert '### Case 3 ✓\n  Input\n    [3,3]\n    6\n' in result, result
     if not lc.live:
         sent = lc.server.requests_to('interpret_solution')[0]
         body = json.loads(sent['body'])
         assert body['lang'] == 'cpp' and 'unordered_map' in body['typed_code']
-        assert body['data_input'] == '[2,7,11,15]\n9' and body['question_id'] == '1'
+        assert body['data_input'] == '[2,7,11,15]\n9\n[3,2,4]\n6\n[3,3]\n6'
+        assert body['question_id'] == '1'
         assert sent['headers'].get('x-csrftoken') == 'e2e-csrf'
 
 
@@ -62,7 +67,7 @@ def test_run_reports_wrong_answer(scenario, lc):
     s.wait_for_buffer(RESULT)
     r = s.run()
     r.assert_ok()
-    assert '## State\n  - Wrong Answer' in r.text(RESULT)
+    assert '\n  Wrong Answer' in r.text(RESULT)
 
 
 @pytest.mark.submits
@@ -74,9 +79,9 @@ def test_submit(scenario, lc):
     r.assert_ok()
     result = r.text(RESULT)
     assert result is not None, r.describe()
-    assert '## State\n  - Accepted' in result, result
-    assert 'Faster than' in result
-    assert '## Memory\n  - ' in result and 'less than' in result, result
+    assert '\n  Accepted' in result, result
+    assert 'faster than' in result
+    assert ' · Memory ' in result and 'less than' in result, result
 
 
 @pytest.mark.replay_only
@@ -91,7 +96,7 @@ def test_submit_compile_error(scenario, lc):
     r = s.run()
     r.assert_ok()
     result = r.text(RESULT)
-    assert '## State\n  - Compile Error' in result
+    assert '\n  Compile Error' in result
     assert 'expected ;' in result
 
 
@@ -110,8 +115,8 @@ def test_submit_result_without_judge_type(scenario, lc):
     r = s.run()
     r.assert_ok()
     result = r.text(RESULT)
-    assert '## State\n  - Wrong Answer' in result, result
-    assert '- Passed: 3' in result and '- Total:  57' in result
+    assert '\n  Wrong Answer' in result, result
+    assert '  Wrong Answer · 3/57 test cases passed\n' in result, result
     assert '### Expected Answer\n    [0,1]' in result
     assert '### Input\n    [3,2,4]\n    6' in result
 
@@ -134,8 +139,8 @@ def test_run_trusts_the_judges_verdict(scenario, lc):
     r = s.run()
     r.assert_ok()
     result = r.text(RESULT)
-    assert '## State\n  - Wrong Answer' in result, result
-    assert '- Passed: 1' in result and '- Total:  2' in result, result
+    assert '\n  Wrong Answer' in result, result
+    assert '  Wrong Answer · 1/2 test cases passed\n' in result, result
     # Only the second answer line differs.
     lines = [line for group, line in r.vars['matches'] if group == 'lcMismatch']
     assert len(lines) == 1, r.vars['matches']
@@ -174,7 +179,7 @@ def test_test_command_in_the_input_window_runs_the_test(scenario, lc):
     s.wait_for_buffer(RESULT, 60000)
     r = s.run()
     r.assert_ok()
-    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+    assert '\n  Accepted' in r.text(RESULT), r.describe()
 
 
 @pytest.mark.parametrize('window', ['test input', 'description', 'result'])
@@ -201,7 +206,7 @@ def test_submit_from_a_window_of_the_problem(scenario, lc, window):
     r.assert_ok()
     assert not r.vars['buffer'].endswith('.cpp'), r.vars
     assert lc.server.requests_to('submit')[0]['path'] == '/problems/two-sum/submit/', r.describe()
-    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+    assert '\n  Accepted' in r.text(RESULT), r.describe()
 
 
 def test_submit_outside_a_solution(scenario, lc):
@@ -237,7 +242,7 @@ def test_signed_in_with_the_session_only(scenario, lc, command):
     s.wait_for_buffer(RESULT)
     r = s.run()
     r.assert_ok()
-    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+    assert '\n  Accepted' in r.text(RESULT), r.describe()
 
 
 @pytest.mark.replay_only
@@ -251,7 +256,7 @@ def test_stale_csrf_token_is_renewed(scenario, lc):
     s.wait_for_buffer(RESULT)
     r = s.run()
     r.assert_ok()
-    assert '## State\n  - Accepted' in r.text(RESULT), r.describe()
+    assert '\n  Accepted' in r.text(RESULT), r.describe()
     assert [q['status'] for q in lc.server.requests_to('submit')] == [499, 200]
 
 
@@ -274,3 +279,62 @@ def test_python_solution_runs_without_asking_which_python(scenario, lc, how):
     if not lc.live:
         assert json.loads(lc.server.requests_to('interpret_solution')[0]['body'])['lang'] \
             == 'python3'
+
+
+def run_with_judge_reply(scenario, lc, reply):
+    lc.server.override('check', [{'status': 200, 'json': dict(
+        {'state': 'SUCCESS', 'status_code': 10, 'status_runtime': '0 ms', 'code_output': []},
+        **reply)}])
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeTest')
+    s.step('wq')
+    s.wait_for_buffer(RESULT)
+    s.capture('mismatch', "map(filter(getmatches(win_getid(bufwinnr('leetcode:///result'))), "
+                          "'v:val.group ==# \"lcMismatch\"'), 'v:val.pos1[0]')")
+    s.capture('top', "getbufline('leetcode:///result', "
+                     "line('w0', win_getid(bufwinnr('leetcode:///result'))))[0]")
+    r = s.run()
+    r.assert_ok()
+    return r, r.text(RESULT)
+
+
+@pytest.mark.replay_only
+def test_run_shows_each_case_with_the_judges_verdict(scenario, lc):
+    r, result = run_with_judge_reply(scenario, lc, {
+        'code_answer': ['[1,0]', '[0,2]', '[0,1]', ''],
+        'expected_code_answer': ['[0,1]', '[1,2]', '[0,1]', ''],
+        # Two Sum takes any order: the judge accepts [1,0] for case 1.
+        'compare_result': '101', 'correct_answer': False,
+        'std_output_list': ['', 'debug: 3\n', '', '']})
+    assert '\n  Wrong Answer' in result, result
+    assert '### Case 1 ✓' in result and '### Case 3 ✓' in result, result
+    assert ('### Case 2 ✗\n  Input\n    [3,2,4]\n    6\n  Output\n    [0,2]\n'
+            '  Expected\n    [1,2]\n  Stdout\n    debug: 3\n') in result, result
+    lines = result.split('\n')
+    # Only case 2's output is highlighted.
+    assert [lines[n - 1] for n in r.vars['mismatch']] == ['    [0,2]'], r.vars
+    # The window starts at the failed case.
+    assert r.vars['top'] == '### Case 2 ✗', r.vars
+
+
+@pytest.mark.replay_only
+def test_run_names_an_invalid_case(scenario, lc):
+    r, result = run_with_judge_reply(scenario, lc, {
+        'status_code': 15, 'run_success': False, 'invalid_testcase': True, 'case_idx': 2,
+        'code_answer': [], 'runtime_error': 'Solution either does not exist or is not unique'})
+    assert ('## Error (case 3 is not a valid input)\n'
+            '    Solution either does not exist or is not unique') in result, result
+
+
+@pytest.mark.replay_only
+def test_run_with_a_case_of_your_own(scenario, lc):
+    s = with_solution(scenario, lc)
+    s.step('LeetCodeTest')
+    s.step('call append("$", ["", "[5,5]", "10"])')
+    s.step('wq')
+    s.wait_for_buffer(RESULT)
+    r = s.run()
+    r.assert_ok()
+    body = json.loads(lc.server.requests_to('interpret_solution')[0]['body'])
+    assert body['data_input'].endswith('\n[3,3]\n6\n[5,5]\n10'), body['data_input']
+    assert '### Case 4\n  Input\n    [5,5]\n    10\n' in r.text(RESULT), r.text(RESULT)

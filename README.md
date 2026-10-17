@@ -59,8 +59,10 @@ Plug 'ianding1/leetcode.vim'
   (`<Tab>` completes slugs). The description opens above the solution as a
   Markdown buffer, with examples as code blocks, hints folded away and
   similar questions you can open with `<CR>`.
-- `:LeetCodeTest`: run the code. A window shows the test input (the sample
-  case); edit it if you like, then `:wq` (or `:LeetCodeTest` again) to run.
+- `:LeetCodeTest`: run the code against test cases. A window shows all the
+  examples (a blank line between cases); edit them or add your own, then
+  `:wq` (or `:LeetCodeTest` again) to run. The result lists each case with
+  your output, the expected one and what it printed.
 - `:LeetCodeSubmit`: submit the code.
 - `:LeetCodeSignIn`: sign in, or replace the saved cookie.
 - `:LeetCodeSignOut`: sign out and forget the saved cookie.

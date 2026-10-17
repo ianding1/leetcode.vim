@@ -223,7 +223,21 @@ endfunction
 let s:question_query = 'query getQuestionDetail($titleSlug : String!) {
             \ question(titleSlug: $titleSlug) { questionId questionFrontendId title content
             \ stats difficulty codeDefinition sampleTestCase enableRunCode translatedContent
-            \ likes dislikes topicTags { name translatedName } hints similarQuestions } }'
+            \ likes dislikes topicTags { name translatedName } hints similarQuestions
+            \ exampleTestcaseList metaData } }'
+
+" The names of the solution's arguments: one line of test input each.
+function! s:ParamNames(text) abort
+    try
+        let meta = empty(s:Str(a:text)) ? {} : json_decode(a:text)
+    catch
+        let meta = {}
+    endtry
+    let params = type(meta) == v:t_dict ? get(meta, 'params', []) : []
+    return type(params) == v:t_list
+                \ ? map(filter(copy(params), 'type(v:val) == v:t_dict'), 's:Str(get(v:val, "name", ""))')
+                \ : []
+endfunction
 
 function! s:SimilarQuestions(text) abort
     try
@@ -271,10 +285,14 @@ function! leetcode#api#GetProblem(slug) abort
                 \   '!empty(s:Str(v:val.translatedName)) ? v:val.translatedName : v:val.name'),
                 \ 'hints': type(get(q, 'hints')) == v:t_list ? q.hints : [],
                 \ 'similar': s:SimilarQuestions(get(q, 'similarQuestions', '')),
+                \ 'params': s:ParamNames(get(q, 'metaData', '')),
                 \ 'templates': {},
                 \ 'testable': q.enableRunCode,
                 \ 'testcase': s:Split(q.sampleTestCase),
                 \ }
+    let cases = get(q, 'exampleTestcaseList', v:null)
+    let problem.testcases = type(cases) == v:t_list && !empty(cases)
+                \ ? map(copy(cases), 's:Split(v:val)') : [problem.testcase]
     for t in json_decode(q.codeDefinition)
         let problem.templates[t.value] = s:BreakCodeLines(t.defaultCode)
     endfor
@@ -600,6 +618,13 @@ function! s:ParseResult(r, is_submit) abort
         let result.expected_answer = get(a:r, 'expected_code_answer', [])
         " The judge's verdict on the answers, when it gives one.
         let result.correct_answer = get(a:r, 'correct_answer', v:null)
+        " One character per test case: 1 right, 0 wrong.
+        let result.compare_result = s:Str(get(a:r, 'compare_result', ''))
+        let result.stdout_list = get(a:r, 'std_output_list', [])
+        if get(a:r, 'invalid_testcase', v:false) is v:true
+                    \ && type(get(a:r, 'case_idx', v:null)) == v:t_number
+            let result.invalid_case = a:r.case_idx + 1
+        endif
     endif
     return result
 endfunction
