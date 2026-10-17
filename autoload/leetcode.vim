@@ -831,14 +831,18 @@ endfunction
 
 " Open the solution file of `problem`, with its description above. An empty
 " window is reused; otherwise the solution opens in a new one on the right.
-function! s:OpenProblem(problem) abort
+" `mods` are the command modifiers of :LeetCodeOpen (:tab, :vertical, ...):
+" with them, the solution opens in a new window like `:{mods} new`.
+function! s:OpenProblem(problem, ...) abort
     if empty(a:problem)
         return
     endif
+    let mods = get(a:, 1, '')
     let path = s:SolutionPath(a:problem)
     let nr = bufnr(path)
     if nr > 0 && buflisted(nr)
-        execute nr . 'buffer'
+        execute (empty(mods) ? nr . 'buffer' : mods . ' sbuffer ' . nr)
+        call s:ShowDescriptionOf(a:problem)
         return
     endif
     let is_new = !filereadable(path)
@@ -846,7 +850,9 @@ function! s:OpenProblem(problem) abort
     " The list (kept hidden; :LeetCodeList shows it again) or an empty window
     " makes way for the solution; the description opens on its left.
     " So does a saved solution, when going from problem to problem.
-    if exists('b:leetcode_buffer_type') || exists('b:leetcode_slug') && !&modified
+    if !empty(mods)
+        execute mods . ' new ' . name
+    elseif exists('b:leetcode_buffer_type') || exists('b:leetcode_slug') && !&modified
                 \ || empty(bufname('%')) && !&modified && line('$') == 1 && empty(getline(1))
         execute 'edit ' . name
     else
@@ -899,15 +905,15 @@ function! s:AllProblems(download) abort
     return get(s:, 'all_problems', [])
 endfunction
 
-" :LeetCodeOpen 1, :LeetCodeOpen two-sum
-function! leetcode#OpenProblem(name) abort
+" :LeetCodeOpen 1, :LeetCodeOpen two-sum, :tab LeetCodeOpen 1
+function! leetcode#OpenProblem(name, ...) abort
     if s:CheckSignIn() == v:false
         return
     endif
     let name = trim(a:name)
     for problem in s:AllProblems(1)
         if problem['fid'] ==# name || problem['slug'] ==# name
-            call s:OpenProblem(problem)
+            call s:OpenProblem(problem, get(a:, 1, ''))
             return
         endif
     endfor
@@ -1130,15 +1136,32 @@ function! leetcode#ResetSolution(with_latest_submission) abort
     call s:ShowDescription(problem)
 endfunction
 
-" Show the description of `problem` above the current (solution) window.
+" Show the description of `problem` (from the list: number and slug) next to
+" the current window, fetching it unless it was shown before.
+function! s:ShowDescriptionOf(problem) abort
+    if buflisted(printf('[DESCRIPTION] %s.%s', a:problem['fid'], a:problem['slug']))
+        call s:ShowDescription(a:problem)
+        return
+    endif
+    let problem = leetcode#Api('GetProblem', a:problem['slug'])
+    if type(problem) == v:t_dict
+        call s:ShowDescription(problem)
+    endif
+endfunction
+
+" Show the description of `problem` left of the current (solution) window.
 function! s:ShowDescription(problem) abort
     let problem = a:problem
     let solution_nr = bufnr('%')
     let problem_desc_file_name = printf('[DESCRIPTION] %s.%s', problem['fid'], problem['slug'])
-    " A description already on screen (of this or another problem) is replaced.
+    " A description window on screen is reused only when the code it belongs
+    " to isn't: switching problems in a window brings its description along,
+    " while two solutions side by side each keep their own.
     let desc_win = 0
     for win in range(1, winnr('$'))
-        if bufname(winbufnr(win)) =~# '^\[DESCRIPTION\] '
+        let nr = winbufnr(win)
+        if bufname(nr) =~# '^\[DESCRIPTION\] '
+                    \ && bufwinnr(getbufvar(nr, 'leetcode_solution_bufnr', -1)) == -1
             let desc_win = win
         endif
     endfor
@@ -1400,6 +1423,14 @@ let s:saved_test_input = {}
 
 function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     let solution_nr = bufnr('%')
+    " One test input window per problem: go to it if it is open.
+    for win in range(1, winnr('$'))
+        if get(getbufvar(winbufnr(win), 'leetcode_test', {}), 'slug', '') ==# a:problem['slug']
+            execute win . 'wincmd w'
+            echo 'Edit the test input, then :wq (or :LeetCodeTest) to run it; :q! cancels.'
+            return
+        endif
+    endfor
     execute 'rightbelow new ' . tempname()
     setlocal noswapfile
     setlocal nobackup
@@ -1440,28 +1471,38 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     let b:leetcode_solution_bufnr = solution_nr
     echo 'Edit the test input, then :wq (or :LeetCodeTest) to run it; :q! cancels.'
 
-    let s:leetcode_problem = a:problem
-    let s:leetcode_code = a:code
-    let s:leetcode_filetype = a:filetype
+    " What to run is kept with this window, not shared: several test input
+    " windows (one per problem) can be open at once.
+    let b:leetcode_test = {'slug': slug, 'problem': a:problem, 'filetype': a:filetype,
+                \ 'code': a:code, 'file': expand('%:p')}
 
     augroup leetcode_test_input
         autocmd! * <buffer>
-        autocmd BufUnload <buffer> call s:RunTest()
+        autocmd BufUnload <buffer> call s:RunTest(str2nr(expand('<abuf>')))
     augroup END
 endfunction
 
 let s:comment_pattern = '\v(^#.*)|(^\s*$)'
 
-function! s:RunTest() abort
-    let problem = s:leetcode_problem
-    let code = s:leetcode_code
-    let filetype = s:leetcode_filetype
+" Runs when the test input buffer `abuf` is unloaded: after :wq, its file
+" holds the input; after :q! there is no file, and nothing runs.
+function! s:RunTest(abuf) abort
+    let test = getbufvar(a:abuf, 'leetcode_test', {})
+    if empty(test)
+        return
+    endif
+    let problem = test['problem']
+    let filetype = test['filetype']
+    " The solution as it is now, in case it was edited since.
+    let solution = getbufvar(a:abuf, 'leetcode_solution_bufnr', -1)
+    let code = bufloaded(solution)
+                \ ? join(getbufline(solution, getbufvar(solution, 'leetcode_header_lines', 0) + 1, '$'),
+                \        "\n")
+                \ : test['code']
+    let s:last_solution_nr = solution
+    let s:leetcode_problem = problem
 
-    " Load the buffer from the disk. If the user executed :q!, the buffer
-    " will be cleared since the file is empty.
-    edit!
-
-    let raw_test_input = getline('1', '$')
+    let raw_test_input = filereadable(test['file']) ? readfile(test['file']) : []
     let test_input = filter(copy(raw_test_input), 'v:val !~# s:comment_pattern')
     let test_input = join(test_input, "\n")
 

@@ -64,6 +64,12 @@
   invalid case is named, and the window scrolls to the first failure.
 - Results start with a two-line summary (verdict and test cases; runtime
   and memory with their ranks) instead of a section per number.
+- Several problems at once: each test input window runs its own problem
+  (closing one after testing another used to send it with the other's
+  code), with the solution as it is when the window is closed, and
+  `:LeetCodeTest` goes to a problem's open input window instead of adding
+  one. Descriptions stay with their solutions, also when switching back to
+  an open one. `:LeetCodeOpen` takes `:tab`, `:vertical` and the like.
 - `:LeetCodeOpen {number|slug}` opens a problem from anywhere, with
   completion; `f`/`F` filter the list by title or number.
 - Test runs say Accepted or Wrong Answer, and highlight the answer lines

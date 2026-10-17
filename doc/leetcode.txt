@@ -18,7 +18,10 @@ COMMANDS                                                *leetcode-commands*
 :LeetCodeOpen {problem}
                     Open a problem by its number or slug, e.g.
                     `:LeetCodeOpen 1` or `:LeetCodeOpen two-sum`. <Tab>
-                    completes slugs. An empty window is reused.
+                    completes slugs. An empty window is reused. Takes the
+                    usual modifiers: `:tab LeetCodeOpen 2` opens a problem
+                    in its own tab, `:vertical LeetCodeOpen 2` beside the
+                    current window.
 
                                                         *:LeetCodeTest*
 
@@ -27,7 +30,10 @@ COMMANDS                                                *leetcode-commands*
                     blank line between cases; edit them or add your own,
                     then save and close it (|:wq|), or run :LeetCodeTest
                     again in it, to start the run. |:q!| cancels. The cases
-                    are kept for the next run. The result shows the verdict
+                    are kept for the next run. Each problem has its own test
+                    input window, so several can be open at once; the run
+                    uses the solution as it is when the window is closed.
+                    The result shows the verdict
                     and each case: its input, your output, the expected one
                     and what your code printed, failed ones marked and
                     highlighted (the window scrolls to the first).
@@ -58,7 +64,9 @@ apply): the title, difficulty, acceptance, likes and topics, a link to the
 problem, the description with its examples as code blocks, the hints (folded
 until you open them, as they give the solution away) and similar questions.
 <CR> on a similar question opens it; on the closed Hints fold, it opens the
-fold.
+fold. A description stays with its solution: switching to another problem in
+that window brings the other description along, and two solutions side by
+side each keep their own.
 
 SIGNING IN                                              *leetcode-sign-in*
 

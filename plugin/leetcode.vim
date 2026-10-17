@@ -41,7 +41,7 @@ if !exists('g:leetcode_problemset')
 endif
 
 command! -nargs=0 LeetCodeList call leetcode#ListProblems('redraw')
-command! -nargs=1 -complete=customlist,leetcode#CompleteProblem LeetCodeOpen call leetcode#OpenProblem(<q-args>)
+command! -nargs=1 -complete=customlist,leetcode#CompleteProblem LeetCodeOpen call leetcode#OpenProblem(<q-args>, <q-mods>)
 command! -nargs=0 LeetCodeReset call leetcode#ResetSolution(0)
 command! -nargs=0 LeetCodeTest call leetcode#TestSolution()
 command! -nargs=0 LeetCodeSubmit call leetcode#SubmitSolution()
