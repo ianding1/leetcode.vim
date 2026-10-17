@@ -128,7 +128,7 @@ def test_open_submission_in_unknown_language(scenario, lc):
     s.step('LeetCodeList')
     s.goto(r'| Two Sum ')
     s.press('s')
-    s.goto(r'^| 123456 ')
+    s.goto(r'^|.| 123456 ')
     s.press(r'\<CR>')
     r = s.run()
     r.assert_ok()

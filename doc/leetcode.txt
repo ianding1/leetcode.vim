@@ -94,7 +94,13 @@ f                   Show only the problems whose title contains the text you
 F                   Show all problems again.
 
                                                         *leetcode-s*
-s                   List the submissions of the problem under the cursor.
+s                   List the submissions of the problem under the cursor,
+                    in place of the problem list: when, status, language,
+                    runtime and memory. <CR> there opens one next to the
+                    list, with how it did in a comment above its code
+                    (opening another replaces it); r refreshes; q goes back
+                    to the problem list. :LeetCodeSubmit in a submission
+                    sends its code without that comment.
 
                                                         *leetcode-r*
 r                   Refresh the problem list (redownloading all the contents).

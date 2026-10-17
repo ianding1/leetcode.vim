@@ -606,6 +606,8 @@ def get_submissions(slug):
             'time': r['time'].replace('\xa0', ' '),
             'status': r['status_display'],
             'runtime': r['runtime'],
+            'lang': r.get('lang_name') or r.get('lang') or '',
+            'memory': r.get('memory') or '',
         }
         submissions.append(s)
     return submissions

@@ -51,6 +51,12 @@
 - Opening a problem hides the list and shows the description and the code
   side by side, description on the left, as on the website. Opening a
   similar question from the description replaces both.
+- The submissions page (`s`) replaces the list, with a summary and a
+  table like the problem list's, adding language and memory; `q` goes
+  back. `<CR>` opens a submission next to it, sized to keep the table
+  whole, with a short comment on how it did (verdict, test cases, runtime
+  and memory ranks, the failing input); the next one opened takes its
+  place. The comment no longer ends in "[End of Description]".
 - `:LeetCodeOpen {number|slug}` opens a problem from anywhere, with
   completion; `f`/`F` filter the list by title or number.
 - Test runs say Accepted or Wrong Answer, and highlight the answer lines

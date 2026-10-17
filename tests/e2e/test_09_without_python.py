@@ -26,7 +26,7 @@ def test_full_workflow_without_python(scenario, lc, bare_vim_env):
     s.step('hide buffer leetcode:///problems/all')
     s.goto(r'| Two Sum ')
     s.press('s')
-    s.goto(r'^| 123456 ')
+    s.goto(r'^|.| 123456 ')
     s.press(r'\<CR>')
     s.capture('python_used', "has('python3') ? py3eval('\"leetcode\" in sys.modules') : 0")
     r = s.run()
@@ -37,7 +37,7 @@ def test_full_workflow_without_python(scenario, lc, bare_vim_env):
     assert '  - Accepted' in r.vars['submit_result'], r.vars['submit_result']
     assert '  - Faster than 95.5% submissions' in r.vars['submit_result']
     submission = r.text(r'^1\.two_sum\.123456\.cpp$')
-    assert submission and 'Faster than 100.0% submissions' in submission, r.describe()
+    assert submission and 'faster than 100.0%' in submission, r.describe()
     assert 'return {0, 1};' in submission
     assert any('Given an array of integers' in line for line in r.vars['desc']), r.vars['desc']
 

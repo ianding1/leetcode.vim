@@ -266,6 +266,26 @@ function! s:Truncate(text, width) abort
     return substitute(text, '\s\+$', '', '') . ellipsis
 endfunction
 
+" Tables (the problem list, submissions): rows like |✓| 1 | Two Sum |.
+function! s:SetupTableSyntax() abort
+    setlocal cursorline
+    " The text keeps | between the cells (it is parsed back); they are drawn
+    " as box lines, and the one at the start of a row is hidden.
+    if s:fancy && has('conceal')
+        setlocal conceallevel=2 concealcursor=nc
+        syn match lcBorder /|/ conceal cchar=│
+        syn match lcBorderStart /^|/ conceal
+        " Defined last, so it wins over lcBorderStart at the start of the rule.
+        syn match lcRule /^|-|[-|]*$/ contains=lcRuleCross,lcRuleDash,lcRuleEnd,lcRuleStart
+        syn match lcRuleDash /-/ contained conceal cchar=─
+        syn match lcRuleCross /|/ contained conceal cchar=┼
+        syn match lcRuleEnd /|$/ contained conceal cchar=┤
+        syn match lcRuleStart /^|/ contained conceal
+    endif
+    syn match lcTableHead /^| | [#A-Z].*$/ contains=lcBorder,lcBorderStart
+    execute 'syn match lcDone /\%(^|\)\@<=\V' . s:status_marks['X'] . '/'
+endfunction
+
 function! s:SetupProblemListBuffer() abort
     setlocal buftype=nofile
     setlocal noswapfile
@@ -285,20 +305,7 @@ function! s:SetupProblemListBuffer() abort
 
     call s:SetupBasicSyntax()
 
-    " The text keeps | between the cells (it is parsed back); they are drawn
-    " as box lines, and the one at the start of a row is hidden.
-    if s:fancy && has('conceal')
-        setlocal conceallevel=2 concealcursor=nc
-        syn match lcBorder /|/ conceal cchar=│
-        syn match lcBorderStart /^|/ conceal
-        " Defined last, so it wins over lcBorderStart at the start of the rule.
-        syn match lcRule /^|-|[-|]*$/ contains=lcRuleCross,lcRuleDash,lcRuleEnd,lcRuleStart
-        syn match lcRuleDash /-/ contained conceal cchar=─
-        syn match lcRuleCross /|/ contained conceal cchar=┼
-        syn match lcRuleEnd /|$/ contained conceal cchar=┤
-        syn match lcRuleStart /^|/ contained conceal
-    endif
-    syn match lcTableHead /^| | #.*$/ contains=lcBorder,lcBorderStart
+    call s:SetupTableSyntax()
     syn match lcEasy /\%(| \)\@<=Easy\>/
     syn match lcMedium /\%(| \)\@<=Medium\>/
     syn match lcHard /\%(| \)\@<=Hard\>/
@@ -329,9 +336,9 @@ endfunction
 
 let s:fancy = &encoding ==# 'utf-8'
 let s:glyphs = s:fancy
-            \ ? {'dot': ' · ', 'asc': '↑', 'desc': '↓', 'full': '█', 'empty': '░',
+            \ ? {'dot': ' · ', 'asc': '↑', 'desc': '↓', 'full': '█', 'empty': '░', 'fail': '✗',
             \    'parts': ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉']}
-            \ : {'dot': ' | ', 'asc': '(low to high)', 'desc': '(high to low)', 'full': '#',
+            \ : {'dot': ' | ', 'asc': '(low to high)', 'desc': '(high to low)', 'full': '#', 'fail': '-',
             \    'empty': '.', 'parts': ['']}
 
 " A bar `width` cells wide, `fraction` (0 to 1) of it filled, in eighths of a
@@ -1268,14 +1275,15 @@ function! s:CommentLine(filetype, line) abort
     endif
 endfunction
 
+" The comment's last line, if the language needs one.
 function! s:CommentEnd(filetype) abort
-    if index(s:block_comment_filetypes, a:filetype) >= 0
-        return ' * [End of Description] */'
-    elseif has_key(s:line_comment_prefixes, a:filetype)
-        return s:line_comment_prefixes[a:filetype] . ' [End of Description]'
-    else
-        return ''
-    endif
+    return index(s:block_comment_filetypes, a:filetype) >= 0 ? ' */' : ''
+endfunction
+
+" The code of the current solution buffer, without the comment that a past
+" submission's view starts with.
+function! s:SolutionCode() abort
+    return join(getline(get(b:, 'leetcode_header_lines', 0) + 1, '$'), "\n")
 endfunction
 
 function! s:GuessFileType() abort
@@ -1387,7 +1395,7 @@ function! leetcode#TestSolution() abort
         return
     endif
 
-    let code = join(getline('1', '$'), "\n")
+    let code = s:SolutionCode()
 
     call s:AskTestInputAndRunTest(problem, filetype, code)
 endfunction
@@ -1490,22 +1498,21 @@ function! leetcode#SubmitSolution() abort
 
     let slug = s:ProblemSlugFromFileName()
     let filetype = s:GuessFileType()
+    let code = s:SolutionCode()
 
     if s:backend ==# 'vim'
-        call leetcode#api#SubmitSolutionAsync(slug, filetype, join(getline(1, '$'), "\n"),
+        call leetcode#api#SubmitSolutionAsync(slug, filetype, code,
                     \ function('s:HandleTaskResult', ['submit_solution']))
     elseif has('timers')
-        let expr = printf('leetcode.submit_solution_async("%s", "%s")',
-                    \ slug, filetype)
-        let ok = py3eval(expr)
+        let ok = py3eval('leetcode.submit_solution_async(vim.eval("slug"), vim.eval("filetype"), '
+                    \ . 'vim.eval("code"))')
         if ok
             call timer_start(200, function('s:CheckRunCodeTask'),
                         \ {'repeat': -1})
         endif
     else
-        let expr = printf('leetcode.submit_solution("%s", "%s")',
-                    \ slug, filetype)
-        let result = py3eval(expr)
+        let result = py3eval('leetcode.submit_solution(vim.eval("slug"), vim.eval("filetype"), '
+                    \ . 'vim.eval("code"))')
         if type(result) != v:t_dict
             return
         endif
@@ -1715,7 +1722,9 @@ function! s:ListSubmissions(slug, refresh) abort
             return
         endif
     else
-        execute 'rightbelow new ' . buf_name
+        " Like opening a problem: the list makes way (:LeetCodeList or q
+        " brings it back).
+        execute (exists('b:leetcode_buffer_type') ? 'edit ' : 'rightbelow new ') . buf_name
         setlocal buftype=nofile
         setlocal noswapfile
         setlocal nobackup
@@ -1726,8 +1735,10 @@ function! s:ListSubmissions(slug, refresh) abort
         setlocal nowrap
         nnoremap <silent> <buffer> <return> :call <SID>HandleSubmissionsCR()<cr>
         nnoremap <silent> <buffer> r :call <SID>HandleSubmissionsRefresh()<cr>
+        nnoremap <silent> <buffer> q :call leetcode#ListProblems('norefresh')<cr>
 
         call s:SetupBasicSyntax()
+        call s:SetupTableSyntax()
 
         syn keyword lcAccepted Accepted
         syn match lcFailure /Wrong Answer/
@@ -1739,7 +1750,10 @@ function! s:ListSubmissions(slug, refresh) abort
         syn match lcFailure /Compile Error/
         syn match lcFailure /Unknown Error/
         syn match lcFailure /Unknown State/
+        execute 'syn match lcFailure /\%(^|\)\@<=\V' . s:glyphs['fail'] . '/'
         syn match lcNA /N\/A/
+        syn match lcHelp /^  <CR> open.*$/
+        execute 'syn match lcHelp /^  \V' . s:status_marks['X'] . '\m accepted.*$/'
     endif
 
     let b:leetcode_problem_slug = a:slug
@@ -1755,31 +1769,40 @@ function! s:ListSubmissions(slug, refresh) abort
         return
     endif
 
-    let time_width = s:MaxWidthOfKey(submissions, 'time', 4)
-    let id_width = s:MaxWidthOfKey(submissions, 'id', 2)
-    let runtime_width = s:MaxWidthOfKey(submissions, 'runtime', 7)
+    for submission in submissions
+        let when = substitute(submission['time'], ',.*', '', '')
+        let submission['when'] = when =~# '\<ago$' ? when : when . ' ago'
+    endfor
+    let widths = {}
+    for [key, title, min] in [['id', 'ID', 2], ['when', 'When', 4], ['status', 'Status', 6],
+                \ ['lang', 'Language', 8], ['runtime', 'Runtime', 7], ['memory', 'Memory', 6]]
+        let widths[key] = s:MaxWidthOfKey(submissions, key, max([min, strwidth(title)]))
+    endfor
+    let format = '|%1S| %-' . widths.id . 'S | %-' . widths.when . 'S | %-' . widths.status
+                \ . 'S | %-' . widths.lang . 'S | %' . widths.runtime . 'S | %'
+                \ . widths.memory . 'S |'
+    let accepted = len(filter(copy(submissions), 'v:val.status ==# "Accepted"'))
+    let dot = s:glyphs['dot']
 
-    let output = []
-    call add(output, '# '.problem['title'])
-    call add(output, '')
-    call add(output, '## Submissions')
-    call add(output, '  <cr>  view submission')
-    call add(output, '  r     refresh')
-    call add(output, '')
-    let format = '| %-' . id_width . 'S | %-' . time_width .
-                \ 'S | %-21S | %-' . runtime_width . 'S |'
-    let header = printf(format, 'ID', 'Time', 'Status', 'Runtime')
-    let separator= printf(format, repeat('-', id_width),
-                \ repeat('-', time_width), repeat('-', 21),
-                \ repeat('-', runtime_width))
-    call extend(output, [header, separator])
+    let output = [printf('# %s. %s%sSubmissions', problem['fid'], problem['title'], dot), '',
+                \ printf('  %d submission%s%s%d accepted', len(submissions),
+                \   len(submissions) == 1 ? '' : 's', dot, accepted),
+                \ '  ' . join(['<CR> open', 'r refresh', 'q back to the list'], dot),
+                \ printf('  %s accepted%s%s not accepted', s:status_marks['X'], dot,
+                \   s:glyphs['fail']),
+                \ '',
+                \ printf(format, ' ', 'ID', 'When', 'Status', 'Language', 'Runtime', 'Memory'),
+                \ '|-|' . join(map(['id', 'when', 'status', 'lang', 'runtime', 'memory'],
+                \   'repeat("-", widths[v:val] + 2)'), '|') . '|']
     call append('$', output)
 
     let submission_lines = []
     for submission in submissions
-        let line = printf(format, submission['id'], submission['time'],
-                    \ submission['status'], submission['runtime'])
-        call add(submission_lines, line)
+        call add(submission_lines, printf(format,
+                    \ submission['status'] ==# 'Accepted' ? s:status_marks['X'] : s:glyphs['fail'],
+                    \ submission['id'], submission['when'], submission['status'],
+                    \ get(submission, 'lang', ''), submission['runtime'],
+                    \ get(submission, 'memory', '')))
     endfor
 
     let b:leetcode_submission_start = line('$')
@@ -1788,6 +1811,7 @@ function! s:ListSubmissions(slug, refresh) abort
 
     silent! normal! ggdd
     setlocal nomodifiable
+    call cursor(b:leetcode_submission_start, 1)
 endfunction
 
 function! s:HandleSubmissionsCR() abort
@@ -1805,34 +1829,82 @@ function! s:HandleSubmissionsCR() abort
         return
     endif
 
-    let file_name = printf('%s.%s.%s.%s', 
+    let file_name = printf('%s.%s.%s.%s',
                 \ submission['problem_id'],
                 \ s:SlugToFileName(submission['slug']),
                 \ submission_id, s:SolutionFileExt(submission['filetype']))
 
+    " Next to the list, in the window of the submission shown before, so
+    " going down the list shows one after the other.
+    let list_win = win_getid()
+    " The table's width on screen (its first | is hidden).
+    let table_width = strdisplaywidth(getline(b:leetcode_submission_start)) - 1
+    let view_win = 0
+    for win in range(1, winnr('$'))
+        if getbufvar(winbufnr(win), 'leetcode_submission_view', 0)
+            let view_win = win
+        endif
+    endfor
+    if view_win
+        execute view_win . 'wincmd w'
+    endif
     if bufexists(file_name)
-        execute bufnr(file_name) . 'buffer'
+        execute (view_win ? '' : 'rightbelow vertical s') . 'buffer ' . bufnr(file_name)
         return
     endif
-
-    execute 'rightbelow vnew ' . file_name
+    execute (view_win ? 'edit ' : 'rightbelow vnew ') . fnameescape(file_name)
+    if !view_win && &columns - table_width - 1 >= 60
+        " The whole table, and the rest for the code.
+        call win_execute(list_win, 'vertical resize ' . table_width)
+    endif
     " A past submission to read or start from, not a file to save.
     setlocal buftype=nofile bufhidden=hide noswapfile
-    set modifiable
+    setlocal modifiable
+    let b:leetcode_submission_view = 1
 
-    " Show the submission description as comments.
-    let result = s:FormatResult(submission)
     let filetype = submission['filetype']
-    let output = [s:CommentStart(filetype, 'Submission ' . submission_id),
-                \ s:CommentLine(filetype, '')]
-    for line in result
+    let output = [s:CommentStart(filetype, printf('Submission %s%s%s',
+                \ submission_id, s:glyphs['dot'], submission['title']))]
+    for line in s:SubmissionSummary(submission)
         call add(output, s:CommentLine(filetype, line))
     endfor
-    call add(output, s:CommentEnd(filetype))
+    if !empty(s:CommentEnd(filetype))
+        call add(output, s:CommentEnd(filetype))
+    endif
+    let b:leetcode_header_lines = len(output)
     call append('$', output)
     call append('$', submission['code'])
 
     silent! normal! ggdd
+endfunction
+
+" A few lines on how a submission did, for the comment above its code.
+function! s:SubmissionSummary(submission) abort
+    let s = a:submission
+    let dot = s:glyphs['dot']
+    let lines = [s['state'] . (s['total'] =~# '^\d\+$' && s['total'] > 0
+                \ ? printf('%s%s/%s test cases passed', dot, s['passed'], s['total']) : '')]
+    let perf = []
+    if !empty(s['runtime']) && s['runtime'] !=# 'N/A'
+        call add(perf, 'Runtime ' . s['runtime'] . (empty(s['runtime_percentile']) ? ''
+                    \ : printf(', faster than %s%%', s['runtime_percentile'])))
+    endif
+    if !empty(get(s, 'memory', ''))
+        call add(perf, 'Memory ' . s['memory'] . (empty(get(s, 'memory_percentile', '')) ? ''
+                    \ : printf(', less than %s%%', s['memory_percentile'])))
+    endif
+    if !empty(perf)
+        call add(lines, join(perf, dot))
+    endif
+    for [title, block] in [['Error', s['error']], ['Input', s['testcase']],
+                \ ['Output', s['answer']], ['Expected', s['expected_answer']]]
+        let block = filter(copy(block), 'v:val !=# ""')
+        if !empty(block)
+            call add(lines, title . ':')
+            call extend(lines, map(block, '"    " . v:val'))
+        endif
+    endfor
+    return lines
 endfunction
 
 function! s:HandleSubmissionsRefresh() abort

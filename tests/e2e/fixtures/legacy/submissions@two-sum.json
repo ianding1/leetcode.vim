@@ -10,7 +10,9 @@
         "status_display": "Accepted",
         "runtime": "4 ms",
         "url": "/submissions/detail/123456/",
-        "is_pending": "Not Pending"
+        "is_pending": "Not Pending",
+        "lang_name": "C++",
+        "memory": "10.1 MB"
       },
       {
         "id": 123400,
@@ -19,7 +21,9 @@
         "status_display": "Wrong Answer",
         "runtime": "N/A",
         "url": "/submissions/detail/123400/",
-        "is_pending": "Not Pending"
+        "is_pending": "Not Pending",
+        "lang_name": "Python3",
+        "memory": "N/A"
       }
     ]
   }

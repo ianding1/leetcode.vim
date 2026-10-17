@@ -392,7 +392,10 @@ function! leetcode#api#GetSubmissions(slug) abort
                     \ 'id': split(r.url, '/', 1)[3],
                     \ 'time': substitute(r.time, nr2char(160), ' ', 'g'),
                     \ 'status': r.status_display,
-                    \ 'runtime': r.runtime})
+                    \ 'runtime': r.runtime,
+                    \ 'lang': !empty(s:Str(get(r, 'lang_name', ''))) ? r.lang_name
+                    \   : s:Str(get(r, 'lang', '')),
+                    \ 'memory': s:Str(get(r, 'memory', ''))})
     endfor
     return submissions
 endfunction
