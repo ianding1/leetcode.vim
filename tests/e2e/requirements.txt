@@ -1,3 +1,4 @@
 # Test runner dependencies (for the python3 that runs pytest).
 pytest>=7
 requests>=2.31
+pytest-xdist>=3

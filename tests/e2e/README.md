@@ -22,6 +22,11 @@ pip install -r tests/e2e/requirements.txt   # pytest, for the runner's python3
 pytest                                      # replay mode, offline
 ```
 
+Tests run in parallel, one worker per core (pytest-xdist, `-n auto` in
+`pytest.ini`); each starts its own editor and fake server. `-n 0` runs them
+one at a time, e.g. to debug with `-x` or `--pdb`. Live mode always runs
+them one at a time.
+
 Every test runs once per backend and editor (`[python-vim]`, `[vim-nvim]`,
 ...). Pick with `--lc-backend python|vim` (or `$LEETCODE_E2E_BACKEND`) and
 `--lc-editor vim|nvim` (or `$LEETCODE_E2E_EDITOR`); an editor that isn't

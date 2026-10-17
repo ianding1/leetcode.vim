@@ -8,6 +8,9 @@ let s:base_url = 'https://leetcode.com'
 let s:cookies = {}
 " Give up waiting for the judge after this many seconds.
 let s:check_timeout = 120
+" Milliseconds between checks on the judge: soon at first (test runs are
+" often done within a second), then every second.
+let s:check_intervals = [250, 500, 1000]
 " The running test/submit task, if any.
 let s:task = {}
 
@@ -557,7 +560,9 @@ function! s:OnCheck(task, id, is_submit, finish, res) abort
                         \ s:check_timeout))
             return
         endif
-        call timer_start(1000, function('s:Poll', [a:task, a:id, a:is_submit, a:finish]))
+        let a:task.polls = get(a:task, 'polls', 0) + 1
+        call timer_start(s:check_intervals[min([a:task.polls, len(s:check_intervals)]) - 1],
+                    \ function('s:Poll', [a:task, a:id, a:is_submit, a:finish]))
     else
         call s:EndTask(a:task, v:null, 'unexpected judge state: ' . state)
     endif

@@ -1,3 +1,5 @@
+import contextlib
+import fcntl
 import hashlib
 import os
 import shutil
@@ -60,8 +62,9 @@ def _python_version(python):
 
 
 def _vim_python_version():
-    probe = CACHE_DIR / 'vim-python-version'
     CACHE_DIR.mkdir(exist_ok=True)
+    # One probe file per process: pytest-xdist runs several at once.
+    probe = CACHE_DIR / 'vim-python-version.{}'.format(os.getpid())
     if probe.exists():
         probe.unlink()
     subprocess.run(['vim', '-N', '-u', 'NONE', '-i', 'NONE', '-es',
@@ -70,11 +73,31 @@ def _vim_python_version():
                     '-c', 'qa!'], stdin=subprocess.DEVNULL, timeout=30)
     if not probe.exists():
         pytest.exit('vim has no working +python3 support', returncode=4)
-    return probe.read_text().strip()
+    version = probe.read_text().strip()
+    probe.unlink()
+    return version
+
+
+@contextlib.contextmanager
+def _cache_lock():
+    """One process at a time sets up the cache (pytest-xdist workers start
+    together)."""
+    CACHE_DIR.mkdir(exist_ok=True)
+    with open(CACHE_DIR / '.lock', 'w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def _pip_install(python, name, requirements):
     """Install `requirements` (bytes) for `python` into a cached directory."""
+    with _cache_lock():
+        return _pip_install_unlocked(python, name, requirements)
+
+
+def _pip_install_unlocked(python, name, requirements):
     target = CACHE_DIR / '{}-py{}'.format(name, _python_version(python))
     stamp = target / '.requirements-sha1'
     digest = hashlib.sha1(requirements).hexdigest()
@@ -94,8 +117,9 @@ def _isolated_python(python):
     on PYTHONPATH is importable (and "dependencies missing" can be tested)."""
     venv = CACHE_DIR / 'venv-py{}'.format(_python_version(python))
     exe = venv / 'bin' / 'python'
-    if not exe.exists():
-        subprocess.run([python, '-m', 'venv', '--without-pip', str(venv)], check=True)
+    with _cache_lock():
+        if not exe.exists():
+            subprocess.run([python, '-m', 'venv', '--without-pip', str(venv)], check=True)
     return str(exe)
 
 

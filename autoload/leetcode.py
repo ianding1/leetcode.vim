@@ -50,6 +50,9 @@ USER_AGENT = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
 
 # Give up waiting for the judge after this many seconds.
 CHECK_TIMEOUT = 120
+# Seconds between checks on the judge: soon at first (test runs are often
+# done within a second), then every second.
+CHECK_INTERVALS = (0.25, 0.5, 1)
 
 # Cookies needed to act as the signed-in user.
 SESSION_COOKIES = ('LEETCODE_SESSION', 'csrftoken')
@@ -441,6 +444,7 @@ def _check_result(submission_id, is_submit):
         task_progress = prog_stage + prog_bar
 
     deadline = time.time() + CHECK_TIMEOUT
+    polls = 0
     while True:
         headers = _make_headers()
         url = LC_CHECK.format(submission=submission_id)
@@ -471,7 +475,8 @@ def _check_result(submission_id, is_submit):
         if time.time() > deadline:
             _echoerr('gave up waiting for the judge after {}s'.format(CHECK_TIMEOUT))
             return None
-        time.sleep(1)
+        time.sleep(CHECK_INTERVALS[min(polls, len(CHECK_INTERVALS) - 1)])
+        polls += 1
 
     result = {
         'answer': r.get('code_answer', []),
