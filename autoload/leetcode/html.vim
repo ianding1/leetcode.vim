@@ -63,7 +63,8 @@ endfunction
 function! s:Image(tag, base) abort
     let alt = matchstr(a:tag, '\<alt="\zs[^"]*')
     let src = s:Url(matchstr(a:tag, '\<src="\zs[^"]*'), a:base)
-    return empty(src) ? '' : printf('![%s](%s)', alt, src)
+    " An empty alt text would hide the whole image where Markdown is concealed.
+    return empty(src) ? '' : printf('![%s](%s)', empty(alt) ? 'image' : alt, src)
 endfunction
 
 " <ol> items as 1. 2. 3.

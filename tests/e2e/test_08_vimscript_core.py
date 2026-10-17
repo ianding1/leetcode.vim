@@ -174,3 +174,9 @@ def test_html_lists_links_and_escapes(scenario, tmp_path):
         '2. second *one*', '',
         'Code: `a*b`, **spaced** .',
     ]
+
+
+def test_html_image_without_alt_text_stays_visible(scenario, tmp_path):
+    """![](url) disappears entirely where Markdown is concealed."""
+    assert markdown(scenario, tmp_path, '<p><img alt="" src="/x.png" /></p>') == [
+        '![image](https://leetcode.com/x.png)']

@@ -36,7 +36,7 @@ def test_run_with_default_testcase(scenario, lc):
     r = s.run()
     r.assert_ok()
     header, cases = r.vars['test_input'][:4], r.vars['test_input'][4:]
-    assert header[0].startswith('# Test cases for 1. Two Sum') and '(nums, target)' in header[0]
+    assert header[0] == '# 1. Two Sum: one argument per line (nums, target),', header
     assert ':wq' in header[2] and ':LeetCodeTest' in header[2] and header[3] == '', header
     # All the examples, as on the website.
     assert cases == ['[2,7,11,15]', '9', '', '[3,2,4]', '6', '', '[3,3]', '6'], cases

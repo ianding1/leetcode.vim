@@ -122,3 +122,22 @@ def test_tab_modifier_opens_a_problem_in_its_own_tab(scenario, lc, two_problems)
     assert r.vars['tabs'] == 2, r.vars
     assert r.vars['second'] == ['[DESCRIPTION] 2.add-two-numbers', '2.add_two_numbers.cpp'], r.vars
     assert r.vars['first'] == ['[DESCRIPTION] 1.two-sum', '1.two_sum.cpp'], r.vars
+
+
+def test_a_second_run_starts_clean_and_cancelling_it_runs_nothing(scenario, lc):
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeOpen 1')
+    s.step('LeetCodeTest')
+    s.step('wq')
+    s.wait_for_buffer(RESULT)
+    s.step('pclose')
+    s.step('LeetCodeTest')
+    s.capture('again', "getline(1, '$')")
+    s.step('q!')
+    r = s.run()
+    r.assert_ok()
+    assert len(lc.server.requests_to('interpret_solution')) == 1, 'the cancelled run was sent'
+    assert [line for line in r.vars['again'] if line.startswith('#')] == [
+        '# 1. Two Sum: one argument per line (nums, target),',
+        '# a blank line between cases. Add your own.',
+        '# :wq (or :LeetCodeTest) runs them; :q! cancels.'], r.vars['again']

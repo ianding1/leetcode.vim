@@ -1431,7 +1431,13 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
             return
         endif
     endfor
-    execute 'rightbelow new ' . tempname()
+    " A file of its own (in Vim's temporary directory) that :wq writes, named
+    " after the problem.
+    let file = fnamemodify(tempname(), ':h') . '/'
+                \ . printf('%s.%s.testcases', a:problem['fid'], s:SlugToFileName(a:problem['slug']))
+    " No file until :wq writes it, so :q! leaves none and nothing runs.
+    call delete(file)
+    execute 'rightbelow new ' . fnameescape(file)
     setlocal noswapfile
     setlocal nobackup
     setlocal bufhidden=delete
@@ -1443,11 +1449,11 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     let slug = a:problem['slug']
 
     let params = get(a:problem, 'params', [])
-    let header = [printf('# Test cases for %s. %s, as on LeetCode: one argument per line%s,',
-                \ a:problem['fid'], a:problem['title'],
-                \ empty(params) ? '' : ' (' . join(params, ', ') . ')'),
+    " Short lines: the window is often half the screen wide.
+    let header = [printf('# %s. %s: one argument per line%s,', a:problem['fid'], a:problem['title'],
+                \   empty(params) ? '' : ' (' . join(params, ', ') . ')'),
                 \ '# a blank line between cases. Add your own.',
-                \ '# Save and close this window (:wq, or :LeetCodeTest) to run them; :q! cancels.',
+                \ '# :wq (or :LeetCodeTest) runs them; :q! cancels.',
                 \ '']
     if has_key(s:saved_test_input, slug)
         let test_input = copy(s:saved_test_input[slug])
@@ -1503,6 +1509,7 @@ function! s:RunTest(abuf) abort
     let s:leetcode_problem = problem
 
     let raw_test_input = filereadable(test['file']) ? readfile(test['file']) : []
+    call delete(test['file'])
     let test_input = filter(copy(raw_test_input), 'v:val !~# s:comment_pattern')
     let test_input = join(test_input, "\n")
 
