@@ -5,7 +5,7 @@ import re
 import pytest
 
 LIST = r'^leetcode:///problems/all$'
-SOLUTION = r'^1\.two_sum\.cpp$'
+SOLUTION = r'^p0001_two_sum\.cpp$'
 
 
 def rows(r):

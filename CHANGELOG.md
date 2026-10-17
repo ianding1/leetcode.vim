@@ -82,6 +82,9 @@
   code and emphasis kept, hints folded, and similar questions that `<CR>`
   opens (`:help leetcode-description`).
 - The Python backend no longer needs beautifulsoup4.
+- Solution files are named `p0001_two_sum.rs`: `1.two_sum.rs` isn't a valid
+  crate name for Rust, and Python can't import a module with a dot. Files
+  saved with the old names are still found and used.
 - Solutions are saved in `g:leetcode_solution_dir` (default `~/leetcode`)
   as soon as a problem is opened, instead of being left unsaved in whatever
   directory Vim was in. Opening a problem whose file exists keeps the file

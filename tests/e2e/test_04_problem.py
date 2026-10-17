@@ -33,7 +33,7 @@ def test_open_problem_from_list(scenario, lc):
         assert 'Topics: Array, Hash Table' in desc, desc
     else:
         assert '**Easy** · 50.0% accepted (4K of 8K) · 70.8K likes' in desc, desc
-    solution = r.text(r'^1\.two_sum\.cpp$')
+    solution = r.text(r'^p0001_two_sum\.cpp$')
     assert solution is not None, r.describe()
     assert 'class Solution' in solution and 'twoSum' in solution
 
@@ -43,7 +43,7 @@ def test_open_problem_uses_latest_submission(scenario, lc):
     """With a cpp submission on record, its code replaces the template."""
     r = open_two_sum(scenario, lc).run()
     r.assert_ok()
-    solution = r.text(r'^1\.two_sum\.cpp$')
+    solution = r.text(r'^p0001_two_sum\.cpp$')
     assert 'e2e: solution from submission 123456' in solution, r.describe()
     assert 'vector<int>& nums' in solution
 
@@ -53,19 +53,19 @@ def test_open_problem_falls_back_to_template(scenario, lc):
     lc.server.override('submissions', {'status': 200, 'json': {'submissions_dump': []}})
     r = open_two_sum(scenario, lc).run()
     r.assert_ok()
-    solution = r.text(r'^1\.two_sum\.cpp$')
+    solution = r.text(r'^p0001_two_sum\.cpp$')
     assert 'e2e: solution' not in solution
     assert solution.splitlines()[0] == 'class Solution {'
 
 
 def test_reset_solution(scenario, lc):
     s = scenario().signed_in(lc.cookies)
-    s.step('edit 1.two_sum.cpp')
+    s.step('edit p0001_two_sum.cpp')
     s.step('call setline(1, "garbage")')
     s.step('LeetCodeReset')
     r = s.run()
     r.assert_ok()
-    solution = r.text(r'^1\.two_sum\.cpp$')
+    solution = r.text(r'^p0001_two_sum\.cpp$')
     assert 'garbage' not in solution and 'class Solution' in solution, r.describe()
 
 
@@ -80,11 +80,11 @@ def test_reset_keeps_solution_window(scenario, lc):
     s.capture('windows', "map(range(1, winnr('$')), 'bufname(winbufnr(v:val))')")
     r = s.run()
     r.assert_ok()
-    assert r.vars['before'] == '1.two_sum.cpp', r.describe()
-    assert r.vars['after'] == '1.two_sum.cpp', r.vars
-    assert '1.two_sum.cpp' in r.vars['windows'] and \
+    assert r.vars['before'] == 'p0001_two_sum.cpp', r.describe()
+    assert r.vars['after'] == 'p0001_two_sum.cpp', r.vars
+    assert 'p0001_two_sum.cpp' in r.vars['windows'] and \
         any(w.startswith('[DESCRIPTION]') for w in r.vars['windows']), r.vars
-    assert 'garbage' not in r.text(r'^1\.two_sum\.cpp$')
+    assert 'garbage' not in r.text(r'^p0001_two_sum\.cpp$')
 
 
 def test_reset_restores_hidden_description(scenario, lc):
@@ -96,7 +96,7 @@ def test_reset_restores_hidden_description(scenario, lc):
     s.capture('windows', "map(range(1, winnr('$')), 'bufname(winbufnr(v:val))')")
     r = s.run()
     r.assert_ok()
-    assert r.vars['current'] == '1.two_sum.cpp', r.vars
+    assert r.vars['current'] == 'p0001_two_sum.cpp', r.vars
     assert any(w.startswith('[DESCRIPTION]') for w in r.vars['windows']), r.vars
 
 
@@ -128,7 +128,7 @@ def test_description_hints_and_similar_questions(scenario, lc):
     assert '2. Try a `hash map` to look up the complement.' in desc, desc
     assert re.search(r'^- \[Add Two Numbers\]\(\S+/problems/add-two-numbers/\) · Medium$',
                      desc, re.M), desc
-    assert r.text(r'^2\.add_two_numbers\.cpp$') is not None, r.describe()
+    assert r.text(r'^p0002_add_two_numbers\.cpp$') is not None, r.describe()
 
 
 def test_new_solution_is_saved_in_the_solution_dir(scenario, lc):
@@ -142,7 +142,7 @@ def test_new_solution_is_saved_in_the_solution_dir(scenario, lc):
     s.capture('on_disk', "readfile(expand('%:p'))")
     r = s.run()
     r.assert_ok()
-    assert r.vars['path'] == r.vars['home'] + '/leetcode/1.two_sum.cpp', r.vars
+    assert r.vars['path'] == r.vars['home'] + '/leetcode/p0001_two_sum.cpp', r.vars
     assert not r.vars['modified'], r.vars
     assert any('twoSum' in line for line in r.vars['on_disk']), r.vars
 
@@ -173,7 +173,7 @@ def test_problem_opens_side_by_side_instead_of_the_list(scenario, lc):
     r = s.run()
     r.assert_ok()
     assert [w.split('/')[-1] for w in r.vars['windows']] == [
-        '[DESCRIPTION] 1.two-sum', '1.two_sum.cpp'], r.vars['windows']
+        '[DESCRIPTION] 1.two-sum', 'p0001_two_sum.cpp'], r.vars['windows']
     assert r.vars['layout'] == 'row', r.vars                # side by side
     assert r.vars['list_loaded'], 'the list is kept, hidden'
     assert r.vars['back'] == 'leetcode:///problems/all', r.vars
@@ -192,4 +192,36 @@ def test_similar_question_replaces_the_current_one(scenario, lc):
     r = s.run()
     r.assert_ok()
     assert [w.split('/')[-1] for w in r.vars['windows']] == [
-        '[DESCRIPTION] 2.add-two-numbers', '2.add_two_numbers.cpp'], r.vars['windows']
+        '[DESCRIPTION] 2.add-two-numbers', 'p0002_add_two_numbers.cpp'], r.vars['windows']
+
+
+def test_old_style_file_names_still_work(scenario, lc):
+    """Solutions saved as 1.two_sum.cpp by earlier versions keep working."""
+    s = scenario().signed_in(lc.cookies)
+    s.step('edit 1.two_sum.cpp')
+    s.step('call setline(1, ["class Solution {};"])')
+    s.step('write')
+    s.step('LeetCodeTest')
+    s.capture('header', 'getline(1)')
+    s.step('q!')
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['header'].startswith('# 1. Two Sum:'), r.vars
+
+
+@pytest.mark.replay_only
+def test_problems_numbered_otherwise_use_the_slug(scenario, lc):
+    """leetcode.cn numbers some problems like "LCP 01": the file is named after
+    the slug alone, still a valid identifier."""
+    detail = json.loads(json.dumps(lc.server._lookup('graphql.getQuestionDetail', 'two-sum')[1]))
+    detail['json']['data']['question']['questionFrontendId'] = 'LCP 01'
+    lc.server.override('graphql.getQuestionDetail', detail)
+    problems = json.loads(json.dumps(lc.server._lookup('problems', 'all')[1]))
+    problems['json']['stat_status_pairs'][0]['stat']['frontend_question_id'] = 'LCP 01'
+    lc.server.override('problems', problems)
+    s = scenario().signed_in(lc.cookies)
+    s.step('LeetCodeOpen two-sum')
+    s.capture('name', "expand('%:t')")
+    r = s.run()
+    r.assert_ok()
+    assert r.vars['name'] == 'two_sum.cpp', r.vars

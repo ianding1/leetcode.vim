@@ -21,7 +21,7 @@ public:
 
 def with_solution(scenario, lc, cookies=None):
     s = scenario().signed_in(cookies or lc.cookies)
-    s.step('edit 1.two_sum.cpp')
+    s.step('edit p0001_two_sum.cpp')
     s.step('call setline(1, {})'.format(repr(SOLUTION.split('\n')).replace("'", '"')))
     s.step('write')
     return s
@@ -158,7 +158,7 @@ def test_run_does_not_mark_the_problem_solved(scenario, lc):
     s.step('LeetCodeList')
     s.goto(r'| Two Sum ')
     s.capture('before', "matchstr(getline('.'), '^|\\zs[^|]*')")
-    s.step('edit 1.two_sum.cpp')
+    s.step('edit p0001_two_sum.cpp')
     s.step('LeetCodeTest')
     s.step('wq')
     s.wait_for_buffer(RESULT)
@@ -267,7 +267,7 @@ def test_python_solution_runs_without_asking_which_python(scenario, lc, how):
     if how == 'opened':
         s.step('LeetCodeOpen 1')
     else:
-        s.step('edit 1.two_sum.py')
+        s.step('edit p0001_two_sum.py')
         s.step('call setline(1, ["class Solution:", "    def twoSum(self, nums, target):",'
                ' "        return [0, 1]"])')
     s.step('LeetCodeTest')

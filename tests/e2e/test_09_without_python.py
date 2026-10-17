@@ -36,7 +36,7 @@ def test_full_workflow_without_python(scenario, lc, bare_vim_env):
     assert any(line.startswith('  Accepted') for line in r.vars['test_result']), r.vars
     assert any(line.startswith('  Accepted') for line in r.vars['submit_result']), r.vars
     assert any('faster than 95.5%' in line for line in r.vars['submit_result']), r.vars
-    submission = r.text(r'^1\.two_sum\.123456\.cpp$')
+    submission = r.text(r'^p0001_two_sum_123456\.cpp$')
     assert submission and 'faster than 100.0%' in submission, r.describe()
     assert 'return {0, 1};' in submission
     assert any('Given an array of integers' in line for line in r.vars['desc']), r.vars['desc']

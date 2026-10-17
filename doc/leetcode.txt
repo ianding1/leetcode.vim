@@ -198,7 +198,11 @@ g:leetcode_solution_filetype
 
                                                   *g:leetcode_solution_dir*
 g:leetcode_solution_dir
-                    Where solution files are saved, e.g. 1.two_sum.cpp. A new
+                    Where solution files are saved, e.g. p0001_two_sum.cpp
+                    (no dot or leading digit: Rust takes its crate name
+                    from the file name, Python can't import names with
+                    dots). Files named 1.two_sum.cpp by earlier versions
+                    are still used. A new
                     solution (the template, or your latest submission in
                     that language) is written there as soon as you open the
                     problem; an existing file is opened as it is, so your

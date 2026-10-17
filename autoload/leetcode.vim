@@ -743,7 +743,10 @@ function! s:ProblemSlugFromFileName() abort
         return b:leetcode_slug
     endif
     let parts = split(expand('%:t:r'), '\.')  " Filename without the extension
-    if len(parts) == 1
+    if len(parts) == 1 && parts[0] =~# '^p\d\+_.'
+        " p0001_two_sum
+        return s:FileNameToSlug(substitute(parts[0], '^p\d\+_', '', ''))
+    elseif len(parts) == 1
         " Old style, e.g. two-sum
         return s:FileNameToSlug(parts[0])
     elseif len(parts) == 2 && parts[0] =~# '\v^[0-9]+$'
@@ -885,8 +888,19 @@ function! s:SolutionPath(problem) abort
     let dir = empty(g:leetcode_solution_dir) ? getcwd() : expand(g:leetcode_solution_dir)
     " :p ends in a slash only when the directory exists.
     let dir = substitute(fnamemodify(dir, ':p'), '[/\\]\=$', '/', '')
-    return dir . printf('%s.%s.%s', a:problem['fid'],
-                \ s:SlugToFileName(a:problem['slug']), s:SolutionFileExt(g:leetcode_solution_filetype))
+    let ext = '.' . s:SolutionFileExt(g:leetcode_solution_filetype)
+    " Earlier versions named it 1.two_sum.cpp: keep using such a file.
+    let old = dir . printf('%s.%s', a:problem['fid'], s:SlugToFileName(a:problem['slug'])) . ext
+    return filereadable(old) ? old : dir . s:SolutionBase(a:problem) . ext
+endfunction
+
+" A solution's file name without extension: p0001_two_sum, a valid identifier
+" in every language (Rust takes its crate name from it; Python modules can't
+" have dots). Problems not numbered with plain digits (leetcode.cn has some)
+" use the slug alone.
+function! s:SolutionBase(problem) abort
+    let name = s:SlugToFileName(a:problem['slug'])
+    return a:problem['fid'] =~# '^\d\+$' ? printf('p%04d_%s', str2nr(a:problem['fid']), name) : name
 endfunction
 
 " All problems: those of an open problem list, or downloaded once.
@@ -1434,7 +1448,7 @@ function! s:AskTestInputAndRunTest(problem, filetype, code) abort
     " A file of its own (in Vim's temporary directory) that :wq writes, named
     " after the problem.
     let file = fnamemodify(tempname(), ':h') . '/'
-                \ . printf('%s.%s.testcases', a:problem['fid'], s:SlugToFileName(a:problem['slug']))
+                \ . s:SolutionBase(a:problem) . '.testcases'
     " No file until :wq writes it, so :q! leaves none and nothing runs.
     call delete(file)
     execute 'rightbelow new ' . fnameescape(file)
@@ -1917,10 +1931,8 @@ function! s:HandleSubmissionsCR() abort
         return
     endif
 
-    let file_name = printf('%s.%s.%s.%s',
-                \ submission['problem_id'],
-                \ s:SlugToFileName(submission['slug']),
-                \ submission_id, s:SolutionFileExt(submission['filetype']))
+    let file_name = s:SolutionBase({'fid': submission['problem_id'], 'slug': submission['slug']})
+                \ . '_' . submission_id . '.' . s:SolutionFileExt(submission['filetype'])
 
     " Next to the list, in the window of the submission shown before, so
     " going down the list shows one after the other.
@@ -1949,6 +1961,7 @@ function! s:HandleSubmissionsCR() abort
     setlocal buftype=nofile bufhidden=hide noswapfile
     setlocal modifiable
     let b:leetcode_submission_view = 1
+    let b:leetcode_slug = submission['slug']
     let b:leetcode_filetype = submission['filetype']
 
     let filetype = submission['filetype']

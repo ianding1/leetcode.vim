@@ -90,8 +90,8 @@ def test_switching_problems_brings_their_descriptions(scenario, lc, two_problems
     s.capture('one', WINDOWS)
     r = s.run()
     r.assert_ok()
-    assert r.vars['two'] == ['[DESCRIPTION] 2.add-two-numbers', '2.add_two_numbers.cpp'], r.vars
-    assert r.vars['one'] == ['[DESCRIPTION] 1.two-sum', '1.two_sum.cpp'], r.vars
+    assert r.vars['two'] == ['[DESCRIPTION] 2.add-two-numbers', 'p0002_add_two_numbers.cpp'], r.vars
+    assert r.vars['one'] == ['[DESCRIPTION] 1.two-sum', 'p0001_two_sum.cpp'], r.vars
 
 
 def test_unsaved_solution_keeps_its_description(scenario, lc, two_problems):
@@ -104,8 +104,8 @@ def test_unsaved_solution_keeps_its_description(scenario, lc, two_problems):
     s.capture('windows', WINDOWS)
     r = s.run()
     r.assert_ok()
-    assert r.vars['windows'] == ['[DESCRIPTION] 1.two-sum', '1.two_sum.cpp',
-                                 '[DESCRIPTION] 2.add-two-numbers', '2.add_two_numbers.cpp'], \
+    assert r.vars['windows'] == ['[DESCRIPTION] 1.two-sum', 'p0001_two_sum.cpp',
+                                 '[DESCRIPTION] 2.add-two-numbers', 'p0002_add_two_numbers.cpp'], \
         r.vars
 
 
@@ -120,8 +120,9 @@ def test_tab_modifier_opens_a_problem_in_its_own_tab(scenario, lc, two_problems)
     r = s.run()
     r.assert_ok()
     assert r.vars['tabs'] == 2, r.vars
-    assert r.vars['second'] == ['[DESCRIPTION] 2.add-two-numbers', '2.add_two_numbers.cpp'], r.vars
-    assert r.vars['first'] == ['[DESCRIPTION] 1.two-sum', '1.two_sum.cpp'], r.vars
+    assert r.vars['second'] == ['[DESCRIPTION] 2.add-two-numbers',
+                                'p0002_add_two_numbers.cpp'], r.vars
+    assert r.vars['first'] == ['[DESCRIPTION] 1.two-sum', 'p0001_two_sum.cpp'], r.vars
 
 
 def test_a_second_run_starts_clean_and_cancelling_it_runs_nothing(scenario, lc):

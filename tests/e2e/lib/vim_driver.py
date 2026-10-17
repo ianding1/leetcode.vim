@@ -85,7 +85,7 @@ class Scenario:
             'leetcode_browser': 'paste',
             'leetcode_base_url': base_url,
             'leetcode_cookie_file': str(self.workdir / 'cookies.json'),
-            # Solutions go to the working directory, so buffers are 1.two_sum.cpp.
+            # Solutions go to the working directory, so buffers are p0001_two_sum.cpp.
             'leetcode_solution_dir': str(self.workdir),
             'leetcode_backend': backend,
         }

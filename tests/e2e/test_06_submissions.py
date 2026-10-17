@@ -36,7 +36,7 @@ def test_open_submission(scenario, lc):
     assert re.search(r'^\|✓\| 123456 \| 1 hour ago +\| Accepted +\| C\+\+ +\| +4 ms '
                      r'\| 10\.1 MB \|$', subs, re.M), subs
     assert re.search(r'^\|✗\| 123400 .*\| Wrong Answer .*\| Python3 ', subs, re.M), subs
-    text = r.text(r'^1\.two_sum\.123456\.cpp$')
+    text = r.text(r'^p0001_two_sum_123456\.cpp$')
     assert text is not None, r.describe()
     assert text.startswith('/* Submission 123456 · Two Sum\n'
                            ' * Accepted · 57/57 test cases passed\n'), text
@@ -54,7 +54,7 @@ def test_open_submission_shows_runtime_rank(scenario, lc):
     r = s.run()
     r.assert_ok()
     assert (' * Runtime 4 ms, faster than 100.0% · Memory 10.1 MB, less than 60.2%'
-            in r.text(r'^1\.two_sum\.123456\.cpp$')), r.describe()
+            in r.text(r'^p0001_two_sum_123456\.cpp$')), r.describe()
 
 
 @pytest.mark.replay_only
@@ -97,9 +97,9 @@ def test_submissions_replace_the_list_and_open_side_by_side(scenario, lc):
     r.assert_ok()
     assert r.vars['after_s'] == ['leetcode:///submissions/two-sum'], r.vars
     assert r.vars['windows'] == ['leetcode:///submissions/two-sum',
-                                 '1.two_sum.123400.py'], r.describe()
+                                 'p0001_two_sum_123400.py'], r.describe()
     assert r.vars['back'] == 'leetcode:///problems/all', r.vars
-    view = r.text(r'^1\.two_sum\.123400\.py$')
+    view = r.text(r'^p0001_two_sum_123400\.py$')
     assert view.startswith('# Submission 123400 · Two Sum\n'
                            '# Wrong Answer · 3/57 test cases passed\n'
                            '# Input:\n#     [3,2,4]\n#     6\n# Output:\n#     [0,1]\n'

@@ -99,7 +99,8 @@ Default value is `'cpp'`.
 
 ### `g:leetcode_solution_dir`
 
-Where solution files are saved (e.g. `~/leetcode/1.two_sum.cpp`). Opening a
+Where solution files are saved (e.g. `~/leetcode/p0001_two_sum.cpp`, a valid
+identifier in every language). Opening a
 problem writes its new solution file there right away; an existing file is
 opened as it is, never overwritten. `''` means the current directory.
 

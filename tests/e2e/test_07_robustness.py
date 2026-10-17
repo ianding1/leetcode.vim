@@ -13,7 +13,7 @@ SOLUTION = ['class Solution {', 'public:',
 
 def with_solution(scenario, lc):
     s = scenario().signed_in(lc.cookies)
-    s.step('edit 1.two_sum.cpp')
+    s.step('edit p0001_two_sum.cpp')
     s.step('call setline(1, {})'.format(str(SOLUTION).replace("'", '"')))
     s.step('write')
     return s
@@ -116,7 +116,7 @@ def test_typescript_solution(scenario, lc):
     s.press(r'\<CR>')
     r = s.run()
     r.assert_ok()
-    assert r.text(r'^1\.two_sum\.ts$') is not None, r.describe()
+    assert r.text(r'^p0001_two_sum\.ts$') is not None, r.describe()
     assert r.text(r'DESCRIPTION').startswith('# 1. Two Sum')
 
 
@@ -132,4 +132,4 @@ def test_open_submission_in_unknown_language(scenario, lc):
     s.press(r'\<CR>')
     r = s.run()
     r.assert_ok()
-    assert any(name.startswith('1.two_sum.123456.') for name in r.buffers), r.describe()
+    assert any(name.startswith('p0001_two_sum_123456.') for name in r.buffers), r.describe()
